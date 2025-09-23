@@ -17,6 +17,7 @@ public class JwtAuthFilter implements GlobalFilter {
     @Value("${jwt.secretKeyAt}")
     private String secretKeyAt;
 
+
     private static final List<String> ALLOWED_PATHS = List.of(
             "/member/create",
             "/member/doLogin",

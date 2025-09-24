@@ -13,4 +13,10 @@ public class HealthCheckController {
         String response = "ordering-service: OK";
         return ApiResponse.ok(response);
     }
+
+    @GetMapping("/health2")
+    public ResponseEntity<?> healthCheck2() {
+        String response = "ordering-service: OK";
+        return ApiResponse.ok(response);
+    }
 }

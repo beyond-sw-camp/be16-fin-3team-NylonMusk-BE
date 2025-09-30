@@ -1,10 +1,9 @@
-package com.beyond.MKX.domain.member.controller;
+package com.beyond.MKX.domain.admin.controller;
 
 import com.beyond.MKX.common.apiResponse.ApiResponse;
-import com.beyond.MKX.domain.member.dto.MemberResDto;
-import com.beyond.MKX.domain.member.entity.Member;
-import com.beyond.MKX.domain.member.repository.MemberRepository;
-import com.beyond.MKX.domain.member.service.MemberService;
+import com.beyond.MKX.domain.admin.dto.AdminResDto;
+import com.beyond.MKX.domain.admin.entity.Admin;
+import com.beyond.MKX.domain.admin.service.AdminService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,24 +16,23 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/member")
+@RequestMapping("/admin")
 @RequiredArgsConstructor
-public class MemberController {
-
-    private final MemberService memberService;
+public class AdminController  {
+    private final AdminService adminService;
 
     // Gateway에서 붙여준 X-User-Id → UUID 로 변환해서 사용
     @GetMapping("/me")
     public ResponseEntity<?> getMyInfo(@RequestHeader("X-User-Id") String userId) {
-        UUID memberId;
+        UUID adminId;
         try {
-            memberId = UUID.fromString(userId);
+            adminId = UUID.fromString(userId);
         } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "잘못된 사용자 ID 형식");
         }
 
-        Member member = memberService.getMemberById(memberId);
-        MemberResDto dto = MemberResDto.from(member);
+        Admin admin = adminService.getMemberById(adminId);
+        AdminResDto dto = AdminResDto.from(admin);
 
         return ApiResponse.ok(dto, "내 정보 조회 성공");
     }

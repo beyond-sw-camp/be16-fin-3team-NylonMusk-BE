@@ -13,7 +13,7 @@ import java.util.UUID;
 /**
  * HS512 + Base64 시크릿 키를 사용해 AT/RT를 발급/검증하는 서비스.
  * - expirationAt / expirationRt : application-local.yml 의 ms 단위 만료시간 사용
- * - AT(Access Token)에는 userId, roles(문자열) 같은 클레임을 포함
+ * - AT(Access Token)에는 userId, role(문자열) 같은 클레임을 포함
  * - RT(Refresh Token)에는 최소한 sub(userId) + jti(고유 ID)를 넣고, 서버 저장소에 jti를 기록해서 로테이션/블랙리스트 적용 권장
  */
 @Service
@@ -36,13 +36,13 @@ public class JwtService {
         return Keys.hmacShaKeyFor(keyBytes); // HS512 가능한 길이로 만들어짐
     }
 
-    /** Access Token 생성: userId + roles 포함, 짧은 수명 */
-    public String createAccessToken(UUID userId, String rolesCsv) {
+    /** Access Token 생성: userId + role 포함, 짧은 수명 */
+    public String createAccessToken(UUID userId, String role) {
         Date now = new Date();
         Date exp = new Date(now.getTime() + expirationAtMillis);
         return Jwts.builder()
                 .setSubject(userId.toString())         // sub = userId
-                .claim("roles", rolesCsv)                   // 예: ADMIN
+                .claim("role", role)                   // 예: ADMIN
                 .setIssuedAt(now)
                 .setExpiration(exp)
                 .signWith(keyFromBase64(secretKeyAtBase64), SignatureAlgorithm.HS512)

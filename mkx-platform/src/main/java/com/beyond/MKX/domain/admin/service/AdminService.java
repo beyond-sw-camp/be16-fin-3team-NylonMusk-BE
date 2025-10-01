@@ -1,8 +1,8 @@
 package com.beyond.MKX.domain.admin.service;
 
-import com.beyond.MKX.common.exception.DuplicateResourceException;
 import com.beyond.MKX.domain.admin.entity.Admin;
 import com.beyond.MKX.domain.admin.repository.AdminRepository;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +23,6 @@ public class AdminService {
      */
     public Admin getMemberById(UUID userId) {
         return adminRepository.findById(userId).orElseThrow(() ->
-                new DuplicateResourceException("회원 정보를 찾을 수 없습니다."));
+                new EntityNotFoundException("관리자를 찾을 수 없습니다."));
     }
 }

@@ -64,9 +64,9 @@ public class  AuthController {
         }
 
         // 2) 토큰 생성
-        String rolesCsv = admin.getRole().name();
+        String role = admin.getRole().name();
         String jti = jwtService.newJti();
-        String accessToken  = jwtService.createAccessToken(admin.getId(), rolesCsv);
+        String accessToken  = jwtService.createAccessToken(admin.getId(), role);
         String refreshToken = jwtService.createRefreshToken(admin.getId(), jti);
 
 
@@ -98,7 +98,7 @@ public class  AuthController {
         resp.addHeader(HttpHeaders.SET_COOKIE, rtCookie.toString());
         resp.addHeader(HttpHeaders.SET_COOKIE, csrfCookie.toString());
 
-        LoginResponseDto loginResponseDto = new LoginResponseDto(admin.getId(), admin.getEmail(), rolesCsv);
+        LoginResponseDto loginResponseDto = new LoginResponseDto(admin.getId(), admin.getEmail(), role);
         return ApiResponse.ok(loginResponseDto, "로그인 완료");
     }
 
@@ -137,10 +137,10 @@ public class  AuthController {
         // 4) 사용자 확인
         Admin admin = adminRepository.findById(userId)
                 .orElseThrow(() -> new BadCredentialsException("사용자 없음"));
-        String rolesCsv = admin.getRole().name();
+        String role = admin.getRole().name();
 
         // 5) 새 토큰 발급
-        String newAT = jwtService.createAccessToken(admin.getId(), rolesCsv);
+        String newAT = jwtService.createAccessToken(admin.getId(), role);
         String newJti = jwtService.newJti();
         String newRT = jwtService.createRefreshToken(admin.getId(), newJti);
         String newCSRF = UUID.randomUUID().toString();

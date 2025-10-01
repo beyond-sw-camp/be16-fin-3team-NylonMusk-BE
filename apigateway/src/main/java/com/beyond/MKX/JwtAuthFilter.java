@@ -67,12 +67,12 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
                     .getBody();
 
             String userId = claims.getSubject();
-            String roles  = claims.get("roles", String.class);
+            String role = claims.get("role", String.class);
 
             // 5) 내부 서비스로 전달할 헤더 추가
             ServerHttpRequest mutated = exchange.getRequest().mutate()
                     .header("X-User-Id", userId)
-                    .header("X-Roles", roles != null ? roles : "")
+                    .header("X-Role", role != null ? role : "")
                     .build();
 
             return chain.filter(exchange.mutate().request(mutated).build());

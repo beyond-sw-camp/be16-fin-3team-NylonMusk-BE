@@ -1,78 +1,117 @@
 package com.beyond.MKX;
 
 import io.jsonwebtoken.*;
+import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
-import org.springframework.http.HttpHeaders;
+import org.springframework.core.Ordered;
+import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.http.HttpCookie;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.List;
 
 @Component
-public class JwtAuthFilter implements GlobalFilter {
+public class JwtAuthFilter implements GlobalFilter, Ordered {
 
-    @Value("${jwt.secretKeyAt}")
-    private String secretKeyAt;
-
-
-    private static final List<String> ALLOWED_PATHS = List.of(
-            "/member/create",
-            "/member/doLogin",
-            "/member/refresh-token",
-            "/health"
+    // 화이트리스트 url
+    private static final List<String> AUTH_PATHS = List.of(
+            "/auth/**"
     );
 
-    @Override
+    private final SecretKey atKey;
+    private final AntPathMatcher pathMatcher = new AntPathMatcher();
+
+    public JwtAuthFilter(@Value("${jwt.secretKeyAt}") String secretKeyAtBase64) {
+        this.atKey = Keys.hmacShaKeyFor(Base64.getDecoder().decode(secretKeyAtBase64));
+    }
+
+        @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        // token 검증
-        System.out.println("token 검증 시작");
-        String bearerToken = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-        String path = exchange.getRequest().getURI().getRawPath();
-        System.out.println(path);
-        // 인증이 필요 없는 경로는 필터를 통과
-        if (ALLOWED_PATHS.contains(path)) {
-            System.out.println("pass url = " + path);
-            return chain.filter(exchange);
-        }
+            String path = exchange.getRequest().getURI().getRawPath();
+
+            // 1) OPTIONS (CORS preflight)는 항상 통과
+            if (HttpMethod.OPTIONS.equals(exchange.getRequest().getMethod())) {
+                return chain.filter(exchange);
+            }
+
+            // 2) 화이트리스트 패스
+            if (isAuthPath(path)) {
+                return chain.filter(exchange);
+            }
+
+            // 3) 쿠키 "AT" 추출
+        HttpCookie atCookie = exchange.getRequest().getCookies().getFirst("AT");
+
+            if (atCookie == null || atCookie.getValue() == null || atCookie.getValue().isBlank()) {
+                return unauthorized(exchange, "로그인이 필요합니다.");
+            }
 
         try {
-            if (bearerToken == null || !bearerToken.startsWith("Bearer ")) {
-                throw new IllegalArgumentException("token 관련 예외 발생");
-            }
-            String token = bearerToken.substring(7);
-
-            // token 검증 및 claims 추출
+            // 4) AT 검증(서명/만료) → 유효하면 클레임 추출
             Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(secretKeyAt)
+                    .setSigningKey(atKey)
                     .build()
-                    .parseClaimsJws(token)
+                    .parseClaimsJws(atCookie.getValue())
                     .getBody();
 
-            // 사용자 ID 추출
             String userId = claims.getSubject();
             String role = claims.get("role", String.class);
 
-            // 헤더에 X-User-Id변수로 id값 추가 및 ROLE 추가
-            // X를 붙이는 것은 custom header라는 것을 의미하는 널리 쓰이는 관례
-            ServerWebExchange modifiedExchange = exchange.mutate()
-                    .request(builder -> builder
-                            .header("X-User-Id", userId)
-                            .header("X-User-Role", "ROLE_" + role) // 역할 추가
-                    )
+            // 5) 내부 서비스로 전달할 헤더 추가
+            ServerHttpRequest mutated = exchange.getRequest().mutate()
+                    .header("X-User-Id", userId)
+                    .header("X-Role", role != null ? role : "")
                     .build();
 
-            // Spring Cloud Gateway는 여러 필터를 GatewayFilterChain이라는 구조로 관리
-            // 다시 filter chain으로 되돌아 가는 로직.
-            return chain.filter(modifiedExchange);
-        } catch (IllegalArgumentException | MalformedJwtException | ExpiredJwtException | SignatureException |
-                 UnsupportedJwtException e) {
-            e.printStackTrace();
-            exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-            return exchange.getResponse().setComplete();
+            return chain.filter(exchange.mutate().request(mutated).build());
+
+        } catch (JwtException e) {
+            // AT가 만료/위조/포맷오류 → 401
+            return unauthorized(exchange, "유효하지 않은 액세스 토큰");
         }
     }
-}
 
+    private boolean isAuthPath(String rawPath) {
+        String normalized = rawPath;
+        if (normalized.startsWith("/mkx-platform-service")) {
+            normalized = normalized.substring("/mkx-platform-service".length());
+        }
+        if (normalized.isEmpty()) {
+            normalized = "/";
+        }
+        for (String pattern : AUTH_PATHS) {
+            if (pathMatcher.match(pattern, normalized)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private Mono<Void> unauthorized(ServerWebExchange exchange, String message) {
+        exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+        exchange.getResponse().getHeaders().setContentType(MediaType.APPLICATION_JSON);
+        byte[] payload = String.format(
+                "{\"status_code\":401,\"status_message\":\"%s\"}", message
+        ).getBytes(StandardCharsets.UTF_8);
+        DataBuffer buffer = exchange.getResponse().bufferFactory().wrap(payload);
+        return exchange.getResponse().writeWith(Mono.just(buffer));
+    }
+
+    @Override
+    public int getOrder() {
+        // 인증은 최대한 먼저
+        return Ordered.HIGHEST_PRECEDENCE;
+    }
+}

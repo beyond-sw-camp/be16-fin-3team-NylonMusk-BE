@@ -33,7 +33,7 @@ public class Corporation extends BaseIdAndTimeEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
-    private Status status = Status.PENDING; // PENDING, ACTIVE, DELISTED
+    private Status status = Status.PENDING; // PENDING, ACTIVE, REJECTED, DELISTED
 
     // 설립일
     @Column(nullable = false)
@@ -62,4 +62,18 @@ public class Corporation extends BaseIdAndTimeEntity {
     // 법인인감증명서 url
     @Column(nullable = false, length = 512)
     private String corporateSealCert;
+
+    // 가입 거절 사유
+    @Column(length = 255)
+    private String rejectReason;
+
+    public void approve() {
+        this.status = Status.ACTIVE;
+        this.rejectReason = null;
+    }
+
+    public void reject(String reason) {
+        this.status = Status.REJECTED;
+        this.rejectReason = reason;
+    }
 }

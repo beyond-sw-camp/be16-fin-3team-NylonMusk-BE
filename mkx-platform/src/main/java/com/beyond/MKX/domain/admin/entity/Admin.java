@@ -54,4 +54,8 @@ public class Admin extends BaseIdAndTimeEntity {
     @ManyToOne
     @JoinColumn(name = "securities_firm_id")
     private SecuritiesFirm securitiesFirm;
+
+    public void changeStatus(Status status) {
+        this.status = status;
+    }
 }

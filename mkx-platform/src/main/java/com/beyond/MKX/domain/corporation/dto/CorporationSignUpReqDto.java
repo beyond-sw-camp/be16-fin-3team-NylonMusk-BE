@@ -7,10 +7,13 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 
 @Getter
+@Setter
 @NoArgsConstructor
 public class CorporationSignUpReqDto {
 
@@ -49,13 +52,11 @@ public class CorporationSignUpReqDto {
     @Positive(message = "연매출은 양수여야 합니다.")
     private Long recentAnnualSales;
 
-    @NotBlank(message = "사업자등록증 URL은 필수입니다.")
-    @Size(max = 512, message = "사업자등록증 URL은 512자 이하여야 합니다.")
-    private String businessRegistrationCert;
+    @NotNull(message = "사업자등록증 파일은 필수입니다.")
+    private MultipartFile businessRegistrationCertFile;
 
-    @NotBlank(message = "법인인감증명서 URL은 필수입니다.")
-    @Size(max = 512, message = "법인인감증명서 URL은 512자 이하여야 합니다.")
-    private String corporateSealCert;
+    @NotNull(message = "법인인감증명서 파일은 필수입니다.")
+    private MultipartFile corporateSealCertFile;
 
     @NotBlank(message = "관리자 이름은 필수입니다.")
     @Size(max = 10, message = "관리자 이름은 10자 이하여야 합니다.")

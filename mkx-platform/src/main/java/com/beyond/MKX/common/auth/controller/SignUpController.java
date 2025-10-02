@@ -8,9 +8,10 @@ import com.beyond.MKX.domain.securities_firm.dto.SecuritiesFirmSignUpReqDto;
 import com.beyond.MKX.domain.securities_firm.service.SecuritiesFirmService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -23,15 +24,15 @@ public class SignUpController {
     private final SecuritiesFirmService securitiesFirmService;
 
     // 기업 회원가입
-    @PostMapping("/corporation")
-    public ResponseEntity<?> corporationSignUp(@Valid @RequestBody CorporationSignUpReqDto request) {
+    @PostMapping(value = "/corporation", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> corporationSignUp(@Valid @ModelAttribute CorporationSignUpReqDto request) {
         Admin admin = corporationService.signUpAdmin(request);
         return ApiResponse.created(admin.getId(), "기업 관리자 가입 신청 완료");
     }
 
     // 증권사 회원가입
-    @PostMapping("/securities-firm")
-    public ResponseEntity<?> securitiesFirmSignUp(@Valid @RequestBody SecuritiesFirmSignUpReqDto request) {
+    @PostMapping(value = "/securities-firm", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> securitiesFirmSignUp(@Valid @ModelAttribute SecuritiesFirmSignUpReqDto request) {
         Admin admin = securitiesFirmService.signUpAdmin(request);
         return ApiResponse.created(admin.getId(), "증권사 관리자 가입 신청 완료");
     }

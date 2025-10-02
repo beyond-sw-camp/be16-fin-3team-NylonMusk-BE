@@ -6,10 +6,13 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 
 @Getter
+@Setter
 @NoArgsConstructor
 public class SecuritiesFirmSignUpReqDto {
 
@@ -44,17 +47,14 @@ public class SecuritiesFirmSignUpReqDto {
     @Size(max = 50, message = "금융투자업 인가번호는 50자 이하여야 합니다.")
     private String financialInvestmentLicenseNo;
 
-    @NotBlank(message = "금융투자업 인가증 URL은 필수입니다.")
-    @Size(max = 512, message = "금융투자업 인가증 URL은 512자 이하여야 합니다.")
-    private String financialInvestmentLicenseDoc;
+    @NotNull(message = "금융투자업 인가증 파일은 필수입니다.")
+    private MultipartFile financialInvestmentLicenseDocFile;
 
-    @NotBlank(message = "사업자등록증 URL은 필수입니다.")
-    @Size(max = 512, message = "사업자등록증 URL은 512자 이하여야 합니다.")
-    private String businessRegistrationCert;
+    @NotNull(message = "사업자등록증 파일은 필수입니다.")
+    private MultipartFile businessRegistrationCertFile;
 
-    @NotBlank(message = "법인인감증명서 URL은 필수입니다.")
-    @Size(max = 512, message = "법인인감증명서 URL은 512자 이하여야 합니다.")
-    private String corporateSealCert;
+    @NotNull(message = "법인인감증명서 파일은 필수입니다.")
+    private MultipartFile corporateSealCertFile;
 
     @NotNull(message = "거래소 수수료율은 필수입니다.")
     private Double exchangeFee;

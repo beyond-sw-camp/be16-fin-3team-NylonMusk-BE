@@ -36,7 +36,7 @@ public class SecuritiesFirm extends BaseIdAndTimeEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
-    private Status status = Status.PENDING; // PENDING, ACTIVE, DELISTED
+    private Status status = Status.PENDING; // PENDING, ACTIVE, REJECTED, DELISTED
 
     // 설립일
     @Column(nullable = false)
@@ -70,7 +70,21 @@ public class SecuritiesFirm extends BaseIdAndTimeEntity {
     @Column(nullable = false)
     private Double exchangeFee;
 
+    // 가입 거절 사유
+    @Column(length = 255)
+    private String rejectReason;
+
     public enum Status {
-        PENDING, ACTIVE, DELISTED
+        PENDING, ACTIVE, REJECTED, DELISTED
+    }
+
+    public void approve() {
+        this.status = Status.ACTIVE;
+        this.rejectReason = null;
+    }
+
+    public void reject(String reason) {
+        this.status = Status.REJECTED;
+        this.rejectReason = reason;
     }
 }

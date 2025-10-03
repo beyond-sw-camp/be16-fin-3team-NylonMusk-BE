@@ -1,6 +1,8 @@
 package com.beyond.MKX.domain.admin.entity;
 
 import com.beyond.MKX.common.domain.BaseIdAndTimeEntity;
+import com.beyond.MKX.domain.corporation.entity.Corporation;
+import com.beyond.MKX.domain.securities_firm.entity.SecuritiesFirm;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -40,5 +42,20 @@ public class Admin extends BaseIdAndTimeEntity {
     // 관리자 상태
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
-    private Status status;
+    @Builder.Default
+    private Status status = Status.PENDING;
+
+    // 소속 법인
+    @ManyToOne
+    @JoinColumn(name = "corporation_id")
+    private Corporation corporation;
+
+    // 소속 증권사
+    @ManyToOne
+    @JoinColumn(name = "securities_firm_id")
+    private SecuritiesFirm securitiesFirm;
+
+    public void changeStatus(Status status) {
+        this.status = status;
+    }
 }

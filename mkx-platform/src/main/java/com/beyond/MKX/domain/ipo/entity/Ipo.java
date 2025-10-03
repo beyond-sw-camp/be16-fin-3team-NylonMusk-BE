@@ -53,6 +53,7 @@ public class Ipo extends BaseIdAndTimeEntity {
     @Builder.Default
     private Double lockupRatio = 1.0; // 기본값: 서비스 계층에서 1.0 세팅!
 
+    @Column(columnDefinition = "TEXT")
     private String rejectReason;
 
     /* 보호예수 해제일 */

@@ -33,10 +33,11 @@ public class CsrfFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
         String method = request.getMethod();
 
-        // 로그인/토큰/로그아웃 같은 경로는 CSRF 검증 제외
-        if (    path.startsWith("/auth/login") ||
+        // 로그인/토큰/가입 등 공개 경로는 CSRF 검증 제외
+        if (path.startsWith("/auth/login") ||
                 path.startsWith("/auth/refresh") ||
-                path.startsWith("/auth/logout")) {
+                path.startsWith("/auth/logout") ||
+                path.startsWith("/auth/signup"))  {
             filterChain.doFilter(request, response);
             return;
         }

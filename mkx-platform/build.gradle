@@ -54,7 +54,7 @@ dependencies {
 	implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
 
 	// 401처리 위함
-	implementation 'org.springframework.security:spring-security-core'
+	implementation 'org.springframework.boot:spring-boot-starter-security'
 
 	// @ConfigurationProperties 메타데이터 생성용 (IDE 자동완성 지원)
 	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'

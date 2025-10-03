@@ -72,7 +72,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             // 5) 내부 서비스로 전달할 헤더 추가
             ServerHttpRequest mutated = exchange.getRequest().mutate()
                     .header("X-User-Id", userId)
-                    .header("X-Role", role != null ? role : "")
+                    .header("X-User-Role", role != null ? role : "")
                     .build();
 
             return chain.filter(exchange.mutate().request(mutated).build());

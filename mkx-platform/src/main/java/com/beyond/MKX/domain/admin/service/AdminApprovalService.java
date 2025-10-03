@@ -46,26 +46,26 @@ public class AdminApprovalService {
 
     @Transactional(readOnly = true)
     // EXCHANGE 상세 조회 - 기업 신청 + 대표 관리자 정보 포함 반환
-    public CorporationSignUpApprovalDto getCorporationDetail(UUID corporationId) {
+    public CorporationSignUpApprovalDetailDto getCorporationDetail(UUID corporationId) {
         Corporation corporation = corporationRepository.findById(corporationId)
                 .orElseThrow(() -> new EntityNotFoundException("기업 신청을 찾을 수 없습니다."));
 
         Admin admin = adminRepository.findByCorporation(corporation)
                 .orElseThrow(() -> new EntityNotFoundException("기업 관리자 정보를 찾을 수 없습니다."));
 
-        return CorporationSignUpApprovalDto.from(corporation, AdminSummaryDto.from(admin));
+        return CorporationSignUpApprovalDetailDto.from(corporation, AdminSummaryDto.from(admin));
     }
 
     @Transactional(readOnly = true)
     // EXCHANGE 상세 조회 - 증권사 신청 + 대표 관리자 정보 포함 반환
-    public SecuritiesFirmSignUpApprovalDto getSecuritiesFirmDetail(UUID securitiesFirmId) {
+    public SecuritiesFirmSignUpApprovalDetailDto getSecuritiesFirmDetail(UUID securitiesFirmId) {
         SecuritiesFirm firm = securitiesFirmRepository.findById(securitiesFirmId)
                 .orElseThrow(() -> new EntityNotFoundException("증권사 신청을 찾을 수 없습니다."));
 
         Admin admin = adminRepository.findBySecuritiesFirm(firm)
                 .orElseThrow(() -> new EntityNotFoundException("증권사 관리자 정보를 찾을 수 없습니다."));
 
-        return SecuritiesFirmSignUpApprovalDto.from(firm, AdminSummaryDto.from(admin));
+        return SecuritiesFirmSignUpApprovalDetailDto.from(firm, AdminSummaryDto.from(admin));
     }
 
     @Transactional(readOnly = true)
@@ -77,14 +77,14 @@ public class AdminApprovalService {
         if (admin.getCorporation() != null) {
             Corporation corporation = admin.getCorporation();
             return MySignUpStatusDto.ofCorporation(
-                    CorporationSignUpApprovalDto.from(corporation, AdminSummaryDto.from(admin))
+                    CorporationSignUpApprovalDetailDto.from(corporation, AdminSummaryDto.from(admin))
             );
         }
 
         if (admin.getSecuritiesFirm() != null) {
             SecuritiesFirm firm = admin.getSecuritiesFirm();
             return MySignUpStatusDto.ofSecuritiesFirm(
-                    SecuritiesFirmSignUpApprovalDto.from(firm, AdminSummaryDto.from(admin))
+                    SecuritiesFirmSignUpApprovalDetailDto.from(firm, AdminSummaryDto.from(admin))
             );
         }
 

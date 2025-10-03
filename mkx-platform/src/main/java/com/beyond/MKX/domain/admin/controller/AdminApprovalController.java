@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/admin/approvals")
+@RequestMapping("/admin/approval-requests")
 @RequiredArgsConstructor
 public class AdminApprovalController {
 

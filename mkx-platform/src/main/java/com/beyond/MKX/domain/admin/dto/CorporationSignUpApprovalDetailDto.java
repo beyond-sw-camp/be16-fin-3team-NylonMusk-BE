@@ -11,7 +11,7 @@ import java.util.UUID;
 
 @Getter
 @Builder
-public class CorporationSignUpApprovalDto {
+public class CorporationSignUpApprovalDetailDto {
 
     private UUID corporationId;
     private String nameKo;
@@ -30,8 +30,8 @@ public class CorporationSignUpApprovalDto {
     private LocalDateTime createdAt;
     private AdminSummaryDto admin;
 
-    public static CorporationSignUpApprovalDto from(Corporation corporation, AdminSummaryDto admin) {
-        return CorporationSignUpApprovalDto.builder()
+    public static CorporationSignUpApprovalDetailDto from(Corporation corporation, AdminSummaryDto admin) {
+        return CorporationSignUpApprovalDetailDto.builder()
                 .corporationId(corporation.getId())
                 .nameKo(corporation.getNameKo())
                 .nameEng(corporation.getNameEng())

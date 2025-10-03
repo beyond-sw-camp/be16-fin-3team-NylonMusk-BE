@@ -6,20 +6,20 @@ import lombok.Getter;
 @Getter
 @Builder
 public class MySignUpStatusDto {
-    private String type; // CORPORATION or SECURITIES_FIRM
-    private CorporationSignUpApprovalDto corporation;
-    private SecuritiesFirmSignUpApprovalDto securitiesFirm;
+    private SignUpType type;
+    private CorporationSignUpApprovalDetailDto corporation;
+    private SecuritiesFirmSignUpApprovalDetailDto securitiesFirm;
 
-    public static MySignUpStatusDto ofCorporation(CorporationSignUpApprovalDto corporationDto) {
+    public static MySignUpStatusDto ofCorporation(CorporationSignUpApprovalDetailDto corporationDto) {
         return MySignUpStatusDto.builder()
-                .type("CORPORATION")
+                .type(SignUpType.CORPORATION)
                 .corporation(corporationDto)
                 .build();
     }
 
-    public static MySignUpStatusDto ofSecuritiesFirm(SecuritiesFirmSignUpApprovalDto securitiesFirmDto) {
+    public static MySignUpStatusDto ofSecuritiesFirm(SecuritiesFirmSignUpApprovalDetailDto securitiesFirmDto) {
         return MySignUpStatusDto.builder()
-                .type("SECURITIES_FIRM")
+                .type(SignUpType.SECURITIES_FIRM)
                 .securitiesFirm(securitiesFirmDto)
                 .build();
     }

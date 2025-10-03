@@ -10,7 +10,7 @@ import java.util.UUID;
 
 @Getter
 @Builder
-public class SecuritiesFirmSignUpApprovalDto {
+public class SecuritiesFirmSignUpApprovalDetailDto {
 
     private UUID securitiesFirmId;
     private String nameKo;
@@ -30,8 +30,8 @@ public class SecuritiesFirmSignUpApprovalDto {
     private LocalDateTime createdAt;
     private AdminSummaryDto admin;
 
-    public static SecuritiesFirmSignUpApprovalDto from(SecuritiesFirm firm, AdminSummaryDto admin) {
-        return SecuritiesFirmSignUpApprovalDto.builder()
+    public static SecuritiesFirmSignUpApprovalDetailDto from(SecuritiesFirm firm, AdminSummaryDto admin) {
+        return SecuritiesFirmSignUpApprovalDetailDto.builder()
                 .securitiesFirmId(firm.getId())
                 .nameKo(firm.getNameKo())
                 .nameEng(firm.getNameEng())

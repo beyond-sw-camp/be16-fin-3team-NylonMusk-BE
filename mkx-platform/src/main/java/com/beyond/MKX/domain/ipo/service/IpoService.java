@@ -4,6 +4,7 @@ import com.beyond.MKX.domain.ipo.dto.IpoCreateReqDTO;
 import com.beyond.MKX.domain.ipo.dto.IpoListReqDTO;
 import com.beyond.MKX.domain.ipo.dto.IpoReviewReqDTO;
 import com.beyond.MKX.domain.ipo.entity.Ipo;
+import com.beyond.MKX.domain.ipo.entity.IpoStatus;
 import com.beyond.MKX.domain.ipo.repository.IpoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -53,10 +54,12 @@ public class IpoService {
     public Ipo list(UUID ipoId, IpoListReqDTO ipoListReqDTO) {
         Ipo ipo = ipoRepository.findById(ipoId).orElseThrow(() -> new IllegalArgumentException("심사된 IPO가 없습니다."));
 
-        LocalDateTime now = LocalDateTime.now(clock);
+        if (ipo.getStatus() != IpoStatus.APPROVED) {
+            throw new IllegalArgumentException("승인(APPROVED)된 건만 상장 확정할 수 있습니다.");
+        }
 
 //        공모 없는 상장이므로, priceOnListing 여기서 확정
-        ipo.list(now, ipoListReqDTO.getPriceOnListing());
+        ipo.list(LocalDateTime.now(clock), ipoListReqDTO.getPriceOnListing());
         return ipo;
     }
 

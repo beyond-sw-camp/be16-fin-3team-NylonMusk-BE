@@ -1,10 +1,8 @@
 package com.beyond.MKX.domain.ipo.entity;
 
 import com.beyond.MKX.common.domain.BaseIdAndTimeEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
+import com.beyond.MKX.domain.corporation.entity.Corporation;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -12,6 +10,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Getter
@@ -19,7 +18,10 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Ipo extends BaseIdAndTimeEntity {
-//    TODO: 기업 아이디 (corporation_id FK 추가 예정)
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "corporation_id")
+    private Corporation corporation;
 
     /* 심볼명 */
     @Column(length = 50, nullable = false, unique = true)
@@ -103,8 +105,15 @@ public class Ipo extends BaseIdAndTimeEntity {
 
     public void list(LocalDateTime listingAt, Long priceOnListing) {
         if (this.status != IpoStatus.APPROVED) {
-            throw new IllegalStateException("APPROVED 상태만 LISTED 전환 가능합니다.");
+            throw new IllegalArgumentException("APPROVED 상태만 LISTED 전환 가능합니다.");
         }
+        if (this.listingAt != null || this.status == IpoStatus.LISTED) {
+            throw new IllegalArgumentException("이미 상장된 건입니다.");
+        }
+        if (priceOnListing == null || priceOnListing <= 0) {
+            throw new IllegalArgumentException("상장 기준가(시초가)는 양수여야 합니다.");
+        }
+
         this.listingAt = listingAt;
         this.priceOnListing = priceOnListing;
         applyLockupDefault();

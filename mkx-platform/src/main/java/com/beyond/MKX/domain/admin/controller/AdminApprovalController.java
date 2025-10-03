@@ -104,7 +104,7 @@ public class AdminApprovalController {
         return ApiResponse.ok(dto, "내 가입 신청 상태 조회 성공");
     }
 
-    private UUID parseUserId(String userId) {
+    public UUID parseUserId(String userId) {
         try {
             return UUID.fromString(userId);
         } catch (IllegalArgumentException e) {
@@ -112,14 +112,14 @@ public class AdminApprovalController {
         }
     }
 
-    private void requireRole(String roleHeader, Role expected) {
+    public void requireRole(String roleHeader, Role expected) {
         Role role = parseRole(roleHeader);
         if (role != expected) {
             throw new IllegalArgumentException("요청 권한이 없습니다.");
         }
     }
 
-    private Role parseRole(String roleHeader) {
+    public Role parseRole(String roleHeader) {
         try {
             return Role.valueOf(roleHeader.toUpperCase());
         } catch (IllegalArgumentException e) {

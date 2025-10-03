@@ -98,7 +98,12 @@ public class  AuthController {
         resp.addHeader(HttpHeaders.SET_COOKIE, rtCookie.toString());
         resp.addHeader(HttpHeaders.SET_COOKIE, csrfCookie.toString());
 
-        LoginResponseDto loginResponseDto = new LoginResponseDto(admin.getId(), admin.getEmail(), role);
+        LoginResponseDto loginResponseDto = LoginResponseDto.builder()
+                .userId(admin.getId())
+                .email(admin.getEmail())
+                .role(role)
+                .status(admin.getStatus().name())
+                .build();
         return ApiResponse.ok(loginResponseDto, "로그인 완료");
     }
 

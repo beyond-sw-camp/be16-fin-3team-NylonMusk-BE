@@ -15,5 +15,6 @@ public class LoginResponseDto {
     private UUID userId;
     private String email;
     private String role;
+    private String status;
 
 }

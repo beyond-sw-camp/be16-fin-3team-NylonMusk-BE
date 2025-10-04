@@ -6,6 +6,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.MappedSuperclass;
 import lombok.Getter;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @MappedSuperclass
@@ -15,4 +16,7 @@ public abstract class BaseIdAndTimeEntity extends BaseTimeEntity {
     @GeneratedValue
     @Column(name = "id", nullable = false, updatable = false)
     private UUID id;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
 }

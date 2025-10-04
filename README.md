@@ -39,8 +39,10 @@
     <a href="#demo">7. 발표 시나리오(데모 동선)</a><br />
     <a href="#reqspec">8. 요구사항 명세(이미지·URL)</a><br />
     <a href="#wbs">9. WBS(이미지·URL)</a><br />
-    <a href="#team">10. 팀 소개</a><br />
-    <a href="#timeline">11. 일정</a><br />
+    <a href="#figma">10. 피그마(이미지·URL)</a><br />
+    <a href="#erd">11. 피그마(이미지·URL)</a><br />
+    <a href="#team">12. 팀 소개</a><br />
+    <a href="#timeline">13 일정</a><br />
   </div>
 
   <hr/>
@@ -184,8 +186,23 @@
     </div>
   </section>
 
+  <section id="figma">
+    <h2>10) 화면설계도</h2>
+    <div class="card">
+      <p><a href="https://www.figma.com/design/e0qAws8lXICFIVqCcyxCy6/%EC%A0%9C%EB%AA%A9-%EC%97%86%EC%9D%8C?node-id=2-439&t=isFparErgr1XIkiz-1" target="_blank" rel="noopener">피그마 URL</a></p>
+    </div>
+  </section>
+
+  <section id="erd">
+    <h2>10) ERD</h2>
+    <div class="card">
+      <p><a href="https://www.erdcloud.com/d/T6DQu8zAzzw2Pj6FS" target="_blank" rel="noopener">ERD URL</a></p>
+      <img width="5660" height="4002" alt="주식 (2)" src="https://github.com/user-attachments/assets/08ddddc7-1481-423e-a55c-795ea492f676" />
+    </div>
+  </section>
+
   <section id="team">
-    <h2>10) 팀 소개</h2>
+    <h2>12) 팀 소개</h2>
     <table>
       <thead><tr><th>이름</th><th>역할</th><th>주요 담당</th></tr></thead>
       <tbody>
@@ -199,7 +216,7 @@
   </section>
 
   <section id="timeline">
-    <h2>11) 일정</h2>
+    <h2>13) 일정</h2>
     <ul>
       <li><strong>프로젝트 시작:</strong> 2025-09-12</li>
       <li><strong>프로젝트 종료:</strong> 2025-11-12</li>

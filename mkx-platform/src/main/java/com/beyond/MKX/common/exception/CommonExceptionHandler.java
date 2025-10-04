@@ -5,11 +5,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-
-import javax.naming.AuthenticationException;
+import java.nio.file.AccessDeniedException;
 import java.util.NoSuchElementException;
 
 @RestControllerAdvice
@@ -64,13 +64,26 @@ public class CommonExceptionHandler {
 
     }
 
-    @ExceptionHandler(AuthenticationException.class)
-    public ResponseEntity<?> authenticationException(AuthenticationException e) {
-        log.error("[AuthenticationException] code = {}, message = {}", HttpStatus.FORBIDDEN, e.getMessage());
+    // 403 Forbidden: 인가되지 않음 (권한 없음)
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<?> AccessDeniedException(AccessDeniedException e) {
+        log.error("[AccessDeniedException] code = {}, message = {}", HttpStatus.FORBIDDEN, e.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(CommonErrorDTO.builder()
                         .status_message(e.getMessage())
                         .status_code(HttpStatus.FORBIDDEN.value())
+                        .build()
+                );
+    }
+
+    // 401 Unauthorized: 인증되지 않음 (로그인 필요)
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<?> authorizedException(AuthenticationException e) {
+        log.error("[AuthenticationException] code = {}, message = {}", HttpStatus.UNAUTHORIZED, e.getMessage());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(CommonErrorDTO.builder()
+                        .status_message(e.getMessage())
+                        .status_code(HttpStatus.UNAUTHORIZED.value())
                         .build()
                 );
     }

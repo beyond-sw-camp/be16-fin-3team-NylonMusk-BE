@@ -1,16 +1,18 @@
 package com.beyond.MKX;
 
-import io.jsonwebtoken.*;
-import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.SignatureAlgorithm;
+import jakarta.annotation.PostConstruct;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
-import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpCookie;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.util.AntPathMatcher;
@@ -18,100 +20,132 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 @Component
 public class JwtAuthFilter implements GlobalFilter, Ordered {
 
-    // 화이트리스트 url
-    private static final List<String> AUTH_PATHS = List.of(
-            "/auth/**"
-    );
+    private static final Logger log = LoggerFactory.getLogger(JwtAuthFilter.class);
 
-    private final SecretKey atKey;
+    private final String secretKeyValue;
+    private SecretKey atKey;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
-    public JwtAuthFilter(@Value("${jwt.secretKeyAt}") String secretKeyAtBase64) {
-        this.atKey = Keys.hmacShaKeyFor(Base64.getDecoder().decode(secretKeyAtBase64));
+    private static final List<String> AUTH_PATHS = List.of(
+            "/auth/**",
+            "/health"
+    );
+
+    private static final Set<String> SERVICE_PREFIXES = Set.of(
+            "/mkx-platform-service",
+            "/ordering-service",
+            "/matching-engine-service",
+            "/marketData-service"
+    );
+
+    public JwtAuthFilter(@Value("${jwt.secretKeyAt}") String secretKeyAtValue) {
+        this.secretKeyValue = secretKeyAtValue;
     }
 
-        @Override
+    @Override
+    public int getOrder() {
+        return -100;
+    }
+
+    @PostConstruct
+    public void initKey() {
+        this.atKey = decodeKey(secretKeyValue);
+    }
+
+    private SecretKey decodeKey(String value) {
+        byte[] keyBytes;
+        try {
+            keyBytes = Base64.getDecoder().decode(value);
+        } catch (IllegalArgumentException ex) {
+            keyBytes = value.getBytes(StandardCharsets.UTF_8);
+        }
+        return new SecretKeySpec(keyBytes, SignatureAlgorithm.HS512.getJcaName());
+    }
+
+    @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-            String path = exchange.getRequest().getURI().getRawPath();
+        ServerHttpRequest request = exchange.getRequest();
+        String rawPath = request.getURI().getPath();
+        String normalizedPath = normalizePath(rawPath);
 
-            // 1) OPTIONS (CORS preflight)는 항상 통과
-            if (HttpMethod.OPTIONS.equals(exchange.getRequest().getMethod())) {
-                return chain.filter(exchange);
+        if (isAuthPath(normalizedPath)) {
+            return chain.filter(exchange);
+        }
+
+        HttpCookie cookie = request.getCookies().getFirst("AT");
+        if (cookie == null) {
+            if (log.isWarnEnabled()) {
+                log.warn("AT cookie missing for path {}", rawPath);
             }
+            exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+            return exchange.getResponse().setComplete();
+        }
 
-            // 2) 화이트리스트 패스
-            if (isAuthPath(path)) {
-                return chain.filter(exchange);
-            }
-
-            // 3) 쿠키 "AT" 추출
-        HttpCookie atCookie = exchange.getRequest().getCookies().getFirst("AT");
-
-            if (atCookie == null || atCookie.getValue() == null || atCookie.getValue().isBlank()) {
-                return unauthorized(exchange, "로그인이 필요합니다.");
-            }
+        String token = cookie.getValue();
+        if (log.isWarnEnabled()) {
+            log.warn("AT token for {} -> {}", rawPath, token);
+        }
 
         try {
-            // 4) AT 검증(서명/만료) → 유효하면 클레임 추출
             Claims claims = Jwts.parserBuilder()
                     .setSigningKey(atKey)
                     .build()
-                    .parseClaimsJws(atCookie.getValue())
+                    .parseClaimsJws(token)
                     .getBody();
 
-            String userId = claims.getSubject();
-            String role = claims.get("role", String.class);
+            String userId = Optional.ofNullable(claims.getSubject()).orElse("");
+            String role = Optional.ofNullable(claims.get("role", String.class)).orElse("");
 
-            // 5) 내부 서비스로 전달할 헤더 추가
-            ServerHttpRequest mutated = exchange.getRequest().mutate()
+            ServerHttpRequest mutated = request.mutate()
                     .header("X-User-Id", userId)
-                    .header("X-User-Role", role != null ? role : "")
+                    .header("X-User-Role", role)
                     .build();
 
             return chain.filter(exchange.mutate().request(mutated).build());
-
         } catch (JwtException e) {
-            // AT가 만료/위조/포맷오류 → 401
-            return unauthorized(exchange, "유효하지 않은 액세스 토큰");
+            if (log.isWarnEnabled()) {
+                log.warn("Invalid AT for path {}: {}", rawPath, e.getMessage());
+            }
+            exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+            return exchange.getResponse().setComplete();
         }
     }
 
-    private boolean isAuthPath(String rawPath) {
-        String normalized = rawPath;
-        if (normalized.startsWith("/mkx-platform-service")) {
-            normalized = normalized.substring("/mkx-platform-service".length());
-        }
-        if (normalized.isEmpty()) {
-            normalized = "/";
-        }
+    private boolean isAuthPath(String path) {
+        String candidate = path.isEmpty() ? "/" : path;
         for (String pattern : AUTH_PATHS) {
-            if (pathMatcher.match(pattern, normalized)) {
+            if (pathMatcher.match(pattern, candidate)) {
                 return true;
             }
         }
         return false;
     }
 
-    private Mono<Void> unauthorized(ServerWebExchange exchange, String message) {
-        exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-        exchange.getResponse().getHeaders().setContentType(MediaType.APPLICATION_JSON);
-        byte[] payload = String.format(
-                "{\"status_code\":401,\"status_message\":\"%s\"}", message
-        ).getBytes(StandardCharsets.UTF_8);
-        DataBuffer buffer = exchange.getResponse().bufferFactory().wrap(payload);
-        return exchange.getResponse().writeWith(Mono.just(buffer));
-    }
+    private String normalizePath(String rawPath) {
+        if (rawPath == null || rawPath.isEmpty()) {
+            return "/";
+        }
 
-    @Override
-    public int getOrder() {
-        // 인증은 최대한 먼저
-        return Ordered.HIGHEST_PRECEDENCE;
+        for (String prefix : SERVICE_PREFIXES) {
+            if (rawPath.equals(prefix)) {
+                return "/";
+            }
+            if (rawPath.startsWith(prefix + "/")) {
+                String trimmed = rawPath.substring(prefix.length());
+                return trimmed.isEmpty() ? "/" : trimmed;
+            }
+        }
+
+        return rawPath;
     }
 }

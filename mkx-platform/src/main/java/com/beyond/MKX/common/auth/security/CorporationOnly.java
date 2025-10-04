@@ -13,6 +13,6 @@ import java.lang.annotation.Target;
  */
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
-@PreAuthorize("hasRole('CORPORATION') and principal != null and @accessGuard.isActiveAdmin(principal.id)")
+@PreAuthorize("hasRole('CORPORATION') and principal != null and @adminAccessGuard.isActiveAdmin(principal.id)")
 public @interface CorporationOnly {
 }

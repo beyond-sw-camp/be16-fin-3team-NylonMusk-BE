@@ -2,6 +2,8 @@ package com.beyond.MKX.common.auth.security;
 
 import com.beyond.MKX.domain.admin.entity.Admin;
 import com.beyond.MKX.domain.admin.repository.AdminRepository;
+import com.beyond.MKX.domain.member.entity.Member;
+import com.beyond.MKX.domain.member.repository.MemberRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -23,7 +25,6 @@ import java.util.UUID;
 
 /**
  * GatewayHeaderAuthFilter
- *
  * Gateway가 붙여준 헤더를 읽어 인증 객체(Authentication)를 SecurityContext에 심는 필터
  */
 @Slf4j
@@ -32,12 +33,12 @@ import java.util.UUID;
 public class GatewayHeaderAuthFilter extends OncePerRequestFilter {
 
     private final AdminRepository adminRepository;
+    private final MemberRepository memberRepository;
 
     // 화이트리스트: 인증 체크 없이 통과할 경로들
     private static final AntPathMatcher MATCHER = new AntPathMatcher();
     private static final List<String> WHITELIST = List.of(
-            "/auth/**",
-            "/actuator/**"
+            "/auth/**"
     );
 
     @Override
@@ -54,42 +55,60 @@ public class GatewayHeaderAuthFilter extends OncePerRequestFilter {
         }
 
         // (2) 헤더에서 값 꺼내기
-        String userHeader = request.getHeader("X-User-Id");   // 관리자 ID (UUID)
-        String roleHeader = request.getHeader("X-User-Role"); // 관리자 권한 (EXCHANGE, CORPORATION, BROKERAGE)
+        String userHeader = request.getHeader("X-User-Id");   // 사용자 ID (UUID)
+        String roleHeader = request.getHeader("X-User-Role"); // 역할 (관리자: EXCHANGE 등 / 회원: MEMBER)
 
         // 헤더 없으면 그냥 통과 (인증 없음 → SecurityContext 비어있음)
         if (userHeader == null || roleHeader == null) {
+            log.warn("Missing auth headers: user={}, role={}, uri={}", userHeader, roleHeader, uri);
             filterChain.doFilter(request, response);
             return;
         }
 
         try {
             // (3) UUID 변환
-            UUID adminId = UUID.fromString(userHeader);
+            UUID userId = UUID.fromString(userHeader);
 
-            // (4) DB 조회
-            Optional<Admin> adminOpt = adminRepository.findById(adminId);
-            if (adminOpt.isEmpty()) {
-                // DB에 없으면 인증 제거 후 통과
-                SecurityContextHolder.clearContext();
-                filterChain.doFilter(request, response);
-                return;
+            if ("MEMBER".equalsIgnoreCase(roleHeader)) {
+                // 회원 인증 처리
+                Optional<Member> memberOpt = memberRepository.findById(userId);
+                if (memberOpt.isEmpty()) {
+                    log.warn("Member not found for id {}", userId);
+                    SecurityContextHolder.clearContext();
+                    filterChain.doFilter(request, response);
+                    return;
+                }
+
+                Member member = memberOpt.get();
+                CustomMemberPrincipal principal = new CustomMemberPrincipal(member.getId(), member.getStatus());
+                Authentication authentication = new UsernamePasswordAuthenticationToken(
+                        principal,
+                        null,
+                        List.of(new SimpleGrantedAuthority("ROLE_MEMBER"))
+                );
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+            } else {
+                // 관리자 인증 처리 (기존 로직)
+                Optional<Admin> adminOpt = adminRepository.findById(userId);
+                if (adminOpt.isEmpty()) {
+                    log.warn("Admin not found for id {}", userId);
+                    // DB에 없으면 인증 제거 후 통과
+                    SecurityContextHolder.clearContext();
+                    filterChain.doFilter(request, response);
+                    return;
+                }
+
+                Admin admin = adminOpt.get();
+                CustomAdminPrincipal principal =
+                        new CustomAdminPrincipal(admin.getId(), admin.getRole(), admin.getStatus());
+
+                Authentication authentication = new UsernamePasswordAuthenticationToken(
+                        principal,
+                        null,
+                        List.of(new SimpleGrantedAuthority("ROLE_" + admin.getRole().name()))
+                );
+                SecurityContextHolder.getContext().setAuthentication(authentication);
             }
-
-            // (5) Admin 존재 → Principal 생성
-            Admin admin = adminOpt.get();
-            CustomAdminPrincipal principal =
-                    new CustomAdminPrincipal(admin.getId(), admin.getRole(), admin.getStatus());
-
-            // (6) Authentication 객체 생성 (권한은 ROLE_XXX 형태)
-            Authentication authentication = new UsernamePasswordAuthenticationToken(
-                    principal,
-                    null,
-                    List.of(new SimpleGrantedAuthority("ROLE_" + admin.getRole().name()))
-            );
-
-            // (7) SecurityContext 에 등록
-            SecurityContextHolder.getContext().setAuthentication(authentication);
 
         } catch (IllegalArgumentException ex) {
             // UUID 변환 실패 시
@@ -105,4 +124,3 @@ public class GatewayHeaderAuthFilter extends OncePerRequestFilter {
         return WHITELIST.stream().anyMatch(pattern -> MATCHER.match(pattern, uri));
     }
 }
-

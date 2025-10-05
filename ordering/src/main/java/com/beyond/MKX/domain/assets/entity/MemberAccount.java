@@ -1,10 +1,7 @@
 package com.beyond.MKX.domain.assets.entity;
 
 import com.beyond.MKX.common.domain.BaseIdAndTimeEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Index;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -38,6 +35,10 @@ public class MemberAccount extends BaseIdAndTimeEntity {
 
     @Column(name = "account_number", nullable = false, columnDefinition = "VARCHAR(20)")
     private String number;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private AccountStatus status;
 
     @Column(nullable = false)
     @Builder.Default

@@ -1,0 +1,50 @@
+package com.beyond.MKX.domain.ipo.controller;
+
+import com.beyond.MKX.common.apiResponse.ApiResponse;
+import com.beyond.MKX.domain.admin.controller.AdminApprovalController;
+import com.beyond.MKX.domain.admin.entity.Role;
+import com.beyond.MKX.domain.ipo.dto.IpoCreateReqDTO;
+import com.beyond.MKX.domain.ipo.dto.IpoListReqDTO;
+import com.beyond.MKX.domain.ipo.dto.IpoReviewReqDTO;
+import com.beyond.MKX.domain.ipo.entity.Ipo;
+import com.beyond.MKX.domain.ipo.service.IpoService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.UUID;
+
+@RestController
+@RequiredArgsConstructor
+@RequestMapping("/ipo")
+public class IpoController {
+
+    private final IpoService ipoService;
+
+    @PostMapping("/request")
+    public ResponseEntity<?> createReq(@RequestBody @Valid IpoCreateReqDTO ipoCreateReqDTO) {
+        Ipo ipo = ipoService.createRequest(ipoCreateReqDTO);
+
+        return ApiResponse.ok(ipo.getId(), "IPO 상장 요청이 성공적으로 접수되었습니다.");
+    }
+
+        @PostMapping("/{ipoId}/review")
+        public ResponseEntity<?> adminReview (@PathVariable UUID ipoId, @RequestBody @Valid IpoReviewReqDTO
+        ipoReviewReqDTO){
+            Ipo ipo = ipoService.adminReview(ipoId, ipoReviewReqDTO);
+            String message = Boolean.TRUE.equals(ipoReviewReqDTO.getApprove())
+                    ? "상장 요청이 승인되었습니다. 심사 완료 상태로 전환합니다."
+                    : "상장 요청이 반려되었습니다. 반려 사유 : " + ipoReviewReqDTO.getRejectReason();
+            return ApiResponse.ok(ipo.getId(), message);
+        }
+
+        @PostMapping("/{ipoId}/list")
+        public ResponseEntity<?> adminListing (@PathVariable UUID ipoId, @RequestBody @Valid IpoListReqDTO ipoListReqDTO)
+        {
+            Ipo ipo = ipoService.list(ipoId, ipoListReqDTO);
+            return ApiResponse.ok(ipo.getListingAt(), "기업의 상장 요청이 정상적으로 저장되었습니다.");
+        }
+
+
+    }

@@ -9,6 +9,7 @@ import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Getter
 @NoArgsConstructor @AllArgsConstructor
@@ -33,7 +34,7 @@ public class OrderLog extends BaseIdAndTimeEntity {
     private MemberAccount account;
 
     @Column(nullable = false)
-    private String brokerageId;
+    private UUID brokerageId;
 
     @Column(nullable = false, length = 6)
     private String ticker;

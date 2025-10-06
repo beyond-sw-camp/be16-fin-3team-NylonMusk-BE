@@ -48,4 +48,8 @@ public class MemberAccount extends BaseIdAndTimeEntity {
     @Builder.Default
     private Long availableBalance = 0L;
 
+    public void decreaseAvailableBalance(Long amount) {
+        this.availableBalance -= amount;
+    }
+
 }

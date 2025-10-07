@@ -19,7 +19,6 @@ import java.util.UUID;
         name = "order_log",
         indexes = {
                 @Index(name = "ix_orders_member_account_id", columnList = "member_account_id"),
-                @Index(name = "ix_order_log_member_id", columnList = "member_id"),
 //                @Index(name = "ix_order_log_symbol_status", columnList = "symbol,status"),
 //                @Index(name = "ix_order_log_created_at", columnList = "created_at")
         }

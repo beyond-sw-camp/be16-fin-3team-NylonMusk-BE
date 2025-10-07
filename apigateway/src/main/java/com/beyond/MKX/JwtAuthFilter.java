@@ -27,7 +27,8 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
 
     // 화이트리스트 url
     private static final List<String> AUTH_PATHS = List.of(
-            "/auth/**"
+            "/auth/**",
+            "/ordering-service/**"
     );
 
     private final SecretKey atKey;

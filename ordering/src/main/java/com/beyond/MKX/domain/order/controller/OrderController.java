@@ -2,7 +2,9 @@ package com.beyond.MKX.domain.order.controller;
 
 import com.beyond.MKX.common.apiResponse.ApiResponse;
 import com.beyond.MKX.domain.order.dto.OrderRequestDTO;
+import com.beyond.MKX.domain.order.dto.OrderResponseDTO;
 import com.beyond.MKX.domain.order.service.OrderService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,13 +20,13 @@ public class OrderController {
     private final OrderService orderService;
 
 
-    @PostMapping()
+    @PostMapping
     public ResponseEntity<?> placeOrder(
-            @RequestBody OrderRequestDTO reqDTO
+            @RequestBody @Valid OrderRequestDTO reqDTO
     ) {
-        orderService.placeOrder(reqDTO);
+        OrderResponseDTO resDTO = orderService.placeOrder(reqDTO);
 
-        return ApiResponse.ok(null);
+        return ApiResponse.created(resDTO);
     }
 
 

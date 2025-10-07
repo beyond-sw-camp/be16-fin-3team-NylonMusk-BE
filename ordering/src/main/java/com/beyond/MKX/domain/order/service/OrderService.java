@@ -5,10 +5,10 @@ import com.beyond.MKX.domain.assets.repository.MemberAccountRepository;
 import com.beyond.MKX.domain.order.dto.OrderRequestDTO;
 import com.beyond.MKX.domain.order.dto.OrderResponseDTO;
 import com.beyond.MKX.domain.order.entity.OrderLog;
-import com.beyond.MKX.domain.order.outbox.OrderOutbox;
-import com.beyond.MKX.domain.order.outbox.OrderOutboxRepository;
-import com.beyond.MKX.domain.order.outbox.OrderPayload;
 import com.beyond.MKX.domain.order.repository.OrderLogRepository;
+import com.beyond.MKX.domain.outbox.entity.OrderOutbox;
+import com.beyond.MKX.domain.outbox.entity.OrderPayload;
+import com.beyond.MKX.domain.outbox.repository.OrderOutboxRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityNotFoundException;
@@ -99,6 +99,7 @@ public class OrderService {
             OrderOutbox orderOutbox = OrderOutbox.builder()
                     .orderLogId(order.getId())
                     .eventType("ORDER_PLACED")
+                    .kafkaKey(order.getTicker())
                     .payload(payloadJson)
                     .build();
             outboxRepository.save(orderOutbox);

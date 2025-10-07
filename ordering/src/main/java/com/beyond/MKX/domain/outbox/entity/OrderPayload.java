@@ -1,4 +1,4 @@
-package com.beyond.MKX.domain.order.outbox;
+package com.beyond.MKX.domain.outbox.entity;
 
 import com.beyond.MKX.domain.order.entity.OrderKind;
 import com.beyond.MKX.domain.order.entity.Side;

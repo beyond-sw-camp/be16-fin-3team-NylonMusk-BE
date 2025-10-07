@@ -1,5 +1,6 @@
-package com.beyond.MKX.domain.order.outbox;
+package com.beyond.MKX.domain.outbox.repository;
 
+import com.beyond.MKX.domain.outbox.entity.OrderOutbox;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -23,4 +24,17 @@ public interface OrderOutboxRepository extends JpaRepository<OrderOutbox, UUID> 
     @Query("SELECT o FROM OrderOutbox o WHERE o.isPublished = false ORDER BY o.createdAt ASC")
     List<OrderOutbox> findUnpublishedBatch(Pageable pageable);
 
+    @Query(
+            value = """
+        SELECT *
+        FROM order_outbox
+        WHERE is_published = false
+        ORDER BY created_at ASC
+        LIMIT :#{#pageable.pageSize}
+        OFFSET :#{#pageable.offset}
+        FOR UPDATE SKIP LOCKED
+        """,
+            nativeQuery = true
+    )
+    List<OrderOutbox> findUnpublishedBatchSkipLocked(Pageable pageable);
 }

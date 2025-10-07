@@ -1,4 +1,4 @@
-package com.beyond.MKX.domain.orderingTest;
+package com.beyond.MKX.domain.orderingConsumeTest;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;

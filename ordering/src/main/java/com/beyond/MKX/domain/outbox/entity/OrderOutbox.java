@@ -1,4 +1,4 @@
-package com.beyond.MKX.domain.order.outbox;
+package com.beyond.MKX.domain.outbox.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -30,6 +30,9 @@ public class OrderOutbox {
     @Column(name = "event_type", nullable = false, columnDefinition = "VARCHAR(50)")
     private String eventType;
 
+    @Column(nullable = false)
+    private String kafkaKey;
+
     /**
      * @JdbcTypeCode(SqlTypes.JSON)이란?
      * Hibernate에게 이 필드가 SQL의 JSON 계열 타입과 매핑이 된다고 알려주는 역할을 함.
@@ -48,6 +51,9 @@ public class OrderOutbox {
 
     public void markAsPublished() {
         this.isPublished = true;
+    }
+    public void revertToUnpublished() {
+        this.isPublished = false;
     }
 
 }

@@ -16,6 +16,15 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Table(
+        name = "ipo_offering",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_offering_ipo_round",
+                        columnNames = {"ipo_id", "round_no"}
+                )
+        }
+)
 public class IpoOffering extends BaseIdAndTimeEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ipo_id")
@@ -58,7 +67,7 @@ public class IpoOffering extends BaseIdAndTimeEntity {
     private BigDecimal competitionRatio;
 
     /* 공모 차수 */
-    @Column(nullable = false)
+    @Column(name = "round_no", nullable = false)
     private Integer roundNo;
 
     /* 배정 방식 */

@@ -62,7 +62,10 @@ public class OrderLog extends BaseIdAndTimeEntity {
 
     // 수수료
     @Column(nullable = false)
-    private Long fee;
+    private Long commission;
+
+    // 매도 시 거래세
+    private Long transactionTax;
 
     // 총 금액 = 대금 + 수수료
     private Long totalAmount;

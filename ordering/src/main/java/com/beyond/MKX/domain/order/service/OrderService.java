@@ -2,9 +2,11 @@ package com.beyond.MKX.domain.order.service;
 
 import com.beyond.MKX.domain.assets.entity.MemberAccount;
 import com.beyond.MKX.domain.assets.repository.MemberAccountRepository;
+import com.beyond.MKX.domain.order.dto.CommissionAndTaxData;
 import com.beyond.MKX.domain.order.dto.OrderRequestDTO;
 import com.beyond.MKX.domain.order.dto.OrderResponseDTO;
 import com.beyond.MKX.domain.order.entity.OrderLog;
+import com.beyond.MKX.domain.order.entity.Side;
 import com.beyond.MKX.domain.order.repository.OrderLogRepository;
 import com.beyond.MKX.domain.outbox.entity.OrderOutbox;
 import com.beyond.MKX.domain.outbox.entity.OrderPayload;
@@ -36,27 +38,39 @@ public class OrderService {
         UUID accountId = dto.accountId();
         String ticker = dto.ticker();
 
-        // 멱등성 검사
+        // 0. 멱등성 검사
         /// TODO: 추후 멱등성 검사 도입 예정
 
-        // 검증
+        // 1. 검증
         MemberAccount memberAccount = memberAccountRepository.findById(accountId)
                 .orElseThrow(() -> new EntityNotFoundException("해당 계좌가 존재하지 않습니다."));
         validator.validateAccount(memberAccount);
         validator.validateTradable(ticker);
 
-        // 예상 비용 계산
+        // 2. 예상 비용 계산
         long transactionAmount = Math.multiplyExact(dto.price(), dto.quantity());
-        Long fee = feePolicyService.estimateAckFee(transactionAmount, memberAccount.getBrokerageId());
-        Long totalAmount = Math.addExact(fee, transactionAmount);
+        Long brokerageCommission;
+        Long transactionTax = null;
+        Long totalAmount;
 
-        // 금액 동결
+        if (dto.side() == Side.BUY) {
+            brokerageCommission = feePolicyService.estimateAckFee(transactionAmount, memberAccount.getBrokerageId());
+            totalAmount = Math.addExact(brokerageCommission, transactionAmount);
+        } else {
+            CommissionAndTaxData commissionAndTaxData = feePolicyService.estimateBidFee(transactionAmount, memberAccount.getBrokerageId());
+            brokerageCommission = commissionAndTaxData.getCommission();
+            transactionTax = commissionAndTaxData.getTax();
+            long feeTotalAmount = Math.addExact(brokerageCommission, transactionTax);
+            totalAmount = Math.addExact(transactionAmount, feeTotalAmount);
+        }
+
+        // 3. 자산 동결
         if (memberAccount.getAvailableBalance() < totalAmount) {
             throw new IllegalArgumentException("계좌의 잔고가 부족합니다.");
         }
         memberAccount.decreaseAvailableBalance(totalAmount);
 
-        // 주문 기록
+        // 4. 주문 기록
         OrderLog order = OrderLog.builder()
                 .account(memberAccount)
                 .brokerageId(memberAccount.getBrokerageId())
@@ -65,16 +79,17 @@ public class OrderService {
                 .side(dto.side())
                 .price(dto.price())
                 .quantity(dto.quantity())
-                .fee(fee)
+                .commission(brokerageCommission)
+                .transactionTax(transactionTax)
                 .totalAmount(totalAmount)
                 .remainQuantity(dto.quantity())
                 .build();
         orderLogRepository.save(order);
 
-        // 아웃 박스 기록
+        // 5. 아웃 박스 기록
         recordOrderOutbox(order);
 
-        // Ack 생성
+        // 6. Ack 생성
         return OrderResponseDTO.from(order);
     }
 

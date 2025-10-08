@@ -1,11 +1,15 @@
 package com.beyond.MKX.common.auth.service;
 
-import io.jsonwebtoken.*;
-import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Date;
 import java.util.UUID;
@@ -23,17 +27,31 @@ public class JwtService {
 
 
     @Value("${jwt.secretKeyAt}")
-    private String secretKeyAtBase64;   // AT 검증/서명 키 (Base64)
+    private String secretKeyAtValue;   // AT 검증/서명 키 (Base64 혹은 plain)
     @Value("${jwt.secretKeyRt}")
-    private String secretKeyRtBase64;   // RT 검증/서명 키 (Base64)
+    private String secretKeyRtValue;   // RT 검증/서명 키 (Base64 혹은 plain)
     @Value("${jwt.expirationAt}")
     private long expirationAtMillis;    // AT 만료(ms)
     @Value("${jwt.expirationRt}")
     private long expirationRtMillis;    // RT 만료(ms)
 
-    private SecretKey keyFromBase64(String base64) {
-        byte[] keyBytes = Base64.getDecoder().decode(base64);
-        return Keys.hmacShaKeyFor(keyBytes); // HS512 가능한 길이로 만들어짐
+    private SecretKey accessKey;
+    private SecretKey refreshKey;
+
+    @PostConstruct
+    public void initKeys() {
+        this.accessKey = toSecretKey(secretKeyAtValue);
+        this.refreshKey = toSecretKey(secretKeyRtValue);
+    }
+
+    private SecretKey toSecretKey(String value) {
+        byte[] keyBytes;
+        try {
+            keyBytes = Base64.getDecoder().decode(value);
+        } catch (IllegalArgumentException ex) {
+            keyBytes = value.getBytes(StandardCharsets.UTF_8);
+        }
+        return new SecretKeySpec(keyBytes, SignatureAlgorithm.HS512.getJcaName());
     }
 
     /** Access Token 생성: userId + role 포함, 짧은 수명 */
@@ -45,7 +63,7 @@ public class JwtService {
                 .claim("role", role)                   // 예: ADMIN
                 .setIssuedAt(now)
                 .setExpiration(exp)
-                .signWith(keyFromBase64(secretKeyAtBase64), SignatureAlgorithm.HS512)
+                .signWith(accessKey, SignatureAlgorithm.HS512)
                 .compact();
     }
 
@@ -58,14 +76,14 @@ public class JwtService {
                 .setId(jti)                                 // jti = RT 식별자(로테이션/블랙리스트 용)
                 .setIssuedAt(now)
                 .setExpiration(exp)
-                .signWith(keyFromBase64(secretKeyRtBase64), SignatureAlgorithm.HS512)
+                .signWith(refreshKey, SignatureAlgorithm.HS512)
                 .compact();
     }
 
     /** AT 파싱/검증 → 유효하면 Claims 반환, 실패 시 예외 */
     public Claims parseAccessToken(String token) {
         return Jwts.parserBuilder()
-                .setSigningKey(keyFromBase64(secretKeyAtBase64))
+                .setSigningKey(accessKey)
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
@@ -74,7 +92,7 @@ public class JwtService {
     /** RT 파싱/검증 → 유효하면 Claims 반환, 실패 시 예외 */
     public Claims parseRefreshToken(String token) {
         return Jwts.parserBuilder()
-                .setSigningKey(keyFromBase64(secretKeyRtBase64))
+                .setSigningKey(refreshKey)
                 .build()
                 .parseClaimsJws(token)
                 .getBody();

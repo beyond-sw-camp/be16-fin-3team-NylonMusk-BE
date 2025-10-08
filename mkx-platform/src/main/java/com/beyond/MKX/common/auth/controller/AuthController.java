@@ -9,10 +9,14 @@ import com.beyond.MKX.common.auth.repository.RevokedTokenRepository;
 import com.beyond.MKX.common.auth.service.JwtService;
 import com.beyond.MKX.domain.admin.entity.Admin;
 import com.beyond.MKX.domain.admin.repository.AdminRepository;
+import com.beyond.MKX.domain.member.dto.MemberLoginReqDto;
+import com.beyond.MKX.domain.member.entity.Member;
+import com.beyond.MKX.domain.member.service.MemberService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
@@ -45,6 +49,7 @@ public class  AuthController {
     private final PasswordEncoder passwordEncoder;
     private final RevokedTokenRepository revokedTokenRepository;
     private final AuthCookieProperties cookieProps;
+    private final MemberService memberService;
 
     /**
      * 로그인: 이메일/비밀번호 검증 후
@@ -98,7 +103,12 @@ public class  AuthController {
         resp.addHeader(HttpHeaders.SET_COOKIE, rtCookie.toString());
         resp.addHeader(HttpHeaders.SET_COOKIE, csrfCookie.toString());
 
-        LoginResponseDto loginResponseDto = new LoginResponseDto(admin.getId(), admin.getEmail(), role);
+        LoginResponseDto loginResponseDto = LoginResponseDto.builder()
+                .userId(admin.getId())
+                .email(admin.getEmail())
+                .role(role)
+                .status(admin.getStatus().name())
+                .build();
         return ApiResponse.ok(loginResponseDto, "로그인 완료");
     }
 
@@ -232,4 +242,134 @@ public class  AuthController {
         }
         return builder.build();
     }
+
+    @PostMapping(value = "/member/login", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> memberLogin(@Valid @RequestBody MemberLoginReqDto req, HttpServletResponse resp) {
+        Member member = memberService.authenticate(req);
+
+        String role = "MEMBER";
+        String jti = jwtService.newJti();
+        String accessToken = jwtService.createAccessToken(member.getId(), role);
+        String refreshToken = jwtService.createRefreshToken(member.getId(), jti);
+        revokedTokenRepository.saveRefreshToken(member.getId(), refreshToken, jwtService.getExpirationRtMillis());
+
+        String csrfToken = UUID.randomUUID().toString();
+
+        resp.addHeader(HttpHeaders.SET_COOKIE, buildCookie(
+                "AT", accessToken,
+                Duration.ofMillis(jwtService.getExpirationAtMillis()),
+                cookieProps.getAccess()).toString());
+        resp.addHeader(HttpHeaders.SET_COOKIE, buildCookie(
+                "RT", refreshToken,
+                Duration.ofMillis(jwtService.getExpirationRtMillis()),
+                cookieProps.getRefresh()).toString());
+        resp.addHeader(HttpHeaders.SET_COOKIE, buildCookie(
+                "CSRF-TOKEN", csrfToken,
+                Duration.ofMinutes(15),
+                cookieProps.getCsrf()).toString());
+
+        LoginResponseDto response = LoginResponseDto.builder()
+                .userId(member.getId())
+                .email(member.getEmail())
+                .role(role)
+                .status(member.getStatus().name())
+                .build();
+
+        return ApiResponse.ok(response, "회원 로그인 완료");
+    }
+
+    @PostMapping(value = "/member/refresh")
+    public ResponseEntity<?> memberRefresh(@CookieValue(value = "RT", required = false) String refreshToken,
+                                           HttpServletResponse resp) {
+        if (refreshToken == null) {
+            throw new BadCredentialsException("RT 쿠키 없음");
+        }
+
+        Claims claims;
+        try {
+            claims = jwtService.parseRefreshToken(refreshToken);
+        } catch (JwtException ex) {
+            throw new BadCredentialsException("RT 유효하지 않음", ex);
+        }
+
+        UUID memberId = UUID.fromString(claims.getSubject());
+        String oldJti = claims.getId();
+
+        if (oldJti != null && revokedTokenRepository.isRevoked(oldJti)) {
+            throw new BadCredentialsException("이미 사용된 RT");
+        }
+
+        String savedRt = revokedTokenRepository.getRefreshToken(memberId);
+        if (savedRt == null || !savedRt.equals(refreshToken)) {
+            throw new BadCredentialsException("저장된 RT와 불일치");
+        }
+
+        Member member = memberService.findById(memberId);
+        String role = "MEMBER";
+
+        String newJti = jwtService.newJti();
+        String newAccessToken = jwtService.createAccessToken(memberId, role);
+        String newRefreshToken = jwtService.createRefreshToken(memberId, newJti);
+
+        if (oldJti != null) {
+            long ttlMillis = Math.max(0, claims.getExpiration().getTime() - System.currentTimeMillis());
+            revokedTokenRepository.revoke(oldJti, ttlMillis);
+        }
+
+        revokedTokenRepository.saveRefreshToken(memberId, newRefreshToken, jwtService.getExpirationRtMillis());
+
+        String csrfToken = UUID.randomUUID().toString();
+
+        resp.addHeader(HttpHeaders.SET_COOKIE, buildCookie(
+                "AT", newAccessToken,
+                Duration.ofMillis(jwtService.getExpirationAtMillis()),
+                cookieProps.getAccess()).toString());
+        resp.addHeader(HttpHeaders.SET_COOKIE, buildCookie(
+                "RT", newRefreshToken,
+                Duration.ofMillis(jwtService.getExpirationRtMillis()),
+                cookieProps.getRefresh()).toString());
+        resp.addHeader(HttpHeaders.SET_COOKIE, buildCookie(
+                "CSRF-TOKEN", csrfToken,
+                Duration.ofMinutes(15),
+                cookieProps.getCsrf()).toString());
+
+        LoginResponseDto response = LoginResponseDto.builder()
+                .userId(member.getId())
+                .email(member.getEmail())
+                .role(role)
+                .status(member.getStatus().name())
+                .build();
+
+        return ApiResponse.ok(response, "회원 토큰 재발급 완료");
+    }
+
+    @PostMapping("/member/logout")
+    public ResponseEntity<?> memberLogout(@CookieValue(value = "RT", required = false) String refreshToken,
+                                          HttpServletResponse resp) {
+        if (refreshToken != null) {
+            try {
+                Claims claims = jwtService.parseRefreshToken(refreshToken);
+                UUID memberId = UUID.fromString(claims.getSubject());
+                String jti = claims.getId();
+                if (jti != null) {
+                    long ttlMillis = Math.max(0, claims.getExpiration().getTime() - System.currentTimeMillis());
+                    revokedTokenRepository.revoke(jti, ttlMillis);
+                }
+                revokedTokenRepository.deleteRefreshToken(memberId);
+            } catch (JwtException ex) {
+                log.warn("member refresh token rejected: {}", ex.getMessage());
+            }
+        }
+
+        ResponseCookie atExpired = buildCookie("AT", "", Duration.ZERO, cookieProps.getAccess());
+        ResponseCookie rtExpired = buildCookie("RT", "", Duration.ZERO, cookieProps.getRefresh());
+        ResponseCookie csrfExpired = buildCookie("CSRF-TOKEN", "", Duration.ZERO, cookieProps.getCsrf());
+
+        resp.addHeader(HttpHeaders.SET_COOKIE, atExpired.toString());
+        resp.addHeader(HttpHeaders.SET_COOKIE, rtExpired.toString());
+        resp.addHeader(HttpHeaders.SET_COOKIE, csrfExpired.toString());
+
+        return ApiResponse.ok(null, "회원 로그아웃 성공");
+    }
+
 }

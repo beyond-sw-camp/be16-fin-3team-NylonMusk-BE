@@ -20,13 +20,13 @@ import java.util.UUID;
 @Table(
         name = "stock_holding",
         indexes = {
-                @Index(name = "ix_stock_holding_member_id", columnList = "member_id"),
+                @Index(name = "ix_stock_holding_account_id", columnList = "member_account_id"),
                 @Index(name = "ix_stock_holding_brokerage_id", columnList = "brokerage_id")
         },
         uniqueConstraints = {
                 @UniqueConstraint(
-                        name = "uk_stock_holding_member_ticker",
-                        columnNames = {"member_Id", "ticker"}
+                        name = "uk_stock_holding_account_ticker",
+                        columnNames = {"member_account_id", "ticker"}
                 )
         }
 )
@@ -34,7 +34,7 @@ import java.util.UUID;
 @SQLRestriction("DELETED_AT IS NULL")
 public class StockHolding extends BaseIdAndTimeEntity {
     @Column(nullable = false)
-    private UUID memberId;
+    private UUID memberAccountId;
 
     @Column(nullable = false)
     private UUID brokerageId;
@@ -56,4 +56,7 @@ public class StockHolding extends BaseIdAndTimeEntity {
     @Comment("전체 주식의 총 취득 원가")
     private Long totalPurchasePrice;
 
+    public void decreaseAvailableQuantity(Long quantity) {
+        this.availableQuantity -= quantity;
+    }
 }

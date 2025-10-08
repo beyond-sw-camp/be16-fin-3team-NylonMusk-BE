@@ -20,7 +20,7 @@ public class OutBoxService {
 
 
     public List<OrderOutbox> findUnpublishedBatch(int batchSize) {
-        List<OrderOutbox> outboxList = outboxRepository.findUnpublishedBatch(PageRequest.of(0, batchSize));
+        List<OrderOutbox> outboxList = outboxRepository.findUnpublishedBatchSkipLocked(PageRequest.of(0, batchSize));
 
         for (OrderOutbox orderOutbox : outboxList) {
             orderOutbox.markAsPublished();

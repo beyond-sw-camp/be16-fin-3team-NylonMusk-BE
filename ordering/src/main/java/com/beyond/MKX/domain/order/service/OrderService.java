@@ -1,7 +1,9 @@
 package com.beyond.MKX.domain.order.service;
 
 import com.beyond.MKX.domain.assets.entity.MemberAccount;
+import com.beyond.MKX.domain.assets.entity.StockHolding;
 import com.beyond.MKX.domain.assets.repository.MemberAccountRepository;
+import com.beyond.MKX.domain.assets.repository.StockHoldingRepository;
 import com.beyond.MKX.domain.order.dto.CommissionAndTaxData;
 import com.beyond.MKX.domain.order.dto.OrderRequestDTO;
 import com.beyond.MKX.domain.order.dto.OrderResponseDTO;
@@ -31,6 +33,7 @@ public class OrderService {
     private final FeePolicyService feePolicyService;
     private final OrderLogRepository orderLogRepository;
     private final OrderOutboxRepository outboxRepository;
+    private final StockHoldingRepository stockHoldingRepository;
     private final ObjectMapper objectMapper;
 
 
@@ -48,11 +51,12 @@ public class OrderService {
         validator.validateTradable(ticker);
 
         // 2. 예상 비용 계산
-        long transactionAmount = Math.multiplyExact(dto.price(), dto.quantity());
+        long transactionAmount = Math.multiplyExact(dto.price(), dto.quantity()); // 대금 계산
         Long brokerageCommission;
         Long transactionTax = null;
         Long totalAmount;
 
+        // 수수료 계산
         if (dto.side() == Side.BUY) {
             brokerageCommission = feePolicyService.estimateAckFee(transactionAmount, memberAccount.getBrokerageId());
             totalAmount = Math.addExact(brokerageCommission, transactionAmount);
@@ -65,10 +69,20 @@ public class OrderService {
         }
 
         // 3. 자산 동결
-        if (memberAccount.getAvailableBalance() < totalAmount) {
-            throw new IllegalArgumentException("계좌의 잔고가 부족합니다.");
+        // (매수) 계좌 금액 동결
+        if (dto.side() == Side.BUY) {
+            if (memberAccount.getAvailableBalance() < totalAmount) {
+                throw new IllegalArgumentException("계좌의 잔고가 부족합니다.");
+            }
+            memberAccount.decreaseAvailableBalance(totalAmount);
+        } else { // (매도) 보유주식 수 동결
+            StockHolding stockHolding = stockHoldingRepository.findByMemberAccountIdAndTicker(accountId, ticker)
+                    .orElseThrow(() -> new EntityNotFoundException("해당 보유 주식이 존재하지 않습니다."));
+            if (stockHolding.getAvailableQuantity() < dto.quantity()) {
+                throw new IllegalArgumentException("매도 가능한 주식 수량이 부족합니다.");
+            }
+            stockHolding.decreaseAvailableQuantity(dto.quantity());
         }
-        memberAccount.decreaseAvailableBalance(totalAmount);
 
         // 4. 주문 기록
         OrderLog order = OrderLog.builder()

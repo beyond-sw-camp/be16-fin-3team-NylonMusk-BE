@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -72,6 +73,7 @@ public class IpoOfferingService {
 
         return ipoOfferingRepository.save(ipoOffering);
     }
+
     private void validateSchedule(
             java.time.LocalDateTime start, java.time.LocalDateTime end,
             LocalDate allocationDate, LocalDate refundDate
@@ -99,5 +101,42 @@ public class IpoOfferingService {
         if (v.compareTo(BigDecimal.ZERO) < 0 || v.compareTo(new BigDecimal("100.00")) > 0) {
             throw new IllegalArgumentException(field + "는 0.00~100.00(%) 범위여야 합니다.");
         }
+    }
+
+    /* 공모가 확정 */
+    @Transactional
+    public IpoOffering fixOfferPrice(UUID offeringId, long offerPrice) {
+        if (offerPrice <= 0) {
+            throw new IllegalArgumentException("확정 공모가는 양수여야 합니다.");
+        }
+
+        IpoOffering ipoOffering = ipoOfferingRepository.findByIdForUpdate(offeringId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 공모입니다."));
+
+        if (!Boolean.TRUE.equals(ipoOffering.getIpo().getIsOffering())) {
+            throw new IllegalArgumentException("해당 IPO는 공모 미사용(isOffering-false)입니다.");
+        }
+
+        if (ipoOffering.getIpoOfferingStatus() != IpoOfferingStatus.CLOSED) {
+            throw new IllegalArgumentException("확정 공모가(offerPrice)는 청약 마감(CLOSED) 상태에서만 확정할 수 있습니다.");
+        }
+
+        Long min = ipoOffering.getPriceBandMin();
+        Long max = ipoOffering.getPriceBandMax();
+        if (min == null || max == null || min <= 0 || max <= 0 || min > max) {
+            throw new IllegalArgumentException("희망 공모가 범위가 유효하지 않습니다.");
+        }
+        if (offerPrice < min || offerPrice > max) {
+            throw new IllegalArgumentException("확정 공모가는 밴드 범위(" + min + " ~ " + max + ") 내여야 합니다.");
+        }
+
+        // 확정
+        ipoOffering = ipoOffering.toBuilder()
+                .offerPrice(offerPrice)
+                .ipoOfferingStatus(IpoOfferingStatus.PRICE_FIXED)
+                .build();
+
+        return ipoOfferingRepository.save(ipoOffering);
+
     }
 }

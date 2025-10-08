@@ -57,6 +57,10 @@ public class IpoOffering extends BaseIdAndTimeEntity {
     @Column(precision = 5, scale = 2, nullable = false)
     private BigDecimal competitionRatio;
 
+    /* 공모 차수 */
+    @Column(nullable = false)
+    private Integer roundNo;
+
     /* 배정 방식 */
     // TODO: 계좌 생성 이후 진행 할 예정
 }

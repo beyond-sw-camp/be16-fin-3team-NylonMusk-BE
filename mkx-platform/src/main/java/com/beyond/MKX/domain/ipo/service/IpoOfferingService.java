@@ -29,6 +29,11 @@ public class IpoOfferingService {
         // 1) 상장 존재/상태 검증
         Ipo ipo = ipoRepository.findById(offeringReqDTO.getIpoId())
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 Ipo입니다."));
+        // 공모 사용 여부 가드
+        if (!Boolean.TRUE.equals(ipo.getIsOffering())) {
+            throw new IllegalStateException("해당 IPO는 공모 미사용(isOffering=false)으로 설정되어 있어 공모를 생성할 수 없습니다.");
+        }
+
         if (ipo.getStatus() == IpoStatus.LISTED || ipo.getStatus() == IpoStatus.REJECTED || ipo.getStatus() == IpoStatus.CANCELLED) {
             throw new IllegalArgumentException("해당 상장(ipo) 상태에서는 공모를 생성할 수 없습니다." + ipo.getStatus());
         }

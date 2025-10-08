@@ -8,4 +8,5 @@ import java.util.UUID;
 
 @Repository
 public interface IpoOfferingRepository extends JpaRepository<IpoOffering, UUID> {
+    boolean existsByIpo_IdAndRoundNo(UUID ipoId, Integer roundNo);
 }

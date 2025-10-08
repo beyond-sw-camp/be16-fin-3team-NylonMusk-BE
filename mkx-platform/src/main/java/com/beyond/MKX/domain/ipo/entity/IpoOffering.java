@@ -44,6 +44,7 @@ public class IpoOffering extends BaseIdAndTimeEntity {
     @Column(precision = 5, scale = 2, nullable = false)
     private BigDecimal depositRate;
     /* 상태 */
+    @Enumerated(EnumType.STRING)
     private IpoOfferingStatus ipoOfferingStatus;
 
     /* 잔여 주식 배분 */

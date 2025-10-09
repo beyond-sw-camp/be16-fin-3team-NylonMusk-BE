@@ -137,6 +137,78 @@ public class IpoOfferingService {
                 .build();
 
         return ipoOfferingRepository.save(ipoOffering);
-
     }
+
+    /** SCHEDULED -> OPEN */
+    @Transactional
+    public IpoOffering open(UUID offeringId) {
+        IpoOffering ipoOffering = ipoOfferingRepository.findByIdForUpdate(offeringId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 공모입니다."));
+
+        if (ipoOffering.getIpoOfferingStatus() != IpoOfferingStatus.SCHEDULED) {
+            throw new IllegalArgumentException("SCHEDULED 상태에서만 OPEN 할 수 있습니다.");
+        }
+
+        validateSchedule(ipoOffering.getSubscriptionStart(), ipoOffering.getSubscriptionEnd(),
+                ipoOffering.getAllocationDate(), ipoOffering.getRefundDate());
+        requirePercent(ipoOffering.getDepositRate(), "depositRate");
+        requirePercent(ipoOffering.getCapRatio(), "capRatio");
+
+        // 동일 IPO에 이미 OPEN 존재 금지(경합 방지 위해 잠금 쿼리 사용)
+        long openCnt = ipoOfferingRepository.countOpenForIpoForUpdate(ipoOffering.getIpo().getId());
+        if (openCnt > 0) {
+            throw new IllegalStateException("동일 IPO에 이미 OPEN 상태 공모가 존재합니다.");
+        }
+
+        // 시간 조건(권장): 개시 시각 도달 확인
+        var now = java.time.LocalDateTime.now();
+        if (now.isBefore(ipoOffering.getSubscriptionStart())) {
+            throw new IllegalStateException("청약 시작 시각 전에는 개시할 수 없습니다.");
+        }
+        if (!now.isBefore(ipoOffering.getSubscriptionEnd())) {
+            throw new IllegalStateException("청약 마감 시각을 지나 개시할 수 없습니다.");
+        }
+
+        ipoOffering = ipoOffering.toBuilder().ipoOfferingStatus(IpoOfferingStatus.OPEN).build();
+        return ipoOfferingRepository.save(ipoOffering);
+    }
+
+    /** OPEN -> CLOSED */
+    @Transactional
+    public IpoOffering close(UUID offeringId) {
+        IpoOffering o = ipoOfferingRepository.findByIdForUpdate(offeringId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 공모입니다."));
+
+        if (o.getIpoOfferingStatus() != IpoOfferingStatus.OPEN) {
+            throw new IllegalStateException("OPEN 상태에서만 마감할 수 있습니다.");
+        }
+
+        var now = java.time.LocalDateTime.now();
+        // 권장: 마감 시각 도달 확인(운영자 강제 마감 허용 시 이 체크 완화 가능)
+        if (now.isBefore(o.getSubscriptionEnd())) {
+            throw new IllegalStateException("청약 마감 시각 이전에는 마감할 수 없습니다.");
+        }
+
+        o = o.toBuilder().ipoOfferingStatus(IpoOfferingStatus.CLOSED).build();
+        return ipoOfferingRepository.save(o);
+    }
+
+    /** SCHEDULED/OPEN -> CANCELLED */
+    @Transactional
+    public IpoOffering cancel(UUID offeringId) {
+        IpoOffering o = ipoOfferingRepository.findByIdForUpdate(offeringId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 공모입니다."));
+
+        IpoOfferingStatus st = o.getIpoOfferingStatus();
+        if (st != IpoOfferingStatus.SCHEDULED && st != IpoOfferingStatus.OPEN) {
+            throw new IllegalStateException("SCHEDULED 또는 OPEN 상태에서만 취소할 수 있습니다.");
+        }
+
+        // 선택: OPEN 취소 시 참여분 환불/정산 사전 조건 확인(타 모듈 이벤트/검증 연동)
+        // 예: if (st == OPEN && subscriptionService.existsPaid(...)) throw ...;
+
+        o = o.toBuilder().ipoOfferingStatus(IpoOfferingStatus.CANCELLED).build();
+        return ipoOfferingRepository.save(o);
+    }
+
 }

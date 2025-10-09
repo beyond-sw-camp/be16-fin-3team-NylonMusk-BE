@@ -23,7 +23,12 @@ public interface IpoOfferingRepository extends JpaRepository<IpoOffering, UUID> 
 
     Optional<IpoOffering> findTopByIpo_IdOrderByRoundNoDesc(UUID ipoId);
 
-//    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select o from IpoOffering o where o.id = :id")
     Optional<IpoOffering> findByIdForUpdate(@Param("id") UUID id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select count(o) from IpoOffering o " +
+            "where o.ipo.id = :ipoId and o.ipoOfferingStatus = 'OPEN'")
+    long countOpenForIpoForUpdate(@Param("ipoId") UUID ipoId);
 }

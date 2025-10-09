@@ -23,6 +23,8 @@ public class MemberResDto {
     private String status;
     private UUID brokerageId;
     private String brokerageName;
+    private String accountNumber;   // 추가: 개인 계좌번호
+    private String accountStatus;   // 추가: 개인 계좌 상태
     private LocalDateTime createdAt;
 
     public static MemberResDto from(Member member) {

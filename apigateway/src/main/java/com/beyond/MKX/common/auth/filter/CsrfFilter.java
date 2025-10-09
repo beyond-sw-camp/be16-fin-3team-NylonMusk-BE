@@ -44,7 +44,8 @@ public class CsrfFilter implements GlobalFilter, Ordered {
     /** CSRF 검증을 생략할 경로 목록 */
     private static final List<String> CSRF_WHITELIST = List.of(
             "/auth/**",   // 로그인/회원가입 등 인증 관련 엔드포인트
-            "/health"     // 헬스체크
+            "/health",     // 헬스체크
+            "/order/**"
     );
 
     /** Gateway에서 경로 정규화 시 제거할 서비스 접두사 */
@@ -103,12 +104,11 @@ public class CsrfFilter implements GlobalFilter, Ordered {
 
             exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
             exchange.getResponse().getHeaders().setContentType(MediaType.APPLICATION_JSON);
-            exchange.getResponse().getHeaders().setContentLength(payload.length);
 
             DataBuffer buffer = exchange.getResponse().bufferFactory().wrap(payload);
-            // flush 보장을 위해 writeWith 이후 setComplete() 호출
-            return exchange.getResponse().writeWith(Mono.just(buffer))
-                    .then(exchange.getResponse().setComplete());
+            // WebFlux에서 Content-Length를 명시하지 않고 writeWith만 호출해야
+            // chunked 응답으로 안전하게 전달된다.
+            return exchange.getResponse().writeWith(Mono.just(buffer));
         }
 
         // 5) 토큰 일치 → 정상 통과

@@ -20,8 +20,7 @@ public class AdminController  {
 
     @GetMapping("/me")
     public ResponseEntity<?> getMyInfo(@AuthenticationPrincipal CustomAdminPrincipal principal) {
-        Admin admin = adminService.getMemberById(principal.id());
-        AdminResDto dto = AdminResDto.from(admin);
+        AdminResDto dto = adminService.getProfileWithAccount(principal.id());
         return ApiResponse.ok(dto, "내 정보 조회 성공");
     }
 }

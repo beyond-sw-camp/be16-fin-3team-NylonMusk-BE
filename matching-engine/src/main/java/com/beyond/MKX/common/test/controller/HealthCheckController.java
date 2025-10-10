@@ -1,4 +1,4 @@
-package com.beyond.MKX.domain.controller;
+package com.beyond.MKX.common.test.controller;
 
 import com.beyond.MKX.common.apiResponse.ApiResponse;
 import org.springframework.http.ResponseEntity;

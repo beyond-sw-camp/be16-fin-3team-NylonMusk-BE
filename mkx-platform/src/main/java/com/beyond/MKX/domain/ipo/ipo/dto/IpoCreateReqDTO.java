@@ -1,7 +1,7 @@
-package com.beyond.MKX.domain.ipo.dto;
+package com.beyond.MKX.domain.ipo.ipo.dto;
 
-import com.beyond.MKX.domain.ipo.entity.Ipo;
-import com.beyond.MKX.domain.ipo.entity.IpoStatus;
+import com.beyond.MKX.domain.ipo.ipo.entity.Ipo;
+import com.beyond.MKX.domain.ipo.ipo.entity.IpoStatus;
 import jakarta.validation.constraints.*;
 import lombok.*;
 

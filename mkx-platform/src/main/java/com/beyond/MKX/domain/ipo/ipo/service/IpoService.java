@@ -1,14 +1,14 @@
-package com.beyond.MKX.domain.ipo.service;
+package com.beyond.MKX.domain.ipo.ipo.service;
 
-import com.beyond.MKX.domain.ipo.dto.IpoCreateReqDTO;
-import com.beyond.MKX.domain.ipo.dto.IpoListReqDTO;
-import com.beyond.MKX.domain.ipo.dto.IpoReviewReqDTO;
-import com.beyond.MKX.domain.ipo.entity.Ipo;
-import com.beyond.MKX.domain.ipo.entity.IpoOffering;
-import com.beyond.MKX.domain.ipo.entity.IpoOfferingStatus;
-import com.beyond.MKX.domain.ipo.entity.IpoStatus;
-import com.beyond.MKX.domain.ipo.repository.IpoOfferingRepository;
-import com.beyond.MKX.domain.ipo.repository.IpoRepository;
+import com.beyond.MKX.domain.ipo.ipo.dto.IpoCreateReqDTO;
+import com.beyond.MKX.domain.ipo.ipo.dto.IpoListReqDTO;
+import com.beyond.MKX.domain.ipo.ipo.dto.IpoReviewReqDTO;
+import com.beyond.MKX.domain.ipo.ipo.entity.Ipo;
+import com.beyond.MKX.domain.ipo.offering.entity.IpoOffering;
+import com.beyond.MKX.domain.ipo.offering.entity.IpoOfferingStatus;
+import com.beyond.MKX.domain.ipo.ipo.entity.IpoStatus;
+import com.beyond.MKX.domain.ipo.offering.repository.IpoOfferingRepository;
+import com.beyond.MKX.domain.ipo.ipo.repository.IpoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

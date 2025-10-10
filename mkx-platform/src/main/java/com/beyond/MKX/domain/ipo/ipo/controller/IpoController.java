@@ -1,13 +1,11 @@
-package com.beyond.MKX.domain.ipo.controller;
+package com.beyond.MKX.domain.ipo.ipo.controller;
 
 import com.beyond.MKX.common.apiResponse.ApiResponse;
-import com.beyond.MKX.domain.admin.controller.AdminApprovalController;
-import com.beyond.MKX.domain.admin.entity.Role;
-import com.beyond.MKX.domain.ipo.dto.IpoCreateReqDTO;
-import com.beyond.MKX.domain.ipo.dto.IpoListReqDTO;
-import com.beyond.MKX.domain.ipo.dto.IpoReviewReqDTO;
-import com.beyond.MKX.domain.ipo.entity.Ipo;
-import com.beyond.MKX.domain.ipo.service.IpoService;
+import com.beyond.MKX.domain.ipo.ipo.dto.IpoCreateReqDTO;
+import com.beyond.MKX.domain.ipo.ipo.dto.IpoListReqDTO;
+import com.beyond.MKX.domain.ipo.ipo.dto.IpoReviewReqDTO;
+import com.beyond.MKX.domain.ipo.ipo.entity.Ipo;
+import com.beyond.MKX.domain.ipo.ipo.service.IpoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

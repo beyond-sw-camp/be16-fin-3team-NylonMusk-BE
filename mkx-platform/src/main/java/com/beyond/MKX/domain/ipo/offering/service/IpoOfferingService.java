@@ -1,12 +1,12 @@
-package com.beyond.MKX.domain.ipo.service;
+package com.beyond.MKX.domain.ipo.offering.service;
 
-import com.beyond.MKX.domain.ipo.dto.IpoOfferingReqDTO;
-import com.beyond.MKX.domain.ipo.entity.Ipo;
-import com.beyond.MKX.domain.ipo.entity.IpoOffering;
-import com.beyond.MKX.domain.ipo.entity.IpoOfferingStatus;
-import com.beyond.MKX.domain.ipo.entity.IpoStatus;
-import com.beyond.MKX.domain.ipo.repository.IpoOfferingRepository;
-import com.beyond.MKX.domain.ipo.repository.IpoRepository;
+import com.beyond.MKX.domain.ipo.offering.dto.IpoOfferingReqDTO;
+import com.beyond.MKX.domain.ipo.ipo.entity.Ipo;
+import com.beyond.MKX.domain.ipo.offering.entity.IpoOffering;
+import com.beyond.MKX.domain.ipo.offering.entity.IpoOfferingStatus;
+import com.beyond.MKX.domain.ipo.ipo.entity.IpoStatus;
+import com.beyond.MKX.domain.ipo.offering.repository.IpoOfferingRepository;
+import com.beyond.MKX.domain.ipo.ipo.repository.IpoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,8 +28,24 @@ public class IpoOfferingService {
             throw new IllegalArgumentException("상장(ipo) 아이디는 필수 입력값입니다.");
         }
         // 1) 상장 존재/상태 검증
-        Ipo ipo = ipoRepository.findById(offeringReqDTO.getIpoId())
+        Ipo ipo = ipoRepository.findByIdForUpdate(offeringReqDTO.getIpoId())
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 Ipo입니다."));
+
+        Integer lastRoundNo = ipoOfferingRepository.findMaxRoundNo(ipo.getId());
+        int nextRound = (lastRoundNo == null) ? 1 : lastRoundNo + 1;
+
+        /** 이전 차수 ‘미종결’이 남아 있으면 금지 */
+        boolean priorUnfinished = ipoOfferingRepository.existsByIpo_IdAndIpoOfferingStatusIn(
+                ipo.getId(),
+                java.util.EnumSet.of(
+                        IpoOfferingStatus.DRAFT, IpoOfferingStatus.SCHEDULED, IpoOfferingStatus.OPEN
+                        // CLOSED 이후 공모를 진행 가능하게 할 것인지, 공모가 확정/배정 이후 공모를 진행 가능하게 할 것인지 팀원과 협의하기!
+                )
+        );
+        if (priorUnfinished) {
+            throw new IllegalStateException("이전 차수가 종결되지 않았습니다.");
+        }
+
         // 공모 사용 여부 가드
         if (!Boolean.TRUE.equals(ipo.getIsOffering())) {
             throw new IllegalStateException("해당 IPO는 공모 미사용(isOffering=false)으로 설정되어 있어 공모를 생성할 수 없습니다.");
@@ -39,8 +55,8 @@ public class IpoOfferingService {
             throw new IllegalArgumentException("해당 상장(ipo) 상태에서는 공모를 생성할 수 없습니다." + ipo.getStatus());
         }
         // 2) 공모 차수 중복 방지 (ipo_id, round_no)
-        if (ipoOfferingRepository.existsByIpo_IdAndRoundNo(ipo.getId(), offeringReqDTO.getRoundNo())) {
-            throw new IllegalArgumentException("이미 존재하는 공모 차수입니다. (roundNo = " + offeringReqDTO.getRoundNo() + ")");
+        if (ipoOfferingRepository.existsByIpo_IdAndRoundNo(ipo.getId(), nextRound)) {
+            throw new IllegalArgumentException("이미 존재하는 공모 차수입니다. (roundNo = " + nextRound + ")");
         }
         // 3) 값 / 일정 / 최소*최대 검증
         if (offeringReqDTO.getOfferQuantity() <= 0 || offeringReqDTO.getLotSize() <= 0) {
@@ -65,7 +81,7 @@ public class IpoOfferingService {
 
         IpoOffering ipoOffering = IpoOffering.builder()
                 .ipo(ipo)
-                .roundNo(offeringReqDTO.getRoundNo())
+                .roundNo(nextRound)
                 .offerQuantity(offeringReqDTO.getOfferQuantity())
                 .lotSize(offeringReqDTO.getLotSize())
                 .priceBandMin(offeringReqDTO.getPriceBandMin())
@@ -159,14 +175,10 @@ public class IpoOfferingService {
         if (ipoOffering.getIpoOfferingStatus() != IpoOfferingStatus.SCHEDULED) {
             throw new IllegalArgumentException("SCHEDULED 상태에서만 OPEN 할 수 있습니다.");
         }
-        var openOffering = ipoOfferingRepository.findByIdForUpdate(offeringId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 공모입니다."));
-        if (openOffering.getIpoOfferingStatus() != IpoOfferingStatus.SCHEDULED) {
-            throw new IllegalArgumentException("SCHEDULED상태에서만 OPEN 할 수 있습니다.");
-        }
+
         boolean checkNotClosed = ipoOfferingRepository.existsByIpo_IdAndRoundNoLessThanAndIpoOfferingStatusNotIn(
-                openOffering.getIpo().getId(),
-                openOffering.getRoundNo(),
+                ipoOffering.getIpo().getId(),
+                ipoOffering.getRoundNo(),
                 java.util.List.of(IpoOfferingStatus.CLOSED, IpoOfferingStatus.CANCELLED)
         );
         if (checkNotClosed) {

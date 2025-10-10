@@ -1,4 +1,4 @@
-package com.beyond.MKX.domain.ipo.entity;
+package com.beyond.MKX.domain.ipo.offering.entity;
 
 public enum IpoOfferingStatus {
     DRAFT,              // 초안: 생성 직후, 일정·밴드 초안 단계(승인/검토 전)

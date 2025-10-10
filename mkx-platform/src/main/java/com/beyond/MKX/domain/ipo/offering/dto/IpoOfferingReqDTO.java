@@ -1,4 +1,4 @@
-package com.beyond.MKX.domain.ipo.dto;
+package com.beyond.MKX.domain.ipo.offering.dto;
 
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;

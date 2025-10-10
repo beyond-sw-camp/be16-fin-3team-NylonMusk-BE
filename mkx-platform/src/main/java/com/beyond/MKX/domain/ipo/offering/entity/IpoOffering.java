@@ -1,6 +1,7 @@
-package com.beyond.MKX.domain.ipo.entity;
+package com.beyond.MKX.domain.ipo.offering.entity;
 
 import com.beyond.MKX.common.domain.BaseIdAndTimeEntity;
+import com.beyond.MKX.domain.ipo.ipo.entity.Ipo;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

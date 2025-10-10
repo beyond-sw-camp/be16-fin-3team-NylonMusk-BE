@@ -1,7 +1,7 @@
-package com.beyond.MKX.domain.ipo.repository;
+package com.beyond.MKX.domain.ipo.offering.repository;
 
-import com.beyond.MKX.domain.ipo.entity.IpoOffering;
-import com.beyond.MKX.domain.ipo.entity.IpoOfferingStatus;
+import com.beyond.MKX.domain.ipo.offering.entity.IpoOffering;
+import com.beyond.MKX.domain.ipo.offering.entity.IpoOfferingStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -35,4 +35,7 @@ public interface IpoOfferingRepository extends JpaRepository<IpoOffering, UUID> 
     boolean existsByIpo_IdAndRoundNoLessThanAndIpoOfferingStatusNotIn(
             UUID ipoId, Integer roundNo, Collection<IpoOfferingStatus> statuses
     );
+
+    @Query("select max(o.roundNo) from IpoOffering o where o.ipo.id = :ipoId")
+    Integer findMaxRoundNo(UUID ipoId);
 }

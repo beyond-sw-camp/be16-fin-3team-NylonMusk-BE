@@ -1,4 +1,4 @@
-package com.beyond.MKX.domain.ipo.entity;
+package com.beyond.MKX.domain.ipo.ipo.entity;
 
 import com.beyond.MKX.common.domain.BaseIdAndTimeEntity;
 import com.beyond.MKX.domain.corporation.entity.Corporation;
@@ -8,9 +8,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Entity
 @Getter

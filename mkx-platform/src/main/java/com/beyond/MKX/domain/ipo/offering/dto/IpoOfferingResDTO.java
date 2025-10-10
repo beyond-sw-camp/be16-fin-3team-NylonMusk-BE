@@ -1,6 +1,7 @@
-package com.beyond.MKX.domain.ipo.dto;
+package com.beyond.MKX.domain.ipo.offering.dto;
 
-import com.beyond.MKX.domain.ipo.entity.IpoOffering;
+import com.beyond.MKX.domain.ipo.offering.entity.IpoOffering;
+import com.beyond.MKX.domain.ipo.offering.entity.IpoOfferingStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -28,7 +29,7 @@ public class IpoOfferingResDTO {
     private java.time.LocalDateTime subscriptionEnd;
     private java.time.LocalDate allocationDate;
     private java.time.LocalDate refundDate;
-    private com.beyond.MKX.domain.ipo.entity.IpoOfferingStatus status;
+    private IpoOfferingStatus status;
 
     public static IpoOfferingResDTO from(IpoOffering o) {
         return IpoOfferingResDTO.builder()

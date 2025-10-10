@@ -9,6 +9,18 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+/**
+ * 매칭 엔진 서비스.
+ *
+ * 역할
+ * - 주문 이벤트(OrderEvent)를 유형별로 처리(LIMIT / MARKET / CANCEL)
+ * - Redis 오더북 리포지토리와 Lua 스크립트를 통해 매칭 수행
+ * - 체결(Execution) 및 상태(OrderStatus) 카프카 이벤트 발행
+ *
+ * 주의
+ * - 숫자 비교 시 double 사용: Redis/Lua 반환값과 일관 유지
+ * - 예외 발생 시 order-errors 토픽으로 원인 전달
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -17,9 +29,14 @@ public class MatchingEngineService {
     private final RedisOrderRepository redisRepo;
     private final KafkaOrderProducer kafkaOrderProducer;
 
-    // 한 번의 Lua 실행에서 소비할 최대 매칭 수 (폭주 방지용)
+    /** 한 번의 Lua 실행에서 소비할 최대 매칭 수(과도한 처리 방지) */
     private static final int MAX_MATCHES_PER_CALL = 200;
 
+    /**
+     * 주문 이벤트 엔트리 포인트.
+     * - 이벤트 null/유형 누락 시 경고 로그 후 무시
+     * - 유형별 핸들러 위임
+     */
     public void process(OrderEvent event) {
         if (event == null || event.getOrderType() == null) {
             log.warn("Received null/invalid event: {}", event);
@@ -30,10 +47,11 @@ public class MatchingEngineService {
             switch (event.getOrderType()) {
                 case "LIMIT" -> handleLimit(event);   // 지정가: 매칭 시도 후 잔량은 오더북 적재
                 case "MARKET" -> handleMarket(event); // 시장가: 매칭만(잔량 미적재), 가격가드 사용
-                case "CANCEL" -> handleCancel(event);
+                case "CANCEL" -> handleCancel(event); // 취소
                 default -> log.warn("Unknown order type: {}", event.getOrderType());
             }
         } catch (Exception ex) {
+            // 예외는 에러 토픽으로 전달하여 상위(브로커리지/게이트웨이)에서 알림 가능
             log.error("Processing failed for event: {}", event, ex);
             kafkaOrderProducer.sendError(
                     event.getOrderId() != null ? event.getOrderId() : "UNKNOWN",
@@ -42,9 +60,14 @@ public class MatchingEngineService {
         }
     }
 
-    /** 지정가: 가격가드=지정가. 먼저 체결 시도 → 잔량은 즉시 오더북에 적재(Repo가 처리). */
+    /**
+     * 지정가 주문 처리:
+     * 1) 가격 가드 = 지정가로 매칭 시도
+     * 2) 잔량이 있으면 동일 orderId/가격으로 즉시 오더북 적재(Repo/Lua가 처리)
+     * 3) 체결 건마다 executions 발행, 요약 상태를 order-status로 발행
+     */
     private void handleLimit(OrderEvent e) {
-        // 입력 검증
+        // --- 입력 검증(필수값·양수) ---
         requireNonEmpty(e.getTicker(), "ticker");
         requireNonEmpty(e.getOrderId(), "orderId");
         requireNonEmpty(e.getSide(), "side");
@@ -64,7 +87,7 @@ public class MatchingEngineService {
                 guardPxInt             // 잔량 적재 가격 = 지정가
         );
 
-        // --- 체결 통계 집계 ---
+        // --- 체결 통계 집계(VWAP/last) ---
         double filledQty = 0.0;
         double notional  = 0.0;
         Double lastPx    = null;
@@ -74,6 +97,7 @@ public class MatchingEngineService {
             notional  += f.quantity() * f.price();
             lastPx     = f.price();
 
+            // 개별 체결 이벤트 발행(상대 주문 ID 포함)
             kafkaOrderProducer.sendExecution(
                     e.getOrderId(),
                     e.getTicker(),
@@ -87,8 +111,9 @@ public class MatchingEngineService {
         Double vwap    = filledQty > 0 ? (notional / filledQty) : null;
         double limitPx = e.getPrice();
 
-        // 상태 이벤트
+        // --- 상태 이벤트(완전/부분/무체결) ---
         if (res.remaining() <= 0) {
+            // 완전 체결
             kafkaOrderProducer.sendMarketFilled(
                     e.getOrderId(), e.getTicker(), e.getSide(),
                     vwap != null ? vwap : 0.0,
@@ -98,14 +123,14 @@ public class MatchingEngineService {
             );
             log.info("LIMIT filled: {} {} {} filledQty={}", e.getOrderId(), e.getTicker(), e.getSide(), e.getQuantity());
         } else if (res.fills().isEmpty()) {
-            // 전혀 체결 아님 → 잔량 적재 확인(보강)
+            // 전혀 체결 아님 → 잔량 적재 보강(동일 키가 없을 때만)
             boolean added = redisRepo.ensureLimitOrderPresent(
                     e.getTicker(), e.getOrderId(), e.getSide(), e.getPrice(), e.getQuantity());
             kafkaOrderProducer.sendNewAccepted(e.getOrderId(), e.getTicker(), e.getSide(), e.getPrice(), e.getQuantity());
             log.info("LIMIT accepted(no fills): {} {} {} qty={} price={} (fallbackAdded={})",
                     e.getOrderId(), e.getTicker(), e.getSide(), e.getQuantity(), e.getPrice(), added);
         } else {
-            // 부분 체결 + 잔량 적재 (보강)
+            // 부분 체결 + 잔량 적재 보강
             boolean added = redisRepo.ensureLimitOrderPresent(
                     e.getTicker(), e.getOrderId(), e.getSide(), e.getPrice(), res.remaining());
 
@@ -123,7 +148,12 @@ public class MatchingEngineService {
         }
     }
 
-    /** 시장가: 가격가드=이벤트 price. 매칭만 수행, 잔량은 적재하지 않음. */
+    /**
+     * 시장가 주문 처리:
+     * 1) 가격 가드 = 이벤트 price로 매칭만 수행
+     * 2) 잔량은 오더북에 적재하지 않음
+     * 3) 체결 건마다 executions 발행, 요약 상태를 order-status로 발행
+     */
     private void handleMarket(OrderEvent mkt) {
         requireNonEmpty(mkt.getTicker(), "ticker");
         requireNonEmpty(mkt.getOrderId(), "orderId");
@@ -133,6 +163,7 @@ public class MatchingEngineService {
 
         final long guardPxInt = redisRepo.asIntPrice(mkt.getPrice());
 
+        // 시장가: orderIdToAdd="", priceIntForAdd=0 전달(잔량 미적재)
         MatchResult res = redisRepo.matchOrAddLimit(
                 mkt.getTicker(),
                 mkt.getSide(),
@@ -143,6 +174,7 @@ public class MatchingEngineService {
                 0L
         );
 
+        // --- 체결 통계 집계(VWAP/last) ---
         double filledQty = 0.0;
         double notional  = 0.0;
         Double lastPx    = null;
@@ -163,9 +195,11 @@ public class MatchingEngineService {
         }
 
         Double vwap = filledQty > 0 ? (notional / filledQty) : null;
+        // MARKET의 limitPrice 필드는 '가드 가격' 의미로 재사용(primitive double null 회피)
         double limitPx = mkt.getPrice();
 
         if (res.remaining() <= 0.0) {
+            // 완전 체결
             kafkaOrderProducer.sendMarketFilled(
                     mkt.getOrderId(), mkt.getTicker(), mkt.getSide(),
                     vwap != null ? vwap : 0.0,
@@ -175,9 +209,11 @@ public class MatchingEngineService {
             );
             log.info("MARKET filled: {} ticker={} side={} filledQty={}", mkt.getOrderId(), mkt.getTicker(), mkt.getSide(), mkt.getQuantity());
         } else if (res.fills().isEmpty()) {
+            // 가드 범위 내 반대 호가 없음 → 대기(체결 X)
             kafkaOrderProducer.sendWaiting(mkt.getOrderId(), mkt.getTicker(), mkt.getSide());
             log.info("MARKET waiting: {} (no opposite within guard)", mkt.getOrderId());
         } else {
+            // 부분 체결
             kafkaOrderProducer.sendMarketPartial(
                     mkt.getOrderId(), mkt.getTicker(), mkt.getSide(),
                     res.remaining(),
@@ -190,6 +226,11 @@ public class MatchingEngineService {
         }
     }
 
+    /**
+     * 취소 주문 처리:
+     * - 오더북 ZSET/주문 상세/인덱스를 제거
+     * - CANCEL_OK 상태 이벤트 발행
+     */
     private void handleCancel(OrderEvent e) {
         requireNonEmpty(e.getTicker(), "ticker");
         requireNonEmpty(e.getOrderId(), "orderId");
@@ -200,7 +241,9 @@ public class MatchingEngineService {
         log.info("CANCEL ok: {}", e.getOrderId());
     }
 
-    // --- guards ---
+    // ----------------------------------------------------------------------
+    // 입력 가드 유틸
+    // ----------------------------------------------------------------------
     private static void requireNonEmpty(String v, String field) {
         if (v == null || v.isBlank()) {
             throw new IllegalArgumentException(field + " is required");

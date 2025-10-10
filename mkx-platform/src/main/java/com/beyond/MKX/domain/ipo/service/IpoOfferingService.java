@@ -53,6 +53,16 @@ public class IpoOfferingService {
             throw new IllegalArgumentException("희망 공모가 범위가 유효하지 않습니다.");
         }
 
+        long faceValue = ipo.getFaceValue();
+        if (faceValue > 0) {
+            if (offeringReqDTO.getPriceBandMin() < faceValue) {
+                throw new IllegalArgumentException(
+                        "희망공모가 최솟값은 액면가 이상이어야 합니다. (min = " + offeringReqDTO.getPriceBandMin() + ", " +
+                                "faceValue = " + faceValue + ")"
+                );
+            }
+        }
+
         IpoOffering ipoOffering = IpoOffering.builder()
                 .ipo(ipo)
                 .roundNo(offeringReqDTO.getRoundNo())
@@ -121,8 +131,12 @@ public class IpoOfferingService {
             throw new IllegalArgumentException("확정 공모가(offerPrice)는 청약 마감(CLOSED) 상태에서만 확정할 수 있습니다.");
         }
 
+        Long faceValue = ipoOffering.getIpo().getFaceValue();
         Long min = ipoOffering.getPriceBandMin();
         Long max = ipoOffering.getPriceBandMax();
+        if (offerPrice < faceValue) {
+            throw new IllegalArgumentException("확정 공모가는 액면가 이상이어야 합니다. (offerPrice = " + offerPrice + ", faceValue = " + faceValue + ")");
+        }
         if (min == null || max == null || min <= 0 || max <= 0 || min > max) {
             throw new IllegalArgumentException("희망 공모가 범위가 유효하지 않습니다.");
         }
@@ -148,6 +162,20 @@ public class IpoOfferingService {
         if (ipoOffering.getIpoOfferingStatus() != IpoOfferingStatus.SCHEDULED) {
             throw new IllegalArgumentException("SCHEDULED 상태에서만 OPEN 할 수 있습니다.");
         }
+        var openOffering = ipoOfferingRepository.findByIdForUpdate(offeringId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 공모입니다."));
+        if (openOffering.getIpoOfferingStatus() != IpoOfferingStatus.SCHEDULED) {
+            throw new IllegalArgumentException("SCHEDULED상태에서만 OPEN 할 수 있습니다.");
+        }
+        boolean checkNotClosed = ipoOfferingRepository.existsByIpo_IdAndRoundNoLessThanAndIpoOfferingStatusNotIn(
+                openOffering.getIpo().getId(),
+                openOffering.getRoundNo(),
+                java.util.List.of(IpoOfferingStatus.CLOSED, IpoOfferingStatus.CANCELLED)
+        );
+        if (checkNotClosed) {
+            throw new IllegalArgumentException("이전 차수가 종료되지 않아 OPEN 할 수 없습니다.");
+        }
+
 
         validateSchedule(ipoOffering.getSubscriptionStart(), ipoOffering.getSubscriptionEnd(),
                 ipoOffering.getAllocationDate(), ipoOffering.getRefundDate());

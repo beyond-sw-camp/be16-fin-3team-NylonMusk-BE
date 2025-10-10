@@ -31,4 +31,8 @@ public interface IpoOfferingRepository extends JpaRepository<IpoOffering, UUID> 
     @Query("select count(o) from IpoOffering o " +
             "where o.ipo.id = :ipoId and o.ipoOfferingStatus = 'OPEN'")
     long countOpenForIpoForUpdate(@Param("ipoId") UUID ipoId);
+
+    boolean existsByIpo_IdAndRoundNoLessThanAndIpoOfferingStatusNotIn(
+            UUID ipoId, Integer roundNo, Collection<IpoOfferingStatus> statuses
+    );
 }

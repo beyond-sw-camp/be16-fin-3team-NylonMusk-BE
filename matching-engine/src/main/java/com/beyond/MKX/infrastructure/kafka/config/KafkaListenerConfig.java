@@ -19,10 +19,25 @@ import org.springframework.kafka.support.serializer.JsonDeserializer;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * 실행/주문상태/문자열 수신을 위한 Kafka Listener 공통 설정.
+ *
+ * 구성 개요
+ * - ErrorHandlingDeserializer 로 역직렬화 예외를 안전 처리(재시도·스킵)
+ * - JsonDeserializer 기본 타입 고정(헤더 부재 시에도 안전) + TRUSTED_PACKAGES="*"
+ * - 공통 DefaultErrorHandler(지수 백오프) 적용
+ * - 이벤트 타입별 ConsumerFactory/ListenerFactory 분리
+ */
 @EnableKafka
 @Configuration
 public class KafkaListenerConfig {
 
+    /**
+     * 공통 Consumer 설정 빌더(Json 기반).
+     * - KEY/VAL: ErrorHandlingDeserializer 사용
+     * - 실제 delegate: KEY=StringDeserializer, VAL=JsonDeserializer
+     * - 타입 헤더 사용 허용(USE_TYPE_INFO_HEADERS=true)
+     */
     private Map<String, Object> baseConsumerConfigs(KafkaProperties properties) {
         Map<String, Object> configs = new HashMap<>(properties.buildConsumerProperties(null));
         configs.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
@@ -31,12 +46,15 @@ public class KafkaListenerConfig {
         configs.put(ErrorHandlingDeserializer.KEY_DESERIALIZER_CLASS, StringDeserializer.class.getName());
         configs.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class.getName());
         // JSON 공통 설정
-        configs.put(JsonDeserializer.TRUSTED_PACKAGES, "*");           // 패키지 신뢰
-        configs.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, true);     // 타입 헤더 사용 (프로듀서가 붙임)
+        configs.put(JsonDeserializer.TRUSTED_PACKAGES, "*");           // 패키지 신뢰(모듈 이동 대응)
+        configs.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, true);     // 프로듀서 타입 헤더 사용 시 호환
         return configs;
     }
 
-    // ---- executions 전용 ConsumerFactory (ExecutionEvent) ----
+    // ----------------------------------------------------------------------
+    // executions 전용 ConsumerFactory (ExecutionEvent)
+    //  - VALUE_DEFAULT_TYPE 고정: 헤더 부재/문자열 발행에도 안전
+    // ----------------------------------------------------------------------
     @Bean
     public ConsumerFactory<String, ExecutionEvent> executionConsumerFactory(KafkaProperties properties) {
         Map<String, Object> configs = baseConsumerConfigs(properties);
@@ -45,7 +63,9 @@ public class KafkaListenerConfig {
         return new DefaultKafkaConsumerFactory<>(configs);
     }
 
-    // ---- order-status 전용 ConsumerFactory (OrderStatusEvent) ----
+    // ----------------------------------------------------------------------
+    // order-status 전용 ConsumerFactory (OrderStatusEvent)
+    // ----------------------------------------------------------------------
     @Bean
     public ConsumerFactory<String, OrderStatusEvent> orderStatusConsumerFactory(KafkaProperties properties) {
         Map<String, Object> configs = baseConsumerConfigs(properties);
@@ -53,7 +73,10 @@ public class KafkaListenerConfig {
         return new DefaultKafkaConsumerFactory<>(configs);
     }
 
-    // ---- 문자열 전용 ConsumerFactory (에러 토픽 등) ----
+    // ----------------------------------------------------------------------
+    // 문자열 전용 ConsumerFactory (에러/보조 토픽 등)
+    //  - 단순 문자열 수신이므로 ErrorHandlingDeserializer 생략
+    // ----------------------------------------------------------------------
     @Bean
     public ConsumerFactory<String, String> stringConsumerFactory(KafkaProperties properties) {
         Map<String, Object> configs = new HashMap<>(properties.buildConsumerProperties(null));
@@ -63,7 +86,13 @@ public class KafkaListenerConfig {
         return new DefaultKafkaConsumerFactory<>(configs);
     }
 
-    // 공통 에러 핸들러: 역직렬화/처리 중 에러 시 백오프 후 스킵
+    /**
+     * 공통 에러 핸들러.
+     * - 역직렬화/처리 중 에러 시 지수 백오프 재시도 후 레코드 스킵
+     * - 초기 100ms, 배수 2.0, 최대 5회, 최대 간격 2s
+     */
+
+    // 위치 이유: Kafka 전용 설정 결합·팩토리별 튜닝·모듈 경계 유지를 위해 common/exception이 아닌 이 설정 내부에 둠.
     private DefaultErrorHandler commonErrorHandler() {
         // 초기 100ms, 배수 2.0, 최대 5회 재시도 후 레코드 스킵
         ExponentialBackOffWithMaxRetries backoff = new ExponentialBackOffWithMaxRetries(5);
@@ -73,7 +102,11 @@ public class KafkaListenerConfig {
         return new DefaultErrorHandler(backoff);
     }
 
-    // ---- 컨테이너 공장들 ----
+    // ----------------------------------------------------------------------
+    // ListenerContainerFactory 들
+    //  - 배치 리스닝 비활성(단건 처리 기본)
+    //  - 공통 에러 핸들러 적용
+    // ----------------------------------------------------------------------
     @Bean(name = "kafkaExecutionListenerFactory")
     public ConcurrentKafkaListenerContainerFactory<String, ExecutionEvent> kafkaExecutionListenerFactory(
             ConsumerFactory<String, ExecutionEvent> executionConsumerFactory) {

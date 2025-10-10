@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Getter
@@ -23,6 +24,13 @@ public class IpoSubscription extends BaseIdAndTimeEntity {
 
     @Enumerated(EnumType.STRING)
     private InvestorType investorType;
+
+    @Column(name = "subscriber_id", nullable = false)
+    private UUID subscriberId;
+    @Column(name = "brokerage_id", nullable = false)
+    private UUID brokerageId;
+    @Column(name = "account_id", nullable = false)
+    private UUID accountId;
 
     // 신청 정보
     @Column(nullable=false)
@@ -55,4 +63,8 @@ public class IpoSubscription extends BaseIdAndTimeEntity {
 
     // 청약 총액 계산 메서드
     public Long appliedAmount() { return appliedQuantity * offerPriceSnapshot; }
+    public void setPaidAmount(Long paidAmount) { this.paidAmount = paidAmount; }
+    public void setStatus(SubscriptionStatus status) { this.status = status; }
+    public void setPaidAt(LocalDateTime paidAt) { this.paidAt = paidAt; }
+    public void setCancelledAt(LocalDateTime cancelledAt) { this.cancelledAt = cancelledAt; }
 }

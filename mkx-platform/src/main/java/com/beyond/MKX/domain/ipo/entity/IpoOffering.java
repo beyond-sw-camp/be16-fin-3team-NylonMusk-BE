@@ -72,4 +72,36 @@ public class IpoOffering extends BaseIdAndTimeEntity {
 
     /* 배정 방식 */
     // TODO: 계좌 생성 이후 진행 할 예정
+
+    public void offeringOpen(java.time.LocalDateTime now) {
+        if (this.ipoOfferingStatus != IpoOfferingStatus.SCHEDULED) {
+            throw new IllegalArgumentException("SCHEDULED 상태에서만 OPEN 가능");
+        }
+        this.ipoOfferingStatus = IpoOfferingStatus.OPEN;
+    }
+
+    public void offeringCloseNow(java.time.LocalDateTime now) {
+        if (this.ipoOfferingStatus != IpoOfferingStatus.OPEN) {
+            throw new IllegalStateException("OPEN에서만 CLOSED 가능");
+        }
+        this.ipoOfferingStatus = IpoOfferingStatus.CLOSED;
+    }
+
+    public void fixOfferPrice(long price, long min, long max, long face) {
+        if (this.ipoOfferingStatus != IpoOfferingStatus.CLOSED) {
+            throw new IllegalStateException("CLOSED에서만 가격 확정 가능");
+        }
+        if (price < face) throw new IllegalArgumentException("확정 공모가는 액면가 이상");
+        if (price < min || price > max) throw new IllegalArgumentException("밴드 범위 이탈");
+        this.offerPrice = price;
+        this.ipoOfferingStatus = IpoOfferingStatus.PRICE_FIXED;
+    }
+
+    public void offeringCancel() {
+        if (this.ipoOfferingStatus == IpoOfferingStatus.CANCELLED
+                || this.ipoOfferingStatus == IpoOfferingStatus.SETTLED) {
+            throw new IllegalStateException("이미 종결/취소됨");
+        }
+        this.ipoOfferingStatus = IpoOfferingStatus.CANCELLED;
+    }
 }

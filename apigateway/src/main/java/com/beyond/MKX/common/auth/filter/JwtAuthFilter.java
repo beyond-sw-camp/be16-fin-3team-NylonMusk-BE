@@ -1,4 +1,4 @@
-package com.beyond.MKX;
+package com.beyond.MKX.common.auth.filter;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -61,7 +61,8 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
      */
     private static final List<String> AUTH_WHITELIST = List.of(
             "/auth/**",
-            "/health"
+            "/health",
+            "/order/**"
     );
 
     /**

@@ -1,9 +1,6 @@
 package com.beyond.MKX.domain.ipo.offering.dto;
 
-import jakarta.validation.constraints.DecimalMax;
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -22,7 +19,7 @@ public class IpoOfferingReqDTO {
     /* 어떤 상장에 대한 공모인지 */
     private UUID ipoId;
     /* 몇 번째 공모 신청인지 */
-    @NotNull
+    @Null
     @Positive
     private Integer roundNo;
 

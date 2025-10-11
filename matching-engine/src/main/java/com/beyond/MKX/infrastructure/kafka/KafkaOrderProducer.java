@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -34,7 +35,7 @@ public class KafkaOrderProducer {
     // 체결 이벤트 (부분/완전 체결 1건마다 발행)
     // ---------------------------------------------------------------------
     public void sendExecution(String marketOrderId, String ticker, String side,
-                              String counterOrderId, double qty, double price) {
+                              String counterOrderId, BigDecimal qty, long price) {
         String execId = marketOrderId + "-" + counterOrderId + "-" + UUID.randomUUID(); // 멱등키
         ExecutionEvent evt = ExecutionEvent.builder()
                 .execId(execId)
@@ -64,7 +65,7 @@ public class KafkaOrderProducer {
     // 상태 알림 (접수/대기/부분/완전/취소)
     // ---------------------------------------------------------------------
     /** 신규 지정가 접수(체결 전): price=지정가, remaining=초기 수량 */
-    public void sendNewAccepted(String orderId, String ticker, String side, double price, double qty) {
+    public void sendNewAccepted(String orderId, String ticker, String side, long price, BigDecimal qty) {
         OrderStatusEvent evt = OrderStatusEvent.builder()
                 .orderId(orderId)
                 .ticker(ticker)
@@ -99,8 +100,8 @@ public class KafkaOrderProducer {
 
     /** 부분 체결(대표가격=vwap, 보조=last/limit, 누적 체결수량 포함) */
     public void sendMarketPartial(String orderId, String ticker, String side,
-                                  double remaining,
-                                  double vwap, double lastPrice, double limitPrice, double filledQty) {
+                                  BigDecimal remaining,
+                                  long vwap, long lastPrice, long limitPrice, BigDecimal filledQty) {
         OrderStatusEvent evt = OrderStatusEvent.builder()
                 .orderId(orderId)
                 .ticker(ticker)
@@ -118,7 +119,7 @@ public class KafkaOrderProducer {
 
     /** 완전 체결(대표가격=vwap, last/limit/누적 체결수량 포함) */
     public void sendMarketFilled(String orderId, String ticker, String side,
-                                 double vwap, double lastPrice, double limitPrice, double filledQty) {
+                                 long vwap, long lastPrice, long limitPrice, BigDecimal filledQty) {
         OrderStatusEvent evt = OrderStatusEvent.builder()
                 .orderId(orderId)
                 .ticker(ticker)

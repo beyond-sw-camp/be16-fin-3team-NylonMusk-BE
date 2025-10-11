@@ -78,10 +78,6 @@ public class RedisOrderRepository {
         return BigDecimal.valueOf(price).setScale(0, RoundingMode.HALF_UP).longValueExact();
     }
 
-    private double fromPriceInt(long priceInt) {
-        return BigDecimal.valueOf(priceInt).doubleValue();
-    }
-
     // ----------------------------------------------------------------------
     // 점수 계산 (가격 우선, 동가격 내 시간 우선)
     //  - seq가 커져도 역전이 발생하지 않도록 FACTOR로 mod 처리
@@ -99,7 +95,7 @@ public class RedisOrderRepository {
     // ----------------------------------------------------------------------
     // 신규 주문 적재 (단순 적재용; 지정가 잔량은 일반적으로 Lua가 적재)
     // ----------------------------------------------------------------------
-    public void addOrder(String ticker, String orderId, double price, double quantity, String side) {
+    public void addOrder(String ticker, String orderId, long price, BigDecimal quantity, String side) {
         final String bookKey   = orderBookKey(ticker, side);
         final String detailKey = orderDetailKey(ticker, orderId);
         final String idxKey    = orderIndexKey(orderId);
@@ -156,7 +152,7 @@ public class RedisOrderRepository {
     // ----------------------------------------------------------------------
     public MatchResult matchOrAddLimit(
             String ticker, String side,
-            double quantity, int maxMatches,
+            BigDecimal quantity, int maxMatches,
             Long guardPriceInt,           // 시장가도 가드 사용 (null이면 0으로 전달)
             String orderIdToAdd,          // 지정가면 주문ID, 시장가면 null/빈 문자열
             Long priceIntForAdd           // 지정가 적재 가격(보통 guardPriceInt와 같음)
@@ -185,16 +181,17 @@ public class RedisOrderRepository {
             return new MatchResult(quantity, Collections.emptyList(), false);
         }
 
-        double remaining = Double.parseDouble(raw.get(0).toString());
+        String remainingStr = Objects.toString(raw.get(0), "0");
+        BigDecimal remaining = new BigDecimal(remainingStr); // 문자열→BigDecimal 직파싱(정밀도 유지)
+
         int count = Integer.parseInt(raw.get(1).toString());
 
         List<TradeFill> fills = new ArrayList<>(count);
         int i = 2;
         for (int k = 0; k < count && i + 2 < raw.size(); k++) {
             String counterOrderId = raw.get(i++).toString();
-            double fillQty        = Double.parseDouble(raw.get(i++).toString());
-            long priceInt         = Long.parseLong(raw.get(i++).toString());
-            double price          = fromPriceInt(priceInt);
+            BigDecimal fillQty = new BigDecimal(raw.get(i++).toString());
+            long price = Long.parseLong(raw.get(i++).toString());
             fills.add(new TradeFill(counterOrderId, fillQty, price));
         }
 
@@ -215,7 +212,7 @@ public class RedisOrderRepository {
      * @return 이미 존재하면 false, 새로 적재했으면 true
      */
     public boolean ensureLimitOrderPresent(
-            String ticker, String orderId, String side, Double price, Double remainingQty) {
+            String ticker, String orderId, String side, long price, BigDecimal remainingQty) {
 
         Objects.requireNonNull(price, "price");
         Objects.requireNonNull(remainingQty, "remainingQty");
@@ -234,6 +231,6 @@ public class RedisOrderRepository {
     // ----------------------------------------------------------------------
     // DTO
     // ----------------------------------------------------------------------
-    public record TradeFill(String counterOrderId, double quantity, double price) {}
-    public record MatchResult(double remaining, List<TradeFill> fills, boolean addedToBook) {}
+    public record TradeFill(String counterOrderId, BigDecimal quantity, long price) {}
+    public record MatchResult(BigDecimal remaining, List<TradeFill> fills, boolean addedToBook) {}
 }

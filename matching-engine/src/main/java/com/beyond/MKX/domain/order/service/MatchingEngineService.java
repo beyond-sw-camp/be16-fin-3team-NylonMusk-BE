@@ -9,6 +9,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
 /**
  * 매칭 엔진 서비스.
  *
@@ -17,9 +20,9 @@ import org.springframework.stereotype.Service;
  * - Redis 오더북 리포지토리와 Lua 스크립트를 통해 매칭 수행
  * - 체결(Execution) 및 상태(OrderStatus) 카프카 이벤트 발행
  *
- * 주의
- * - 숫자 비교 시 double 사용: Redis/Lua 반환값과 일관 유지
- * - 예외 발생 시 order-errors 토픽으로 원인 전달
+ * 수치 원칙
+ * - 가격: KRW 정수 long (부동소수점 오차 방지)
+ * - 수량·잔량·누적: BigDecimal
  */
 @Service
 @RequiredArgsConstructor
@@ -67,84 +70,94 @@ public class MatchingEngineService {
      * 3) 체결 건마다 executions 발행, 요약 상태를 order-status로 발행
      */
     private void handleLimit(OrderEvent e) {
-        // --- 입력 검증(필수값·양수) ---
+        // --- 입력 검증 ---
         requireNonEmpty(e.getTicker(), "ticker");
         requireNonEmpty(e.getOrderId(), "orderId");
-        requireNonEmpty(e.getSide(), "side");
+        requireNonEmpty(e.getSide(),   "side");
         requirePositive(e.getQuantity(), "quantity");
-        requirePositive(e.getPrice(), "price");
+        requirePositive(e.getPrice(),    "price");
 
-        final long guardPxInt = redisRepo.asIntPrice(e.getPrice());
+        // 입력값을 엔진 내부 표현으로 변환
+        final BigDecimal reqQty     = e.getQuantity();
+        final long       guardPxInt = redisRepo.asIntPrice(e.getPrice()); // 지정가 → KRW 정수
+        final long       limitPxInt = guardPxInt;
 
         // 매칭 + (잔량 시) 동일 orderId/가격으로 적재
         MatchResult res = redisRepo.matchOrAddLimit(
                 e.getTicker(),
                 e.getSide(),
-                e.getQuantity(),
+                reqQty,       // 레포는 아직 double 인터페이스 → 향후 BigDecimal로 변경 권장
                 MAX_MATCHES_PER_CALL,
-                guardPxInt,            // 가격가드 = 지정가
-                e.getOrderId(),        // 잔량 적재 시 사용할 orderId
-                guardPxInt             // 잔량 적재 가격 = 지정가
+                guardPxInt,
+                e.getOrderId(),
+                guardPxInt
         );
 
-        // --- 체결 통계 집계(VWAP/last) ---
-        double filledQty = 0.0;
-        double notional  = 0.0;
-        Double lastPx    = null;
+        // --- 체결 집계: notional(정수 KRW * 수량) / 누적 수량(BigDecimal) ---
+        BigDecimal filledQty = BigDecimal.ZERO;
+        BigDecimal notional  = BigDecimal.ZERO;
+        Long       lastPxInt = null;
 
         for (TradeFill f : res.fills()) {
-            filledQty += f.quantity();
-            notional  += f.quantity() * f.price();
-            lastPx     = f.price();
+            // TradeFill은 (quantity=BigDecimal, price=long) 이라고 가정
+            BigDecimal q  = f.quantity(); // BigDecimal
+            long       px = f.price();    // KRW 정수
 
-            // 개별 체결 이벤트 발행(상대 주문 ID 포함)
+            filledQty = filledQty.add(q);
+            notional  = notional.add(BigDecimal.valueOf(px).multiply(q));
+            lastPxInt = px;
+
+            // 개별 체결 이벤트 발행(상대 주문 ID 포함) — ExecutionEvent는 여전히 double 기반이면 변환
             kafkaOrderProducer.sendExecution(
                     e.getOrderId(),
                     e.getTicker(),
                     e.getSide(),
                     f.counterOrderId(),
-                    f.quantity(),
-                    f.price()
+                    q,              // 외부 인터페이스 호환
+                    px                   // 외부 인터페이스 호환
             );
         }
 
-        Double vwap    = filledQty > 0 ? (notional / filledQty) : null;
-        double limitPx = e.getPrice();
+        Long vwapInt = filledQty.signum() > 0
+                ? notional.divide(filledQty, 0, RoundingMode.HALF_UP).longValueExact()
+                : null;
 
         // --- 상태 이벤트(완전/부분/무체결) ---
-        if (res.remaining() <= 0) {
+        BigDecimal remainingBD = res.remaining(); // 레포 반환이 double → BD로 변환
+
+        if (remainingBD.compareTo(BigDecimal.ZERO) <= 0) {
             // 완전 체결
             kafkaOrderProducer.sendMarketFilled(
                     e.getOrderId(), e.getTicker(), e.getSide(),
-                    vwap != null ? vwap : 0.0,
-                    lastPx != null ? lastPx : 0.0,
-                    limitPx,
+                    vwapInt != null ? vwapInt : 0L,
+                    lastPxInt != null ? lastPxInt : 0L,
+                    limitPxInt,
                     filledQty
             );
-            log.info("LIMIT filled: {} {} {} filledQty={}", e.getOrderId(), e.getTicker(), e.getSide(), e.getQuantity());
+            log.info("LIMIT filled: {} {} {} filledQty={}", e.getOrderId(), e.getTicker(), e.getSide(), reqQty);
         } else if (res.fills().isEmpty()) {
             // 전혀 체결 아님 → 잔량 적재 보강(동일 키가 없을 때만)
             boolean added = redisRepo.ensureLimitOrderPresent(
-                    e.getTicker(), e.getOrderId(), e.getSide(), e.getPrice(), e.getQuantity());
-            kafkaOrderProducer.sendNewAccepted(e.getOrderId(), e.getTicker(), e.getSide(), e.getPrice(), e.getQuantity());
+                    e.getTicker(), e.getOrderId(), e.getSide(), e.getPrice(), reqQty);
+            kafkaOrderProducer.sendNewAccepted(e.getOrderId(), e.getTicker(), e.getSide(), e.getPrice(), reqQty);
             log.info("LIMIT accepted(no fills): {} {} {} qty={} price={} (fallbackAdded={})",
-                    e.getOrderId(), e.getTicker(), e.getSide(), e.getQuantity(), e.getPrice(), added);
+                    e.getOrderId(), e.getTicker(), e.getSide(), reqQty, e.getPrice(), added);
         } else {
             // 부분 체결 + 잔량 적재 보강
             boolean added = redisRepo.ensureLimitOrderPresent(
-                    e.getTicker(), e.getOrderId(), e.getSide(), e.getPrice(), res.remaining());
+                    e.getTicker(), e.getOrderId(), e.getSide(), e.getPrice(), remainingBD);
 
             kafkaOrderProducer.sendMarketPartial(
                     e.getOrderId(), e.getTicker(), e.getSide(),
-                    res.remaining(),
-                    vwap != null ? vwap : 0.0,
-                    lastPx != null ? lastPx : 0.0,
-                    limitPx,
+                    remainingBD,
+                    vwapInt != null ? vwapInt : 0L,
+                    lastPxInt != null ? lastPxInt : 0L,
+                    limitPxInt,
                     filledQty
             );
 
             log.info("LIMIT partial: {} {} {} remaining={} (fallbackAdded={})",
-                    e.getOrderId(), e.getTicker(), e.getSide(), res.remaining(), added);
+                    e.getOrderId(), e.getTicker(), e.getSide(), remainingBD, added);
         }
     }
 
@@ -157,57 +170,64 @@ public class MatchingEngineService {
     private void handleMarket(OrderEvent mkt) {
         requireNonEmpty(mkt.getTicker(), "ticker");
         requireNonEmpty(mkt.getOrderId(), "orderId");
-        requireNonEmpty(mkt.getSide(), "side");
+        requireNonEmpty(mkt.getSide(),   "side");
         requirePositive(mkt.getQuantity(), "quantity");
-        requirePositive(mkt.getPrice(), "guard price");
+        requirePositive(mkt.getPrice(),    "guard price");
 
-        final long guardPxInt = redisRepo.asIntPrice(mkt.getPrice());
+        final BigDecimal reqQty     = mkt.getQuantity();
+        final long       guardPxInt = redisRepo.asIntPrice(mkt.getPrice());
+        final long       limitPxInt = guardPxInt; // MARKET의 limitPrice 필드는 '가드 가격' 의미로 재사용
 
-        // 시장가: orderIdToAdd="", priceIntForAdd=0 전달(잔량 미적재)
+        // 시장가: 잔량 미적재 → orderIdToAdd="", priceIntForAdd=0
         MatchResult res = redisRepo.matchOrAddLimit(
                 mkt.getTicker(),
                 mkt.getSide(),
-                mkt.getQuantity(),
+                reqQty,   // 레포 인터페이스 호환
                 MAX_MATCHES_PER_CALL,
                 guardPxInt,
-                "",     // 시장가: 잔량 적재 안 함
+                "",
                 0L
         );
 
-        // --- 체결 통계 집계(VWAP/last) ---
-        double filledQty = 0.0;
-        double notional  = 0.0;
-        Double lastPx    = null;
+        // --- 체결 집계 ---
+        BigDecimal filledQty = BigDecimal.ZERO;
+        BigDecimal notional  = BigDecimal.ZERO;
+        Long       lastPxInt = null;
 
         for (TradeFill f : res.fills()) {
-            filledQty += f.quantity();
-            notional  += f.quantity() * f.price();
-            lastPx     = f.price();
+            BigDecimal q  = f.quantity();
+            long       px = f.price();
+
+            filledQty = filledQty.add(q);
+            notional  = notional.add(BigDecimal.valueOf(px).multiply(q));
+            lastPxInt = px;
 
             kafkaOrderProducer.sendExecution(
                     mkt.getOrderId(),
                     mkt.getTicker(),
                     mkt.getSide(),
                     f.counterOrderId(),
-                    f.quantity(),
-                    f.price()
+                    q,
+                    px
             );
         }
 
-        Double vwap = filledQty > 0 ? (notional / filledQty) : null;
-        // MARKET의 limitPrice 필드는 '가드 가격' 의미로 재사용(primitive double null 회피)
-        double limitPx = mkt.getPrice();
+        Long vwapInt = filledQty.signum() > 0
+                ? notional.divide(filledQty, 0, RoundingMode.HALF_UP).longValueExact()
+                : null;
 
-        if (res.remaining() <= 0.0) {
+        BigDecimal remainingBD = res.remaining();
+
+        if (remainingBD.compareTo(BigDecimal.ZERO) <= 0) {
             // 완전 체결
             kafkaOrderProducer.sendMarketFilled(
                     mkt.getOrderId(), mkt.getTicker(), mkt.getSide(),
-                    vwap != null ? vwap : 0.0,
-                    lastPx != null ? lastPx : 0.0,
-                    limitPx,
+                    vwapInt != null ? vwapInt : 0L,
+                    lastPxInt != null ? lastPxInt : 0L,
+                    limitPxInt,
                     filledQty
             );
-            log.info("MARKET filled: {} ticker={} side={} filledQty={}", mkt.getOrderId(), mkt.getTicker(), mkt.getSide(), mkt.getQuantity());
+            log.info("MARKET filled: {} ticker={} side={} filledQty={}", mkt.getOrderId(), mkt.getTicker(), mkt.getSide(), reqQty);
         } else if (res.fills().isEmpty()) {
             // 가드 범위 내 반대 호가 없음 → 대기(체결 X)
             kafkaOrderProducer.sendWaiting(mkt.getOrderId(), mkt.getTicker(), mkt.getSide());
@@ -216,13 +236,13 @@ public class MatchingEngineService {
             // 부분 체결
             kafkaOrderProducer.sendMarketPartial(
                     mkt.getOrderId(), mkt.getTicker(), mkt.getSide(),
-                    res.remaining(),
-                    vwap != null ? vwap : 0.0,
-                    lastPx != null ? lastPx : 0.0,
-                    limitPx,
+                    remainingBD,
+                    vwapInt != null ? vwapInt : 0L,
+                    lastPxInt != null ? lastPxInt : 0L,
+                    limitPxInt,
                     filledQty
             );
-            log.info("MARKET partial: {} ticker={} side={} remaining={}", mkt.getOrderId(), mkt.getTicker(), mkt.getSide(), res.remaining());
+            log.info("MARKET partial: {} ticker={} side={} remaining={}", mkt.getOrderId(), mkt.getTicker(), mkt.getSide(), remainingBD);
         }
     }
 
@@ -234,7 +254,7 @@ public class MatchingEngineService {
     private void handleCancel(OrderEvent e) {
         requireNonEmpty(e.getTicker(), "ticker");
         requireNonEmpty(e.getOrderId(), "orderId");
-        requireNonEmpty(e.getSide(), "side");
+        requireNonEmpty(e.getSide(),   "side");
 
         redisRepo.cancelOrder(e.getOrderId(), e.getTicker(), e.getSide());
         kafkaOrderProducer.sendCancelSuccess(e.getOrderId());
@@ -249,8 +269,14 @@ public class MatchingEngineService {
             throw new IllegalArgumentException(field + " is required");
         }
     }
-    private static void requirePositive(double v, String field) {
-        if (v <= 0.0) {
+    private static void requirePositive(BigDecimal v, String field) {
+        if (v == null || v.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException(field + " must be > 0");
+        }
+    }
+
+    private static void requirePositive(long v, String field) {
+        if (v <= 0L) {
             throw new IllegalArgumentException(field + " must be > 0");
         }
     }

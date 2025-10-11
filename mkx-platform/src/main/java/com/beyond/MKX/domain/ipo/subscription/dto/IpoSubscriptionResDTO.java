@@ -1,5 +1,6 @@
 package com.beyond.MKX.domain.ipo.subscription.dto;
 
+import com.beyond.MKX.domain.ipo.offering.entity.IpoOffering;
 import com.beyond.MKX.domain.ipo.subscription.entity.IpoSubscription;
 import com.beyond.MKX.domain.ipo.subscription.entity.SubscriptionStatus;
 import lombok.AllArgsConstructor;
@@ -29,6 +30,9 @@ public class IpoSubscriptionResDTO {
     private LocalDateTime appliedAt;
     private LocalDateTime paidAt;
     private LocalDateTime cancelledAt;
+    private BigDecimal competitionRatioX;       // 예: 1.23  (표시는 FE에서 "1.23:1")
+
+
     public static IpoSubscriptionResDTO from(IpoSubscription subscription) {
         return new IpoSubscriptionResDTO(
                 subscription.getId(),
@@ -43,7 +47,8 @@ public class IpoSubscriptionResDTO {
                 subscription.getStatus(),
                 subscription.getAppliedAt(),
                 subscription.getPaidAt(),
-                subscription.getCancelledAt()
-            );
+                subscription.getCancelledAt(),
+               null
+        );
     }
 }

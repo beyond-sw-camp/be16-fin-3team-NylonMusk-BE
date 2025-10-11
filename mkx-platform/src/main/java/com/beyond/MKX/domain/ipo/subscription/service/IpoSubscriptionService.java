@@ -144,7 +144,10 @@ public class IpoSubscriptionService {
 
         subscriptionRepository.save(ipoSubscription);
 
-        return IpoSubscriptionResDTO.from(ipoSubscription);
+        subscriptionRepository.flush(); // 방금 저장분이 합계 쿼리에 반영되도록 보장
+        IpoSubscriptionResDTO dto = IpoSubscriptionResDTO.from(ipoSubscription);
+        dto.setCompetitionRatioX(computeCompetitionRatioX(ipoOffering));
+        return dto; // ✅ 계산된 경쟁RatioX 포함하여 반환
 
     }
     // 확정가가 있으면 그 값을, 없으면 밴드 상단을 사용(보수적 증거금).
@@ -182,18 +185,39 @@ public class IpoSubscriptionService {
         ipoSubscription.setDepositAmount(0L);
         ipoSubscription.setStatus(SubscriptionStatus.CANCELLED);
         ipoSubscription.setCancelledAt(now);
+
         // 누적 환불액 증가(정산/감사 추적용)
 //        ipoSubscription.setRefundedAmount((ipoSubscription.getRefundedAmount() == null ? 0L : ipoSubscription.getRefundedAmount()) + refundable);
 
-        // 4) 경쟁률은 PAID 기준 합산이라, 상태 변경만으로 자동 제외됨
-        return IpoSubscriptionResDTO.from(ipoSubscription);
+
+        // ✅ DB 변경이 합계 쿼리에 반영되도록 보장
+        subscriptionRepository.flush();
+
+        // ✅ 경쟁률 계산 주입
+        IpoSubscriptionResDTO dto = IpoSubscriptionResDTO.from(ipoSubscription);
+        dto.setCompetitionRatioX(computeCompetitionRatioX(o));
+        return dto;
+
     }
 
     @Transactional
     public IpoSubscriptionResDTO get(UUID subscriptionId) {
         IpoSubscription ipoSubscription = subscriptionRepository.findById(subscriptionId)
                 .orElseThrow(() -> new IllegalArgumentException("청약을 찾을 수 없습니다."));
-        return IpoSubscriptionResDTO.from(ipoSubscription);
+
+        IpoSubscriptionResDTO dto = IpoSubscriptionResDTO.from(ipoSubscription);
+        dto.setCompetitionRatioX(computeCompetitionRatioX(ipoSubscription.getIpoOffering())); // ✅ 최신 경쟁률
+        return dto;
+    }
+
+//    경쟁률 계산기
+    private BigDecimal computeCompetitionRatioX(IpoOffering o) {
+        long paidQty = subscriptionRepository
+                .sumAppliedQuantityByOffering(o.getId(), SubscriptionStatus.PAID);
+        long offerQty = (o.getOfferQuantity() == null ? 0L : o.getOfferQuantity());
+        if (offerQty <= 0) return null;
+        return BigDecimal.valueOf(paidQty)
+                .divide(BigDecimal.valueOf(offerQty), 2, RoundingMode.HALF_UP); // 1.23 형태
     }
 
     /** 향후 추가 공모 로직 시간이 된다면 쓸 예정 ... */

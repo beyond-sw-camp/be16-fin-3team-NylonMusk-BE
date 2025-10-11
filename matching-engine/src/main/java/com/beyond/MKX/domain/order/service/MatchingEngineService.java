@@ -33,6 +33,7 @@ public class MatchingEngineService {
     private final KafkaOrderProducer kafkaOrderProducer;
 
     /** 한 번의 Lua 실행에서 소비할 최대 매칭 수(과도한 처리 방지) */
+    // TODO: 팀원과 상의 후 MAX_MATCHES_PER_CALL 값 확정 짓기
     private static final int MAX_MATCHES_PER_CALL = 200;
 
     /**

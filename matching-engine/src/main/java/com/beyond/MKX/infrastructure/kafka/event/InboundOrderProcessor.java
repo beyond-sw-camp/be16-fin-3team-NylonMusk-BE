@@ -30,14 +30,15 @@ public class InboundOrderProcessor {
      */
     public void handleInbound(InboundOrderMessage m) {
         // place-order 스키마 → 우리 매칭 엔진 이벤트로 매핑
-        OrderEvent evt = new OrderEvent();
-        evt.setBrokerageId(m.getBrokerageId());
-        evt.setOrderId(m.getOrderId());
-        evt.setTicker(m.getTicker());
-        evt.setSide(m.getSide());
-        evt.setQuantity(m.getQuantity());
-        evt.setPrice(m.getPrice());
-        evt.setOrderType(m.getOrderKind());
+        OrderEvent evt = OrderEvent.builder()
+                .brokerageId(m.getBrokerageId())
+                .orderId(m.getOrderId())
+                .ticker(m.getTicker())
+                .side(m.getSide())
+                .orderType(m.getOrderKind())
+                .price(m.getPrice())          // long
+                .quantity(m.getQuantity())    // BigDecimal
+                .build();
 
         // 매칭 엔진으로 위임(LIMIT/MARKET/CANCEL 분기 및 카프카 이벤트 발행)
         matchingEngine.process(evt);

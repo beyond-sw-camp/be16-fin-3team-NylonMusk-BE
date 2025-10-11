@@ -1,9 +1,6 @@
 package com.beyond.MKX.domain.order.entity;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -15,7 +12,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @AllArgsConstructor
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
 public class OrderEvent {
     private String brokerageId;   // 증권사 ID

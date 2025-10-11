@@ -18,18 +18,11 @@ import java.util.UUID;
 public class IpoSubscriptionController {
     private final IpoSubscriptionService subscriptionService;
 
-    /* 청약 신청(APPLY) */
+    /* 청약 신청(APPLY) & 증거금 납입 (PAID) 원큐 */
     @PostMapping
     public ResponseEntity<?> apply(@Valid @RequestBody IpoSubscriptionReqDTO reqDTO) {
         IpoSubscriptionResDTO subscriptionRes = subscriptionService.apply(reqDTO);
         return ApiResponse.ok(subscriptionRes, "청약 접수가 완료되었습니다.");
-    }
-
-    /* 청약 납입(APPLIED -> PAID) */
-    @PatchMapping("/{subscriptionId}/deposit")
-    public ResponseEntity<?> paid(@PathVariable UUID subscriptionId, @Valid @RequestBody DepositReqDTO reqDTO) {
-        IpoSubscriptionResDTO subscriptionRes = subscriptionService.deposit(subscriptionId, reqDTO.getDepositAmount());
-        return ApiResponse.ok(subscriptionRes, "증거금 납입 처리가 완료되었습니다.");
     }
 
     /** 청약 취소 (APPLIED -> CANCELLED) */
@@ -45,4 +38,11 @@ public class IpoSubscriptionController {
         IpoSubscriptionResDTO res = subscriptionService.get(subscriptionId);
         return ApiResponse.ok(res, "조회 완료");
     }
+
+    /** 청약 납입(APPLIED -> PAID) / 향후 시간이 된다면 추가공모로직으로 쓸 예정 / 아마 못 쓸 듯, 그래도 아까워서  */
+//    @PatchMapping("/{subscriptionId}/deposit")
+//    public ResponseEntity<?> paid(@PathVariable UUID subscriptionId, @Valid @RequestBody DepositReqDTO reqDTO) {
+//        IpoSubscriptionResDTO subscriptionRes = subscriptionService.deposit(subscriptionId, reqDTO.getDepositAmount());
+//        return ApiResponse.ok(subscriptionRes, "증거금 납입 처리가 완료되었습니다.");
+//    }
 }

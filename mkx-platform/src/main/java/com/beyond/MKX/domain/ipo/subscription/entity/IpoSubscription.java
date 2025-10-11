@@ -74,4 +74,5 @@ public class IpoSubscription extends BaseIdAndTimeEntity {
     public void setStatus(SubscriptionStatus status) { this.status = status; }
     public void setPaidAt(LocalDateTime paidAt) { this.paidAt = paidAt; }
     public void setCancelledAt(LocalDateTime cancelledAt) { this.cancelledAt = cancelledAt; }
+
 }

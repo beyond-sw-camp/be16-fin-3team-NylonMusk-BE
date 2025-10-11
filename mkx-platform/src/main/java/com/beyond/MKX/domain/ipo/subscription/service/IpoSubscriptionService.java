@@ -113,9 +113,16 @@ public class IpoSubscriptionService {
                 .longValueExact();
 
         // 6-1) 신청과 동시에 납입 검증
+        long maxDeposit = appliedAmount.longValueExact(); // = appliedQuantity * priceSnapshot
         if (createReqDTO.depositAmount() == null || createReqDTO.depositAmount() < requiredDeposit) {
             throw new IllegalArgumentException(
-                    "납입 금액(" + createReqDTO.depositAmount() + "원)은 필요 증거금(" + requiredDeposit + "원)보다 작습니다.");
+                    "납입 금액(" + createReqDTO.depositAmount()
+                            + "원)은 필요 증거금(" + requiredDeposit + "원)보다 작습니다.");
+        }
+//        과납 방지
+        if (createReqDTO.depositAmount() > maxDeposit) {
+            throw new IllegalArgumentException("납입 금액(" + createReqDTO.depositAmount()
+                    + "원)이 신청 총액(" + maxDeposit + "원)을 초과합니다.");
         }
 
         // 7) 저장
@@ -129,7 +136,7 @@ public class IpoSubscriptionService {
                 .offerPriceSnapshot(priceSnapshot)
                 .depositRateSnapshot(depositRateSnapshot)
                 .requiredDeposit(requiredDeposit)
-                .depositAmount(0L)
+                .depositAmount(createReqDTO.depositAmount())
                 .refundedAmount(0L)
                 .status(SubscriptionStatus.PAID)
                 .appliedAt(now)
@@ -149,47 +156,36 @@ public class IpoSubscriptionService {
     }
 
     @Transactional
-    public IpoSubscriptionResDTO deposit(UUID subscriptionId, long depositAmount) {
-        if (depositAmount <= 0) throw new IllegalArgumentException("납입 금액은 0보다 커야 합니다.");
-
-        IpoSubscription ipoSubscription = subscriptionRepository.findById(subscriptionId)
-                .orElseThrow(() -> new IllegalArgumentException("청약을 찾을 수 없습니다."));
-
-        // 상태 체크: APPLIED → PAID 만 허용
-        if (ipoSubscription.getStatus() != SubscriptionStatus.APPLIED) {
-            throw new IllegalStateException("APPLIED 상태에서만 납입 처리 가능합니다.");
-        }
-
-        // 계좌 존재(최소 제약)
-        if (ipoSubscription.getAccountId() == null) {
-            throw new IllegalStateException("납입 계좌가 지정되지 않았습니다.");
-        }
-
-        // 스냅샷된 '필요 증거금' 사용 (apply 시점에 계산/저장됨)
-        long required = ipoSubscription.getRequiredDeposit();
-        if (depositAmount < required) {
-            throw new IllegalArgumentException("납입 금액(" + depositAmount + "원)은 필요 증거금(" + required + "원)보다 작습니다.");
-        }
-
-        // 더티체킹으로 업데이트
-        ipoSubscription.setDepositAmount(
-                (ipoSubscription.getDepositAmount() == null ? 0L : ipoSubscription.getDepositAmount()) + depositAmount
-        );
-        ipoSubscription.setStatus(SubscriptionStatus.PAID);
-        ipoSubscription.setPaidAt(LocalDateTime.now(clock));
-        return IpoSubscriptionResDTO.from(ipoSubscription);
-    }
-
-    @Transactional
     public IpoSubscriptionResDTO cancel(UUID subscriptionId) {
         IpoSubscription ipoSubscription = subscriptionRepository.findById(subscriptionId)
                 .orElseThrow(() -> new IllegalArgumentException("청약을 찾을 수 없습니다."));
-        if (ipoSubscription.getStatus() != SubscriptionStatus.APPLIED) {
-            throw new IllegalStateException("APPLIED 상태에서만 취소할 수 있습니다.");
+
+
+        IpoOffering o = ipoSubscription.getIpoOffering();
+        LocalDateTime now = LocalDateTime.now(clock);
+
+        // 1) 기간/상태 가드: OPEN & now < subscriptionEnd
+        if (o.getIpoOfferingStatus() != IpoOfferingStatus.OPEN) {
+            throw new IllegalStateException("OPEN 상태에서만 취소할 수 있습니다.");
         }
+        if (o.getSubscriptionEnd() != null && !now.isBefore(o.getSubscriptionEnd())) {
+            throw new IllegalStateException("청약 마감 이후에는 취소할 수 없습니다.");
+        }
+
+        // 2) 취소 가능한 현재 상태: PAID 또는 APPLIED
+        if (ipoSubscription.getStatus() != SubscriptionStatus.PAID && ipoSubscription.getStatus() != SubscriptionStatus.APPLIED) {
+            throw new IllegalStateException("해당 상태에서는 취소할 수 없습니다.");
+        }
+
+        // 3) 환불 처리: depositAmount 전액 환불로 기록
+        long refundable = (ipoSubscription.getDepositAmount() == null ? 0L : ipoSubscription.getDepositAmount());
+        ipoSubscription.setDepositAmount(0L);
         ipoSubscription.setStatus(SubscriptionStatus.CANCELLED);
-        ipoSubscription.setPaidAt(null);
-        ipoSubscription.setCancelledAt(LocalDateTime.now(clock));
+        ipoSubscription.setCancelledAt(now);
+        // 누적 환불액 증가(정산/감사 추적용)
+//        ipoSubscription.setRefundedAmount((ipoSubscription.getRefundedAmount() == null ? 0L : ipoSubscription.getRefundedAmount()) + refundable);
+
+        // 4) 경쟁률은 PAID 기준 합산이라, 상태 변경만으로 자동 제외됨
         return IpoSubscriptionResDTO.from(ipoSubscription);
     }
 
@@ -199,4 +195,39 @@ public class IpoSubscriptionService {
                 .orElseThrow(() -> new IllegalArgumentException("청약을 찾을 수 없습니다."));
         return IpoSubscriptionResDTO.from(ipoSubscription);
     }
+
+    /** 향후 추가 공모 로직 시간이 된다면 쓸 예정 ... */
+//    @Transactional
+//    public IpoSubscriptionResDTO deposit(UUID subscriptionId, long depositAmount) {
+//        if (depositAmount <= 0) throw new IllegalArgumentException("납입 금액은 0보다 커야 합니다.");
+//
+//        IpoSubscription ipoSubscription = subscriptionRepository.findById(subscriptionId)
+//                .orElseThrow(() -> new IllegalArgumentException("청약을 찾을 수 없습니다."));
+//
+//        // 상태 체크: APPLIED → PAID 만 허용
+//        if (ipoSubscription.getStatus() != SubscriptionStatus.APPLIED) {
+//            throw new IllegalStateException("APPLIED 상태에서만 납입 처리 가능합니다.");
+//        }
+//
+//        // 계좌 존재(최소 제약)
+//        if (ipoSubscription.getAccountId() == null) {
+//            throw new IllegalStateException("납입 계좌가 지정되지 않았습니다.");
+//        }
+//
+//        // 스냅샷된 '필요 증거금' 사용 (apply 시점에 계산/저장됨)
+//        long required = ipoSubscription.getRequiredDeposit();
+//        if (depositAmount < required) {
+//            throw new IllegalArgumentException("납입 금액(" + depositAmount + "원)은 필요 증거금(" + required + "원)보다 작습니다.");
+//        }
+//
+//        // 더티체킹으로 업데이트
+//        ipoSubscription.setDepositAmount(
+//                (ipoSubscription.getDepositAmount() == null ? 0L : ipoSubscription.getDepositAmount()) + depositAmount
+//        );
+//        ipoSubscription.setStatus(SubscriptionStatus.PAID);
+//        ipoSubscription.setPaidAt(LocalDateTime.now(clock));
+//        return IpoSubscriptionResDTO.from(ipoSubscription);
+//    }
+
+
 }

@@ -273,7 +273,7 @@ public class IpoOfferingService {
         }
 
         long totalApplied = subscriptionRepository
-                .sumAppliedQuantityByOffering(offeringId, SubscriptionStatus.CANCELLED);
+                .sumAppliedQuantityByOffering(offeringId, SubscriptionStatus.PAID);
 
         Long quantityObj = ipoOffering.getOfferQuantity();
         if (quantityObj == null || quantityObj <= 0) {

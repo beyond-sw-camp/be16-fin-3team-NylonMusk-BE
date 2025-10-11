@@ -100,7 +100,6 @@ public class IpoSubscriptionService {
             }
         }
 
-
 //        5) 스냅샷 값 결정
         long priceSnapshot = resolveEffectivePrice(ipoOffering);             // 확정가가 있으면 사용, 없으면 희망 공모가 최댓값 사용
         BigDecimal depositRateSnapshot = ipoOffering.getDepositRate();       // DECIMAL(5,2)
@@ -124,7 +123,7 @@ public class IpoSubscriptionService {
                 .offerPriceSnapshot(priceSnapshot)
                 .depositRateSnapshot(depositRateSnapshot)
                 .requiredDeposit(requiredDeposit)
-                .paidAmount(0L)
+                .depositAmount(0L)
                 .refundedAmount(0L)
                 .status(SubscriptionStatus.APPLIED)
                 .appliedAt(now)
@@ -167,12 +166,11 @@ public class IpoSubscriptionService {
         }
 
         // 더티체킹으로 업데이트
-        ipoSubscription.setPaidAmount(
-                (ipoSubscription.getPaidAmount() == null ? 0L : ipoSubscription.getPaidAmount()) + depositAmount
+        ipoSubscription.setDepositAmount(
+                (ipoSubscription.getDepositAmount() == null ? 0L : ipoSubscription.getDepositAmount()) + depositAmount
         );
         ipoSubscription.setStatus(SubscriptionStatus.PAID);
         ipoSubscription.setPaidAt(LocalDateTime.now(clock));
-        // save() 호출 불필요, update과이므로 더티체킹으로 두기!
         return IpoSubscriptionResDTO.from(ipoSubscription);
     }
 

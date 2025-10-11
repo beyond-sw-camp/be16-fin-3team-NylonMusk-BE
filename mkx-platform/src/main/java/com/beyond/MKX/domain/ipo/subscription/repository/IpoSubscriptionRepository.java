@@ -19,5 +19,5 @@ public interface IpoSubscriptionRepository extends JpaRepository<IpoSubscription
      and s.status = :status
 """)
     long sumAppliedQuantityByOffering(@Param("offeringId") UUID offeringId,
-                                      @Param("cancelled") SubscriptionStatus cancelled);
+                                      @Param("status") SubscriptionStatus status);
 }

@@ -23,7 +23,7 @@ public class IpoSubscriptionResDTO {
     private Long offerPriceSnapshot;
     private BigDecimal depositRateSnapshot;
     private Long requiredDeposit;
-    private Long paidAmount;
+    private Long depositAmount;
     private Long refundedAmount;
     private SubscriptionStatus status;
     private LocalDateTime appliedAt;
@@ -38,7 +38,7 @@ public class IpoSubscriptionResDTO {
                 subscription.getOfferPriceSnapshot(),
                 subscription.getDepositRateSnapshot(),
                 subscription.getRequiredDeposit(),
-                subscription.getPaidAmount(),
+                subscription.getDepositAmount(),
                 subscription.getRefundedAmount(),
                 subscription.getStatus(),
                 subscription.getAppliedAt(),

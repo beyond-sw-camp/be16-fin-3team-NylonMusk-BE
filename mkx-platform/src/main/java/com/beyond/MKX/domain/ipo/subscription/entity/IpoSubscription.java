@@ -70,7 +70,7 @@ public class IpoSubscription extends BaseIdAndTimeEntity {
 
     // 청약 총액 계산 메서드
     public Long appliedAmount() { return appliedQuantity * offerPriceSnapshot; }
-    public void setPaidAmount(Long paidAmount) { this.paidAmount = paidAmount; }
+    public void setDepositAmount(Long depositAmount) { this.depositAmount = depositAmount; }
     public void setStatus(SubscriptionStatus status) { this.status = status; }
     public void setPaidAt(LocalDateTime paidAt) { this.paidAt = paidAt; }
     public void setCancelledAt(LocalDateTime cancelledAt) { this.cancelledAt = cancelledAt; }

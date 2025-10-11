@@ -71,6 +71,38 @@ public class IpoSubscriptionService {
                 throw new IllegalArgumentException("청약 수량은 청약 단위(lotSize)의 배수만큼이어야 합니다.");
             }
         }
+
+//        4-1) 계좌별 상한(capRatio)비율 적용하여 납입
+        long maxPerAccount = 0L;
+        BigDecimal capRatio = ipoOffering.getCapRatio();
+        if (capRatio != null && capRatio.compareTo(BigDecimal.ZERO) > 0) {
+            long offerQuantity = ipoOffering.getOfferQuantity() == null ? 0L : ipoOffering.getOfferQuantity();
+
+            if (offerQuantity > 0) {
+                long raw = BigDecimal.valueOf(offerQuantity)
+                        .multiply(capRatio)
+                        .divide(BigDecimal.valueOf(100), 0, RoundingMode.FLOOR)
+                        .longValue();
+
+                Long lotSize = ipoOffering.getLotSize();
+                if (lotSize != null && lotSize > 0) {
+                    raw = (raw / lotSize) * lotSize;
+                    if (raw < lotSize) raw = lotSize;
+                } else {
+                    if (raw < 1) raw = 1;
+                }
+                maxPerAccount = raw;
+            }
+            if (maxPerAccount > 0 && createReqDTO.appliedQuantity() > maxPerAccount) {
+                throw new IllegalArgumentException(
+                        "계좌별 신청 상한 (" + maxPerAccount + "주)을 초과하였습니다. capRatio=" + capRatio + "%"
+                );
+            }
+
+
+        }
+
+
 //        5) 스냅샷 값 결정
         long priceSnapshot = resolveEffectivePrice(ipoOffering);             // 확정가가 있으면 사용, 없으면 희망 공모가 최댓값 사용
         BigDecimal depositRateSnapshot = ipoOffering.getDepositRate();       // DECIMAL(5,2)

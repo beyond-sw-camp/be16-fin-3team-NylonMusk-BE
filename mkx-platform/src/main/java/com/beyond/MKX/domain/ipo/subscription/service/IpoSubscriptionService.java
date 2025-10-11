@@ -112,6 +112,12 @@ public class IpoSubscriptionService {
                 .divide(BigDecimal.valueOf(100), 0, RoundingMode.DOWN)
                 .longValueExact();
 
+        // 6-1) 신청과 동시에 납입 검증
+        if (createReqDTO.depositAmount() == null || createReqDTO.depositAmount() < requiredDeposit) {
+            throw new IllegalArgumentException(
+                    "납입 금액(" + createReqDTO.depositAmount() + "원)은 필요 증거금(" + requiredDeposit + "원)보다 작습니다.");
+        }
+
         // 7) 저장
         IpoSubscription ipoSubscription = IpoSubscription.builder()
                 .ipoOffering(ipoOffering)
@@ -125,7 +131,7 @@ public class IpoSubscriptionService {
                 .requiredDeposit(requiredDeposit)
                 .depositAmount(0L)
                 .refundedAmount(0L)
-                .status(SubscriptionStatus.APPLIED)
+                .status(SubscriptionStatus.PAID)
                 .appliedAt(now)
                 .build();
 

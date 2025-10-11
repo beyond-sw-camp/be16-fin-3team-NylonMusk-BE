@@ -18,7 +18,9 @@ public record IpoSubscriptionReqDTO(
         @NotNull
         UUID accountId,              // 납입/환불 계좌
         @NotNull @Min(1)
-        Long appliedQuantity // 신청 수량
+        Long appliedQuantity, // 신청 수량
+        @NotNull @Min(1)
+        Long depositAmount           // 납입 금액
 ) {
 
 }

@@ -52,7 +52,7 @@ public class IpoSubscription extends BaseIdAndTimeEntity {
     private Long requiredDeposit;  // 필요 증거금
     @Column(nullable=false)
     @Builder.Default private
-    Long paidAmount = 0L;      // 납입 금액
+    Long depositAmount = 0L;      // 납입 금액
     @Column(nullable=false)
     @Builder.Default
     private Long refundedAmount = 0L;  // 환불 금액

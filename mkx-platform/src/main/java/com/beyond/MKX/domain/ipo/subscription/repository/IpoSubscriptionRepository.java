@@ -16,7 +16,7 @@ public interface IpoSubscriptionRepository extends JpaRepository<IpoSubscription
    select coalesce(sum(s.appliedQuantity), 0)
    from IpoSubscription s
    where s.ipoOffering.id = :offeringId
-     and s.status <> :cancelled
+     and s.status = :status
 """)
     long sumAppliedQuantityByOffering(@Param("offeringId") UUID offeringId,
                                       @Param("cancelled") SubscriptionStatus cancelled);

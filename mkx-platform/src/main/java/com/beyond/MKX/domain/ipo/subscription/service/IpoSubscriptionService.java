@@ -98,8 +98,6 @@ public class IpoSubscriptionService {
                         "계좌별 신청 상한 (" + maxPerAccount + "주)을 초과하였습니다. capRatio=" + capRatio + "%"
                 );
             }
-
-
         }
 
 

@@ -54,4 +54,11 @@ public class IpoOfferingController {
         IpoOffering cancelled = offeringService.cancel(offeringId); // SCHEDULED/OPEN 한정 -> CANCELLED
         return ApiResponse.ok(IpoOfferingResDTO.from(cancelled), "공모가 취소되었습니다.");
     }
+
+    @PatchMapping("/{offeringId}/auto-fix-price")
+    public ResponseEntity<?> autoFix(@PathVariable UUID offeringId,
+                                     @RequestParam(defaultValue = "3.0") double T) {
+        IpoOffering fixed = offeringService.autoFixOfferPrice(offeringId, T);
+        return ApiResponse.ok(IpoOfferingResDTO.from(fixed), "경쟁률 기반 확정 공모가가 산정되었습니다.");
+    }
 }

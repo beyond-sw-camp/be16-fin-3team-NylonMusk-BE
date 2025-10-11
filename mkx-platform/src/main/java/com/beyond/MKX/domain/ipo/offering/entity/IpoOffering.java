@@ -9,6 +9,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -71,6 +72,10 @@ public class IpoOffering extends BaseIdAndTimeEntity {
     @Column(name = "round_no", nullable = false)
     private Integer roundNo;
 
+    /* 확정공모가 확정 시각 */
+    @Column(name = "price_fixed_at")
+    private LocalDateTime priceFixedAt;
+
     /* 배정 방식 */
     // TODO: 계좌 생성 이후 진행 할 예정
 
@@ -88,14 +93,21 @@ public class IpoOffering extends BaseIdAndTimeEntity {
         this.ipoOfferingStatus = IpoOfferingStatus.CLOSED;
     }
 
+    public void setCompetitionRatio(BigDecimal ratio) {
+        if (ratio == null) throw new IllegalArgumentException("competitionRatio는 null 불가");
+        // 컬럼이 precision=5, scale=2 이므로 소수 둘째자리까지만 유지
+        this.competitionRatio = ratio.setScale(2, RoundingMode.HALF_UP);
+    }
+
     public void fixOfferPrice(long price, long min, long max, long face) {
         if (this.ipoOfferingStatus != IpoOfferingStatus.CLOSED) {
             throw new IllegalStateException("CLOSED에서만 가격 확정 가능");
         }
-        if (price < face) throw new IllegalArgumentException("확정 공모가는 액면가 이상");
-        if (price < min || price > max) throw new IllegalArgumentException("밴드 범위 이탈");
+        if (price < face) throw new IllegalArgumentException("확정 공모가는 액면가(" + face + ") 이상이어야 합니다.");
+        if (price < min || price > max) throw new IllegalArgumentException("확정 공모가는 밴드 범위(" + min + "~" + max + ") 내여야 합니다.");
         this.offerPrice = price;
         this.ipoOfferingStatus = IpoOfferingStatus.PRICE_FIXED;
+        this.priceFixedAt = LocalDateTime.now();
     }
 
     public void offeringCancel() {

@@ -7,11 +7,14 @@ import com.beyond.MKX.domain.ipo.offering.entity.IpoOfferingStatus;
 import com.beyond.MKX.domain.ipo.ipo.entity.IpoStatus;
 import com.beyond.MKX.domain.ipo.offering.repository.IpoOfferingRepository;
 import com.beyond.MKX.domain.ipo.ipo.repository.IpoRepository;
+import com.beyond.MKX.domain.ipo.subscription.entity.SubscriptionStatus;
+import com.beyond.MKX.domain.ipo.subscription.repository.IpoSubscriptionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -20,6 +23,7 @@ import java.util.UUID;
 public class IpoOfferingService {
     private final IpoRepository ipoRepository;
     private final IpoOfferingRepository ipoOfferingRepository;
+    private final IpoSubscriptionRepository subscriptionRepository;
 
     /* 공모 생성 */
     @Transactional
@@ -77,6 +81,17 @@ public class IpoOfferingService {
                                 "faceValue = " + faceValue + ")"
                 );
             }
+        }
+
+//        long freeFloatCap = (long) Math.floor(ipo.getTotalShares() * (1.0 - ipo.getMajorShareholderRatio()));
+        BigDecimal total = BigDecimal.valueOf(ipo.getTotalShares());
+        BigDecimal ratio = BigDecimal.valueOf(ipo.getMajorShareholderRatio()); // 0.0~1.0
+        long freeFloatCap = total.multiply(BigDecimal.ONE.subtract(ratio))
+                .setScale(0, java.math.RoundingMode.FLOOR)
+                .longValueExact();
+        if (offeringReqDTO.getOfferQuantity() > freeFloatCap) {
+            throw new IllegalArgumentException(
+                    "공모 물량이 유통 한도(" + freeFloatCap + ")를 초과합니다. 요청=" + offeringReqDTO.getOfferQuantity());
         }
 
         IpoOffering ipoOffering = IpoOffering.builder()
@@ -245,6 +260,41 @@ public class IpoOfferingService {
         // 예: if (st == OPEN && subscriptionService.existsPaid(...)) throw ...;
 
         ipoOffering.offeringCancel();
+        return ipoOffering;
+    }
+
+    @Transactional
+    public IpoOffering autoFixOfferPrice(UUID offeringId, double T) {
+        IpoOffering ipoOffering = ipoOfferingRepository.findByIdForUpdate(offeringId)
+                .orElseThrow(() -> new IllegalArgumentException("공모를 찾을 수 없습니다."));
+
+        if (ipoOffering.getIpoOfferingStatus() != IpoOfferingStatus.CLOSED) {
+            throw new IllegalStateException("확정공모가는 CLOSED 상태에서만 확정할 수 있습니다.");
+        }
+
+        long totalApplied = subscriptionRepository
+                .sumAppliedQuantityByOffering(offeringId, SubscriptionStatus.CANCELLED);
+
+        Long quantityObj = ipoOffering.getOfferQuantity();
+        if (quantityObj == null || quantityObj <= 0) {
+            throw new IllegalArgumentException("공모 물량이 0 이하입니다.");
+        }
+        long quantity = quantityObj;
+
+        long min = ipoOffering.getPriceBandMin(), max = ipoOffering.getPriceBandMax(), face = ipoOffering.getIpo().getFaceValue();
+        double r = (double) totalApplied / (double) quantity;
+
+        double tThreshold = (T <= 1.0) ? 3.0 : T;
+        long price = (r < 1.0) ? min
+                : (r >= tThreshold) ? max
+                : BigDecimal.valueOf(min + (max - min) * (r - 1) / (tThreshold - 1))
+                .setScale(0, RoundingMode.DOWN)
+                .longValueExact();
+
+        if (price < face) price = face;
+
+        ipoOffering.setCompetitionRatio(BigDecimal.valueOf(r).setScale(2, RoundingMode.HALF_UP)); // 전용 세터 권장
+        ipoOffering.fixOfferPrice(price, min, max, face);
         return ipoOffering;
     }
 

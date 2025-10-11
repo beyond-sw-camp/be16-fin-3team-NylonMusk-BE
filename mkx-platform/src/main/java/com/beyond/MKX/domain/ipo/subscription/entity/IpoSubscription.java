@@ -17,6 +17,13 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Table(
+        // 계좌 1개당 청약 1번
+        uniqueConstraints = {
+                @UniqueConstraint(name="uk_sub_offering_account",
+                        columnNames={"ipo_offering_id","account_id"})
+        }
+)
 public class IpoSubscription extends BaseIdAndTimeEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ipo_offering_id")

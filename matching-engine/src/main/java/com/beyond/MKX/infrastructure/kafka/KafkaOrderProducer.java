@@ -10,6 +10,14 @@ import org.springframework.stereotype.Component;
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * 매칭 엔진 결과/상태/에러를 카프카로 발행하는 프로듀서.
+ *
+ * 설계 요점
+ * - 토픽: executions(체결), order-status(상태), order-errors(문자열 에러)
+ * - 파티션 키: 종목(ticker) 또는 주문ID를 사용해 순서 일관성 유지
+ * - KafkaTemplate<String, Object>: JSON 직렬화 사용(이벤트 POJO를 값으로 전송)
+ */
 @Component("kafkaOrderProducer")
 @RequiredArgsConstructor
 @Slf4j
@@ -19,10 +27,12 @@ public class KafkaOrderProducer {
     private static final String ORDER_STATUS_TOPIC = "order-status";
     private static final String ERROR_TOPIC        = "order-errors";
 
-    // JSON 직렬화용: value를 Object로
+    /** JSON 직렬화: value 타입을 Object로 두고 컨버터에 위임 */
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
-    // -------- 체결 이벤트 (부분/완전 체결 1건마다) --------
+    // ---------------------------------------------------------------------
+    // 체결 이벤트 (부분/완전 체결 1건마다 발행)
+    // ---------------------------------------------------------------------
     public void sendExecution(String marketOrderId, String ticker, String side,
                               String counterOrderId, double qty, double price) {
         String execId = marketOrderId + "-" + counterOrderId + "-" + UUID.randomUUID(); // 멱등키
@@ -37,7 +47,7 @@ public class KafkaOrderProducer {
                 .timestamp(Instant.now().toEpochMilli())
                 .build();
 
-        // 순서 일관성을 위해 파티션 키는 종목으로
+        // 파티션 키=티커(동일 종목 내 순서 보장 강화)
         kafkaTemplate.send(EXECUTION_TOPIC, ticker, evt).whenComplete((md, ex) -> {
             if (ex != null) {
                 log.error("[KAFKA] executions send failed key={} evt={}", ticker, evt, ex);
@@ -50,7 +60,10 @@ public class KafkaOrderProducer {
         });
     }
 
-    // -------- 상태 알림 --------
+    // ---------------------------------------------------------------------
+    // 상태 알림 (접수/대기/부분/완전/취소)
+    // ---------------------------------------------------------------------
+    /** 신규 지정가 접수(체결 전): price=지정가, remaining=초기 수량 */
     public void sendNewAccepted(String orderId, String ticker, String side, double price, double qty) {
         OrderStatusEvent evt = OrderStatusEvent.builder()
                 .orderId(orderId)
@@ -64,14 +77,15 @@ public class KafkaOrderProducer {
         sendOrderStatus(ticker != null ? ticker : orderId, evt);
     }
 
+    /** 취소 성공 */
     public void sendCancelSuccess(String orderId) {
         OrderStatusEvent evt = OrderStatusEvent.builder()
                 .orderId(orderId).status("CANCEL_OK")
                 .timestamp(Instant.now().toEpochMilli()).build();
-        sendOrderStatus(orderId, evt);
+        sendOrderStatus(orderId, evt);        // 키=orderId (특정 주문 추적)
     }
 
-    // 변경된 메서드들만 발췌
+    /** 시장가 대기(가드 범위 내 반대 호가 없음) */
     public void sendWaiting(String marketOrderId, String ticker, String side) {
         OrderStatusEvent evt = OrderStatusEvent.builder()
                 .orderId(marketOrderId)
@@ -83,6 +97,7 @@ public class KafkaOrderProducer {
         sendOrderStatus(ticker != null ? ticker : marketOrderId, evt);
     }
 
+    /** 부분 체결(대표가격=vwap, 보조=last/limit, 누적 체결수량 포함) */
     public void sendMarketPartial(String orderId, String ticker, String side,
                                   double remaining,
                                   double vwap, double lastPrice, double limitPrice, double filledQty) {
@@ -101,6 +116,7 @@ public class KafkaOrderProducer {
         sendOrderStatus(ticker != null ? ticker : orderId, evt);
     }
 
+    /** 완전 체결(대표가격=vwap, last/limit/누적 체결수량 포함) */
     public void sendMarketFilled(String orderId, String ticker, String side,
                                  double vwap, double lastPrice, double limitPrice, double filledQty) {
         OrderStatusEvent evt = OrderStatusEvent.builder()
@@ -117,13 +133,18 @@ public class KafkaOrderProducer {
         sendOrderStatus(ticker != null ? ticker : orderId, evt);
     }
 
-    // -------- 에러 --------
+    // ---------------------------------------------------------------------
+    // 에러(문자열 페이로드)
+    // ---------------------------------------------------------------------
     public void sendError(String orderId, String reason) {
         String payload = String.format("Error on order %s: %s", orderId, reason);
         kafkaTemplate.send(ERROR_TOPIC, orderId, payload);
         log.error("[KAFKA] {}", payload);
     }
 
+    // ---------------------------------------------------------------------
+    // 내부 헬퍼: order-status 발행(공통 완료 콜백)
+    // ---------------------------------------------------------------------
     private void sendOrderStatus(String key, Object payload) {
         kafkaTemplate.send(ORDER_STATUS_TOPIC, key, payload)
                 .whenComplete((md, ex) -> {

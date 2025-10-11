@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -22,7 +23,7 @@ public class OrderEvent {
     private String ticker;        // 종목 코드
     private String side;          // 매수(BUY)/매도(SELL)
     private String orderType;     // 주문 유형 (e.g. LIMIT, MARKET, CANCEL)
-    private double price;         // 가격
-    private double quantity;      // 수량
+    private long price;         // 가격
+    private BigDecimal quantity;      // 수량
     private LocalDateTime createdAt; // 생성 시각
 }

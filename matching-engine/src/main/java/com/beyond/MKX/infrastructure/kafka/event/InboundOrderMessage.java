@@ -3,6 +3,8 @@ package com.beyond.MKX.infrastructure.kafka.event;
 import lombok.*;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
+import java.math.BigDecimal;
+
 /**
  * 외부(브로커리지/주문 발행 서비스) → 매칭 엔진으로 유입되는 인바운드 주문 메시지 DTO.
  *
@@ -28,7 +30,7 @@ public class InboundOrderMessage {
     private String ticker;     // 예: "005930"
     private String side;       // "BUY" / "SELL"
     private String orderKind;  // "LIMIT" / "MARKET"
-    private Long   price;      // 원화 정수. LIMIT일 때만 사용
-    private Double quantity;
+    private long price;      // 원화 정수. LIMIT일 때만 사용
+    private BigDecimal quantity;
     private String createdAt;  // 문자열이면 일단 그대로 둠
 }

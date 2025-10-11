@@ -2,6 +2,8 @@ package com.beyond.MKX.infrastructure.kafka.event;
 
 import lombok.*;
 
+import java.math.BigDecimal;
+
 /**
  * 주문 상태(Order Status) 이벤트 DTO.
  *
@@ -31,11 +33,11 @@ public class OrderStatusEvent {
     private String status;     // NEW_ACCEPTED / MARKET_PARTIAL / MARKET_FILLED / WAITING / CANCEL_OK ...
     private String ticker;     // optional
     private String side;       // optional
-    private double price;      // optional
-    private double remaining;  // optional
+    private long price;      // optional
+    private BigDecimal remaining;  // optional
     private long timestamp;
-    private double avgFillPrice;
-    private double lastFillPrice;
-    private double limitPrice;
-    private double filledQuantity;
+    private long avgFillPrice;
+    private long lastFillPrice;
+    private long limitPrice;
+    private BigDecimal filledQuantity;
 }

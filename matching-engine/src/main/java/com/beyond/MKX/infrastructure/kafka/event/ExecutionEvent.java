@@ -2,6 +2,8 @@ package com.beyond.MKX.infrastructure.kafka.event;
 
 import lombok.*;
 
+import java.math.BigDecimal;
+
 /**
  * 체결(Execution) 이벤트 DTO.
  *
@@ -30,7 +32,7 @@ public class ExecutionEvent {
     private String counterOrderId;
     private String ticker;
     private String side;     // BUY/SELL (시장주문 방향)
-    private double price;
-    private double quantity;
+    private long price;
+    private BigDecimal quantity;
     private long timestamp;
 }

@@ -3,6 +3,8 @@ package com.beyond.MKX.domain.member.service;
 import com.beyond.MKX.domain.admin.entity.Admin;
 import com.beyond.MKX.domain.admin.entity.Role;
 import com.beyond.MKX.domain.admin.repository.AdminRepository;
+import com.beyond.MKX.domain.member.client.MemberAccountInternalClient;
+import com.beyond.MKX.domain.member.dto.MemberAccountAdminSummaryDto;
 import com.beyond.MKX.domain.member.dto.MemberAdminSummaryDto;
 import com.beyond.MKX.domain.member.dto.MemberLoginReqDto;
 import com.beyond.MKX.domain.member.dto.MemberResDto;
@@ -30,6 +32,7 @@ public class MemberService {
     private final AdminRepository adminRepository;
     private final SecuritiesFirmRepository securitiesFirmRepository;
     private final PasswordEncoder passwordEncoder;
+    private final MemberAccountInternalClient memberAccountInternalClient;
 
 
     public MemberResDto signUp(MemberSignUpReqDto dto) {
@@ -66,7 +69,17 @@ public class MemberService {
     @Transactional(readOnly = true)
     public MemberResDto getProfile(UUID memberId) {
         Member member = findById(memberId);
-        return MemberResDto.from(member);
+        MemberResDto dto = MemberResDto.from(member);
+        try {
+            MemberAccountInternalClient.MemberAccountSummaryRes acc = memberAccountInternalClient.getByMember(memberId);
+            if (acc != null) {
+                dto.setAccountNumber(acc.accountNumber());
+                dto.setAccountStatus(acc.status());
+            }
+        } catch (Exception ignore) {
+            // 계좌가 없거나 호출 실패 시 계좌 정보 없이 반환
+        }
+        return dto;
     }
 
     @Transactional(readOnly = true)
@@ -90,6 +103,60 @@ public class MemberService {
         }
 
         throw new IllegalArgumentException("접근 권한 없음");
+    }
+
+    /**
+     * 증권사 관리자를 위한 고객 계좌 요약 목록
+     * - 본인 소속 증권사의 회원 목록을 조회 후, 오더링 서비스에서 계좌 요약을 가져와 합성
+     * - statusFilter/search(accountNumber like) 옵션 제공
+     */
+    @Transactional(readOnly = true)
+    public List<MemberAccountAdminSummaryDto> getMemberAccountsForBrokerage(UUID adminId, String statusFilter, String search) {
+        Admin admin = adminRepository.findById(adminId)
+                .orElseThrow(() -> new IllegalArgumentException("관리자 없음"));
+        if (admin.getRole() != Role.BROKERAGE || admin.getSecuritiesFirm() == null) {
+            throw new IllegalArgumentException("증권사 관리자만 접근 가능합니다.");
+        }
+        com.beyond.MKX.domain.securities_firm.entity.SecuritiesFirm brokerage = admin.getSecuritiesFirm();
+        List<Member> members = memberRepository.findByBrokerage(brokerage);
+
+        String normalizedStatus = statusFilter != null && !statusFilter.isBlank() ? statusFilter.trim().toUpperCase() : null;
+        String like = search != null && !search.isBlank() ? search.trim() : null;
+
+        return members.stream().map(m -> {
+            try {
+                MemberAccountInternalClient.MemberAccountSummaryRes acc = memberAccountInternalClient.getByMember(m.getId());
+                String accNo = acc != null ? acc.accountNumber() : null;
+                String accStatus = acc != null ? acc.status() : null;
+                return MemberAccountAdminSummaryDto.builder()
+                        .memberId(m.getId())
+                        .name(m.getName())
+                        .email(m.getEmail())
+                        .accountNumber(accNo)
+                        .accountStatus(accStatus)
+                        .build();
+            } catch (Exception ignore) {
+                return MemberAccountAdminSummaryDto.builder()
+                        .memberId(m.getId())
+                        .name(m.getName())
+                        .email(m.getEmail())
+                        .accountNumber(null)
+                        .accountStatus(null)
+                        .build();
+            }
+        }).filter(dto -> {
+            if (normalizedStatus != null) {
+                if (dto.getAccountStatus() == null || !normalizedStatus.equalsIgnoreCase(dto.getAccountStatus())) {
+                    return false;
+                }
+            }
+            if (like != null) {
+                if (dto.getAccountNumber() == null || !dto.getAccountNumber().contains(like)) {
+                    return false;
+                }
+            }
+            return true;
+        }).toList();
     }
 
     @Transactional(readOnly = true)

@@ -32,7 +32,8 @@ public class AdminActiveGuardFilter extends OncePerRequestFilter {
 
     private static final AntPathMatcher MATCHER = new AntPathMatcher();
     private static final List<String> WHITELIST = List.of(
-            "/auth/**"
+            "/auth/**",
+            "/api/internal/**"
     );
 
     @Override
@@ -42,13 +43,19 @@ public class AdminActiveGuardFilter extends OncePerRequestFilter {
 
         String uri = request.getRequestURI();
 
-        // (1) 화이트리스트는 그냥 통과
+        // (1) /admin/** 가 아니면 통과 (관리자 가드는 관리자 API만 보호)
+        if (!MATCHER.match("/admin/**", uri)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        // (2) 화이트리스트는 그냥 통과
         if (isWhitelisted(uri)) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // (2) SecurityContext 에서 인증 객체 꺼냄
+        // (3) SecurityContext 에서 인증 객체 꺼냄
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()) {
             // 인증 자체가 없으면 401
@@ -56,7 +63,7 @@ public class AdminActiveGuardFilter extends OncePerRequestFilter {
             return;
         }
 
-        // (3) Principal 꺼내서 상태 확인
+        // (4) Principal 꺼내서 상태 확인
         Object principal = authentication.getPrincipal();
         if (principal instanceof CustomAdminPrincipal adminPrincipal) {
             // 가입 심사 상태 확인(/admin/approval-requests/me)은 ACTIVE 이전에도 허용
@@ -77,7 +84,7 @@ public class AdminActiveGuardFilter extends OncePerRequestFilter {
             }
         }
 
-        // (4) ACTIVE 계정이면 통과
+        // (5) ACTIVE 계정이면 통과
         filterChain.doFilter(request, response);
     }
 

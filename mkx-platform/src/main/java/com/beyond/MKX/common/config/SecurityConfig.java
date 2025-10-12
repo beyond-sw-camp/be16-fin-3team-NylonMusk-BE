@@ -40,7 +40,8 @@ public class SecurityConfig {
     private static final String[] WHITELIST = {
             "/auth/**",
             "/admin/approval-requests/me",
-            "/api/internal/**"
+            "/api/internal/**",
+            "/api/stocks"
     };
 
     @Bean

@@ -1,4 +1,4 @@
-package com.beyond.MKX.common.redis;
+package com.beyond.MKX.common.redis.common;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;

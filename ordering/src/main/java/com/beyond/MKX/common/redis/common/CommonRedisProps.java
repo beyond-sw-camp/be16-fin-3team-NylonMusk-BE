@@ -1,4 +1,4 @@
-package com.beyond.MKX.common.redis;
+package com.beyond.MKX.common.redis.common;
 
 import lombok.Getter;
 import lombok.Setter;

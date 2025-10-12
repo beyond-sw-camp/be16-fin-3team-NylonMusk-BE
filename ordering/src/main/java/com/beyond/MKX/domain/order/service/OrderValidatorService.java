@@ -15,9 +15,10 @@ public class OrderValidatorService {
     // 계좌 검증
     public void validateAccount(MemberAccount memberAccount) {
         AccountStatus status = memberAccount.getStatus();
-        if (status == AccountStatus.PENDING)
-            throw new IllegalStateException("현재 계좌는 '승인 대기' 중인 계좌입니다.");
-        if (status == AccountStatus.SUSPENDED)
+        if (status == AccountStatus.DELETED)
+            throw new IllegalStateException("현재 계좌는 '폐지' 계좌입니다.");
+        if (status == AccountStatus
+                .SUSPENDED)
             throw new IllegalStateException("현재 계좌는 '거래 중지' 계좌입니다.");
     }
 

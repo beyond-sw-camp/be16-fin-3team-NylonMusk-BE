@@ -6,6 +6,7 @@ import com.beyond.MKX.domain.admin.entity.Status;
 import com.beyond.MKX.domain.admin.repository.AdminRepository;
 import com.beyond.MKX.domain.corporation.entity.Corporation;
 import com.beyond.MKX.domain.corporation.repository.CorporationRepository;
+import com.beyond.MKX.domain.account.brokerage.service.BrokerageDepositAccountService;
 import com.beyond.MKX.domain.securities_firm.entity.SecuritiesFirm;
 import com.beyond.MKX.domain.securities_firm.repository.SecuritiesFirmRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -25,6 +26,7 @@ public class AdminApprovalService {
     private final CorporationRepository corporationRepository;
     private final SecuritiesFirmRepository securitiesFirmRepository;
     private final AdminRepository adminRepository;
+    private final BrokerageDepositAccountService brokerageDepositAccountService;
 
     @Transactional(readOnly = true)
     // EXCHANGE 목록용 - PENDING 상태의 기업 신청 요약 목록 반환
@@ -137,6 +139,9 @@ public class AdminApprovalService {
 
         firm.approve();
         admin.changeStatus(Status.ACTIVE);
+
+        // 증권사 예치금 계좌 자동 생성 (멱등) - 포맷된 계좌번호 자동 부여
+        brokerageDepositAccountService.createAuto(firm.getId());
     }
 
     // 증권사 신청 거절 처리: 거절 사유 저장 후 증권사/대표 관리자 상태를 REJECTED 로 전환

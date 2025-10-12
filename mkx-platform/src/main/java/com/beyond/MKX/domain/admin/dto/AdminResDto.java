@@ -18,6 +18,8 @@ public class AdminResDto {
     private String name;
     private String phone;
     private String role;
+    private String accountNumber; // 선택: 소속 조직의 계좌번호
+    private String accountStatus; // 선택: 계좌 상태(또는 account_list 상태)
 
     public static AdminResDto from(Admin admin) {
         return AdminResDto.builder()

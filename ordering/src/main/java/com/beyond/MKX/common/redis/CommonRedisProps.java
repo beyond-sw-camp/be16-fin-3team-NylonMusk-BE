@@ -4,10 +4,10 @@ import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-@ConfigurationProperties(prefix = "spring.redis")
+@ConfigurationProperties(prefix = "spring.redis.common")
 @Getter
 @Setter
-public class RedisProperties {
+public class CommonRedisProps {
     private String host;
     private int port;
 }

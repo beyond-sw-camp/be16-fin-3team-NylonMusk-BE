@@ -113,16 +113,18 @@ public class IpoSubscriptionService {
                 .longValueExact();
 
         // 6-1) 신청과 동시에 납입 검증
-        long maxDeposit = appliedAmount.longValueExact(); // = appliedQuantity * priceSnapshot
-        if (createReqDTO.depositAmount() == null || createReqDTO.depositAmount() < requiredDeposit) {
-            throw new IllegalArgumentException(
-                    "납입 금액(" + createReqDTO.depositAmount()
-                            + "원)은 필요 증거금(" + requiredDeposit + "원)보다 작습니다.");
+        Long deposit = createReqDTO.depositAmount();
+        if (deposit == null) {
+            throw new IllegalArgumentException("납입 금액이 누락되었습니다.");
         }
-//        과납 방지
-        if (createReqDTO.depositAmount() > maxDeposit) {
-            throw new IllegalArgumentException("납입 금액(" + createReqDTO.depositAmount()
-                    + "원)이 신청 총액(" + maxDeposit + "원)을 초과합니다.");
+        long maxDeposit = appliedAmount.longValueExact(); // 신청 총액
+        if (deposit < requiredDeposit) {
+            throw new IllegalArgumentException(
+                    "납입 금액(" + deposit + "원)은 필요증거금(" + requiredDeposit + "원)보다 작습니다.");
+        }
+        if (deposit > maxDeposit) {
+            throw new IllegalArgumentException(
+                    "납입 금액(" + deposit + "원)이 신청 총액(" + maxDeposit + "원)을 초과합니다.");
         }
 
         // 7) 저장

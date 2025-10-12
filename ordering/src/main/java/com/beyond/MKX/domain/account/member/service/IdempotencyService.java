@@ -1,5 +1,6 @@
-package com.beyond.MKX.common.idempotency;
+package com.beyond.MKX.domain.account.member.service;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -22,7 +23,8 @@ public class IdempotencyService {
 
     private final StringRedisTemplate redis;
 
-    public IdempotencyService(StringRedisTemplate redis) {
+    public IdempotencyService(@Qualifier("idempotency") StringRedisTemplate redis) {
+
         this.redis = redis;
     }
 

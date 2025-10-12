@@ -1,13 +1,13 @@
 package com.beyond.MKX.domain.account.member.controller;
 
 import com.beyond.MKX.common.apiResponse.ApiResponse;
-import com.beyond.MKX.common.idempotency.IdempotencyService;
+import com.beyond.MKX.domain.account.member.service.IdempotencyService;
 import com.beyond.MKX.domain.account.member.dto.MemberAccountCreateRes;
 import com.beyond.MKX.domain.account.member.dto.AmountRequest;
 import com.beyond.MKX.domain.account.member.dto.MemberContextRes;
-import com.beyond.MKX.domain.account.member.entity.MemberAccount;
 import com.beyond.MKX.domain.account.member.service.MemberAccountService;
 import com.beyond.MKX.domain.account.member.client.MemberInternalClient;
+import com.beyond.MKX.domain.assets.entity.MemberAccount;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,7 +16,6 @@ import javax.naming.AuthenticationException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.math.BigInteger;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -96,13 +95,13 @@ public class MemberAccountController {
             // 6) 실제 계좌 생성 + 플랫폼 account_list 등록
             MemberAccount acc = service.createAuto(memberUuid, context.getBrokerageId());
             // 7) 결과 캐싱(RESULT) — 같은 키 재요청 시 기존 결과를 즉시 반환할 수 있도록 저장
-            idempotencyService.storeResult(effectiveKey, acc.getAccountNumber(), java.time.Duration.ofHours(24));
-            return ApiResponse.ok(new MemberAccountCreateRes(acc.getAccountNumber()), "회원 계좌 생성 완료");
+            idempotencyService.storeResult(effectiveKey, acc.getNumber(), java.time.Duration.ofHours(24));
+            return ApiResponse.ok(new MemberAccountCreateRes(acc.getNumber()), "회원 계좌 생성 완료");
         } catch (IllegalStateException ex) {
             // 이미 존재(UNIQUE 충돌 등): 기존 계좌 조회 후 에러로 통일(정책에 따라 성공 응답으로 변경 가능)
             Optional<MemberAccount> existing = service.findByMemberAndBrokerage(memberUuid, context.getBrokerageId());
             if (existing.isPresent()) {
-                String accNo = existing.get().getAccountNumber();
+                String accNo = existing.get().getNumber();
                 idempotencyService.storeResult(effectiveKey, accNo, java.time.Duration.ofHours(24));
                 throw new IllegalStateException("이미 계좌가 존재합니다.");
             }
@@ -179,7 +178,7 @@ public class MemberAccountController {
         if (!acc.getMemberId().equals(UUID.fromString(memberId))) {
             throw new AuthenticationException("본인 계좌가 아닙니다.");
         }
-        BigInteger balance = service.deposit(accountNumber, req.getAmount());
+        Long balance = service.deposit(accountNumber, req.getAmount());
         return ApiResponse.ok(Map.of("balance", balance), "입금 완료");
     }
 
@@ -206,7 +205,7 @@ public class MemberAccountController {
         if (!acc.getMemberId().equals(UUID.fromString(memberId))) {
             throw new AuthenticationException("본인 계좌가 아닙니다.");
         }
-        BigInteger balance = service.withdraw(accountNumber, req.getAmount());
+        Long balance = service.withdraw(accountNumber, req.getAmount());
         return ApiResponse.ok(Map.of("balance", balance), "출금 완료");
     }
 }

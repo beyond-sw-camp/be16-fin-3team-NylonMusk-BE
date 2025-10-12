@@ -1,9 +1,9 @@
 package com.beyond.MKX.domain.account.member.controller;
 
 import com.beyond.MKX.common.apiResponse.ApiResponse;
-import com.beyond.MKX.domain.account.member.entity.MemberAccount;
 import com.beyond.MKX.domain.account.member.service.MemberAccountService;
 import com.beyond.MKX.domain.account.admin.client.AdminInternalClient;
+import com.beyond.MKX.domain.assets.entity.MemberAccount;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

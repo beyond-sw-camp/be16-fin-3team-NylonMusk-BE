@@ -1,8 +1,8 @@
 package com.beyond.MKX.domain.account.member.controller;
 
 import com.beyond.MKX.domain.account.member.dto.MemberAccountSummary;
-import com.beyond.MKX.domain.account.member.entity.MemberAccount;
-import com.beyond.MKX.domain.account.member.repository.MemberAccountRepository;
+import com.beyond.MKX.domain.assets.entity.MemberAccount;
+import com.beyond.MKX.domain.assets.repository.MemberAccountRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,7 +34,7 @@ public class MemberAccountInternalController {
         MemberAccount account = repository.findFirstByMemberIdOrderByCreatedAtDesc(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("회원 계좌 없음"));
         return ResponseEntity.ok(MemberAccountSummary.builder()
-                .accountNumber(account.getAccountNumber())
+                .accountNumber(account.getNumber())
                 .status(account.getStatus())
                 .build());
     }
@@ -44,13 +44,13 @@ public class MemberAccountInternalController {
      */
     @GetMapping("/by-number/{accountNumber}")
     public ResponseEntity<MemberAccountByNumberRes> getByAccountNumber(@PathVariable String accountNumber) {
-        MemberAccount account = repository.findByAccountNumber(accountNumber)
+        MemberAccount account = repository.findByNumber(accountNumber)
                 .orElseThrow(() -> new IllegalArgumentException("회원 계좌 없음"));
         return ResponseEntity.ok(new MemberAccountByNumberRes(
                 account.getId(),
                 account.getMemberId(),
                 account.getBrokerageId(),
-                account.getAccountNumber(),
+                account.getNumber(),
                 account.getStatus().name()
         ));
     }

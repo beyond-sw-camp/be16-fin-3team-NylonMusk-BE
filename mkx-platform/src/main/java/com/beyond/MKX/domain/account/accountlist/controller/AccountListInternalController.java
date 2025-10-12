@@ -1,15 +1,14 @@
 package com.beyond.MKX.domain.account.accountlist.controller;
 
+import com.beyond.MKX.common.apiResponse.ApiResponse;
 import com.beyond.MKX.domain.account.accountlist.dto.AccountListRegisterReqDto;
+import com.beyond.MKX.domain.account.accountlist.dto.AccountStatusUpdateReq;
 import com.beyond.MKX.domain.account.accountlist.entity.AccountType;
 import com.beyond.MKX.domain.account.accountlist.service.AccountListService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 /**
  * 내부용 account_list 등록 컨트롤러
@@ -30,5 +29,14 @@ public class AccountListInternalController {
     public ResponseEntity<?> register(@RequestBody @Valid AccountListRegisterReqDto request) {
         service.registerIfAbsent(request.getAccountNumber(), AccountType.MEMBER);
         return com.beyond.MKX.common.apiResponse.ApiResponse.ok(null, "account_list 등록 완료");
+    }
+
+    @PostMapping("/{accountNumber}/status")
+    public ResponseEntity<?> updateStatus(
+            @PathVariable String accountNumber,
+            @RequestBody AccountStatusUpdateReq req
+    ) {
+        service.updateStatusByAccountNumber(accountNumber, req.getStatus());
+        return ApiResponse.ok(null, "account_list 상태 변경 완료");
     }
 }

@@ -108,4 +108,11 @@ public class AccountListService {
         // EXCHANGE, BROKERAGE, MEMBER
         return AccountStatus.APPROVED;
     }
+
+    public void updateStatusByAccountNumber(String accountNumber, String statusStr) {
+        AccountList account = repository.findByAccountNumber(accountNumber)
+                .orElseThrow(() -> new IllegalArgumentException("계좌를 찾을 수 없습니다."));
+        AccountStatus newStatus = AccountStatus.valueOf(statusStr.toUpperCase());
+        account.changeStatus(newStatus);
+    }
 }

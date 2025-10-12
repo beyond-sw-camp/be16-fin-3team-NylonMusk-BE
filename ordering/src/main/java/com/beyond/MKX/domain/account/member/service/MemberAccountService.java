@@ -2,15 +2,14 @@ package com.beyond.MKX.domain.account.member.service;
 
 import com.beyond.MKX.domain.account.member.client.AccountListClient;
 import com.beyond.MKX.domain.account.member.dto.AccountListRegisterReq;
-import com.beyond.MKX.domain.account.member.entity.MemberAccount;
-import com.beyond.MKX.domain.account.member.entity.MemberAccountStatus;
-import com.beyond.MKX.domain.account.member.repository.MemberAccountRepository;
+import com.beyond.MKX.domain.account.member.dto.AccountStatusUpdateReq;
 import com.beyond.MKX.domain.account.member.util.MemberAccountNumberGenerator;
+import com.beyond.MKX.domain.assets.entity.AccountStatus;
+import com.beyond.MKX.domain.assets.entity.MemberAccount;
+import com.beyond.MKX.domain.assets.repository.MemberAccountRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.math.BigInteger;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -48,11 +47,32 @@ public class MemberAccountService {
     public void updateStatus(UUID accountId, String action) {
         MemberAccount acc = repository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("계좌를 찾을 수 없습니다."));
+
         switch (action.toUpperCase()) {
             case "SUSPEND" -> acc.suspend();
             case "DELETE" -> acc.delete();
             case "ACTIVATE" -> acc.activate();
+            default -> throw new IllegalArgumentException("지원되지 않는 상태 변경 요청: " + action);
         }
+
+        //  platform(account_list)에도 상태 반영
+        String mappedStatus = mapToPlatformStatus(acc.getStatus());
+        try {
+            accountListClient.updateAccountStatus(
+                    acc.getNumber(),
+                    new AccountStatusUpdateReq(mappedStatus)
+            );
+        } catch (Exception e) {
+            System.err.println("[WARN] account_list 상태 동기화 실패: " + e.getMessage());
+        }
+    }
+
+    private String mapToPlatformStatus(AccountStatus status) {
+        return switch (status) {
+            case ACTIVE -> "APPROVED";
+            case SUSPENDED -> "SUSPENDED";
+            case DELETED -> "REJECTED";
+        };
     }
 
     /**
@@ -68,7 +88,7 @@ public class MemberAccountService {
 
         for (int i = 0; i < 10; i++) {
             String candidate = MemberAccountNumberGenerator.generate(brokerageId, i);
-            if (repository.findByAccountNumber(candidate).isPresent()) continue;
+            if (repository.findByNumber(candidate).isPresent()) continue;
 
             // 충돌 이력에 대비해 번호를 바꿔가며 저장 시도
             MemberAccount acc = repository.save(new MemberAccount(memberId, brokerageId, candidate));
@@ -84,7 +104,7 @@ public class MemberAccountService {
 
     /** 단건 조회 */
     public MemberAccount getByAccountNumber(String accountNumber) {
-        return repository.findByAccountNumber(accountNumber)
+        return repository.findByNumber(accountNumber)
                 .orElseThrow(() -> new IllegalArgumentException("개인 계좌를 찾을 수 없습니다."));
     }
 
@@ -94,9 +114,9 @@ public class MemberAccountService {
     }
 
     /** 입금: 계좌 상태가 ACTIVE일 때만 허용 */
-    public BigInteger deposit(String accountNumber, BigInteger amount) {
+    public Long deposit(String accountNumber, Long amount) {
         MemberAccount acc = getByAccountNumber(accountNumber);
-        if (acc.getStatus() != MemberAccountStatus.ACTIVE) {
+        if (acc.getStatus() != AccountStatus.ACTIVE) {
             throw new IllegalStateException("계좌 상태가 활성(ACTIVE)이 아닙니다.");
         }
         acc.deposit(amount);
@@ -104,9 +124,9 @@ public class MemberAccountService {
     }
 
     /** 출금: 계좌 상태가 ACTIVE일 때만 허용 */
-    public BigInteger withdraw(String accountNumber, BigInteger amount) {
+    public Long withdraw(String accountNumber, Long amount) {
         MemberAccount acc = getByAccountNumber(accountNumber);
-        if (acc.getStatus() != MemberAccountStatus.ACTIVE) {
+        if (acc.getStatus() != AccountStatus.ACTIVE) {
             throw new IllegalStateException("계좌 상태가 활성(ACTIVE)이 아닙니다.");
         }
         acc.withdraw(amount);

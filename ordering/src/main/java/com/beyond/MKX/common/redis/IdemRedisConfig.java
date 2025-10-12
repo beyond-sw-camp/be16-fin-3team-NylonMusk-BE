@@ -1,4 +1,4 @@
-package com.beyond.MKX.common.config;
+package com.beyond.MKX.common.redis;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,7 +26,7 @@ public class IdemRedisConfig {
     /**
      * Lettuce 기반 Redis 커넥션 팩토리(DB 2)
      */
-    @Bean
+    @Bean(name = "idempotency")
     @Qualifier("idempotency")
     public RedisConnectionFactory redisConnectionFactory() {
         RedisStandaloneConfiguration configuration = new RedisStandaloneConfiguration();
@@ -39,7 +39,7 @@ public class IdemRedisConfig {
     /**
      * 멱등 처리용 StringRedisTemplate
      */
-    @Bean
+    @Bean(name = "redisTemplate")
     @Qualifier("idempotency")
     public StringRedisTemplate stringRedisTemplate(
             @Qualifier("idempotency") RedisConnectionFactory redisConnectionFactory) {

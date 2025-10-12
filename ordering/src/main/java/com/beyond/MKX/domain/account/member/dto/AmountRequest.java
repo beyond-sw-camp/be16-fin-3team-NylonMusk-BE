@@ -12,6 +12,6 @@ import java.math.BigInteger;
 public class AmountRequest {
     @NotNull
     @Positive
-    private BigInteger amount;
+    private Long amount;
 }
 

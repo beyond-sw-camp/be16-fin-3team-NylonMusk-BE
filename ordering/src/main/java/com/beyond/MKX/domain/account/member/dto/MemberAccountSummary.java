@@ -1,6 +1,6 @@
 package com.beyond.MKX.domain.account.member.dto;
 
-import com.beyond.MKX.domain.account.member.entity.MemberAccountStatus;
+import com.beyond.MKX.domain.assets.entity.AccountStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -12,6 +12,6 @@ import lombok.NoArgsConstructor;
 @Builder
 public class MemberAccountSummary {
     private String accountNumber;
-    private MemberAccountStatus status;
+    private AccountStatus status;
 }
 

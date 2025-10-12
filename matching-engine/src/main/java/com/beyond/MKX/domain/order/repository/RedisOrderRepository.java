@@ -95,28 +95,24 @@ public class RedisOrderRepository {
     // ----------------------------------------------------------------------
     // 신규 주문 적재 (단순 적재용; 지정가 잔량은 일반적으로 Lua가 적재)
     // ----------------------------------------------------------------------
-    public void addOrder(String ticker, String orderId, long price, BigDecimal quantity, String side) {
+    public void addOrder(String ticker, String orderId, long priceInt, BigDecimal quantity, String side) {
         final String bookKey   = orderBookKey(ticker, side);
         final String detailKey = orderDetailKey(ticker, orderId);
         final String idxKey    = orderIndexKey(orderId);
 
-        final long priceInt = toPriceInt(price);
         final Long seqBoxed = redisTemplate.opsForValue().increment(seqKey(ticker, side));
         final long seq = (seqBoxed != null) ? seqBoxed : 1L;
         final double score = side.equalsIgnoreCase("BUY") ? bidScore(priceInt, seq) : askScore(priceInt, seq);
 
-        // 오더북 ZSET 등록
         redisTemplate.opsForZSet().add(bookKey, orderId, score);
 
-        // 주문 상세 저장
         Map<String, String> detail = new HashMap<>();
-        detail.put("quantity", String.valueOf(quantity));
+        detail.put("quantity", quantity.toPlainString());
         detail.put("priceInt", String.valueOf(priceInt));
         detail.put("side", side);
         detail.put("ticker", ticker);
         redisTemplate.opsForHash().putAll(detailKey, detail);
 
-        // 역인덱스 저장(필요 시 빠른 조회용)
         Map<String, String> idx = new HashMap<>();
         idx.put("ticker", ticker);
         idx.put("side", side);

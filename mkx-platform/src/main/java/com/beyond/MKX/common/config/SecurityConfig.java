@@ -13,6 +13,10 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.access.AccessDeniedHandler;
+import org.springframework.security.web.AuthenticationEntryPoint;
+import com.beyond.MKX.common.auth.security.RestAccessDeniedHandler;
+import com.beyond.MKX.common.auth.security.RestAuthenticationEntryPoint;
 
 /**
  * SecurityConfig
@@ -35,7 +39,8 @@ public class SecurityConfig {
     // 화이트리스트 경로
     private static final String[] WHITELIST = {
             "/auth/**",
-            "/admin/approval-requests/me"
+            "/admin/approval-requests/me",
+            "/api/internal/**"
     };
 
     @Bean
@@ -52,11 +57,25 @@ public class SecurityConfig {
                         .requestMatchers("/admin/**").hasAnyRole("EXCHANGE", "CORPORATION", "BROKERAGE")
                         .anyRequest().authenticated()             // 나머지는 인증 필요
                 )
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(restAuthenticationEntryPoint())
+                        .accessDeniedHandler(restAccessDeniedHandler())
+                )
                 // (4) 필터 등록 순서: Gateway → AdminActiveGuardFilter
                 .addFilterBefore(gatewayHeaderAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(memberActiveGuardFilter, GatewayHeaderAuthFilter.class)
                 .addFilterAfter(adminActiveGuardFilter, MemberActiveGuardFilter.class);
 
         return http.build();
+    }
+
+    @Bean
+    public AuthenticationEntryPoint restAuthenticationEntryPoint() {
+        return new RestAuthenticationEntryPoint();
+    }
+
+    @Bean
+    public AccessDeniedHandler restAccessDeniedHandler() {
+        return new RestAccessDeniedHandler();
     }
 }

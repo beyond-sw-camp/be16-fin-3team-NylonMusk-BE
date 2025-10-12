@@ -117,14 +117,13 @@ public class IpoSubscriptionService {
         if (deposit == null) {
             throw new IllegalArgumentException("납입 금액이 누락되었습니다.");
         }
-        long maxDeposit = appliedAmount.longValueExact(); // 신청 총액
         if (deposit < requiredDeposit) {
             throw new IllegalArgumentException(
                     "납입 금액(" + deposit + "원)은 필요증거금(" + requiredDeposit + "원)보다 작습니다.");
         }
-        if (deposit > maxDeposit) {
+        if (deposit > requiredDeposit) {
             throw new IllegalArgumentException(
-                    "납입 금액(" + deposit + "원)이 신청 총액(" + maxDeposit + "원)을 초과합니다.");
+                    "납입 금액(" + deposit + "원)이 신청 총액(" + requiredDeposit + "원)을 초과합니다.");
         }
 
         // 7) 저장

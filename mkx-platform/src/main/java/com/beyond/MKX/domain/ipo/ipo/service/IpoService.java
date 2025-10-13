@@ -35,7 +35,7 @@ public class IpoService {
     private final IpoRepository ipoRepository;
     private final IpoOfferingRepository ipoOfferingRepository;
     private final CorporationRepository corporationRepository;
-    private final S3Client s3Client;
+    private final S3Manager s3Manager;
     private Clock clock = Clock.systemDefaultZone();
 
 //    1. 기업 상장 요청 (requested)
@@ -50,27 +50,33 @@ public class IpoService {
         Ipo ipo = ipoCreateReqDTO.toEntity(corporation);
         ipoRepository.save(ipo);
 
-        if (ipoCreateReqDTO.getPreShareholdersFile() != null) {
-            String holdersFileName = "preHolder-" + ipo.getId() + "-file-" + ipoCreateReqDTO.getPreShareholdersFile().getOriginalFilename();
-
-//            저장 객체 구성
-            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
-                    .bucket(bucketName)
-                    .key(holdersFileName)
-                    .contentType(ipoCreateReqDTO.getPreShareholdersFile().getContentType())
-                    .build();
-
-            try {
-                s3Client.putObject(putObjectRequest, RequestBody.fromBytes(ipoCreateReqDTO.getPreShareholdersFile().getBytes()));
-            } catch (IOException e) {
-                throw new IllegalArgumentException("이미지 업로드 실패!");
-            }
-
-//            이미지 url 추출
-            String holdersUrl = s3Client.utilities().getUrl(a -> a.bucket(bucketName).key(holdersFileName)).toExternalForm();
-            ipo.updatePreShareholdersFileUrl(holdersUrl);
-
+        if (ipoCreateReqDTO.getPreShareholdersFile() == null || ipoCreateReqDTO.getPreShareholdersFile().isEmpty()) {
+            throw new IllegalArgumentException("주주 명부 파일이 비어 있습니다.");
         }
+        if (ipoCreateReqDTO.getFinancialStatements() == null || ipoCreateReqDTO.getFinancialStatements().isEmpty()) {
+            throw new IllegalArgumentException("재무제표 파일이 비어 있습니다.");
+        }
+
+//        S3 업로드 - 보상삭제포함
+        String base = "ipo/" + ipo.getId();
+        String preHoldersUrl = null;
+        String financialUrl = null;
+
+        try {
+            preHoldersUrl = s3Manager.upload(ipoCreateReqDTO.getPreShareholdersFile(), base + "/pre-shareholders");
+            financialUrl = s3Manager.upload(ipoCreateReqDTO.getFinancialStatements(), base + "/financials");
+        } catch (RuntimeException exception) {
+            if (preHoldersUrl != null) {
+                try { s3Manager.delete(preHoldersUrl); } catch (Exception ignored) {}
+            }
+            // 트랜잭션 롤백으로 방금 INSERT된 IPO도 취소됩니다.
+            throw exception;
+        }
+
+//        엔터티에 파일 URL 세팅 (더티체킹으로 커밋 시 UPDATE발생)
+        ipo.updatePreShareholdersFileUrl(preHoldersUrl);
+        ipo.updateFinancialStatementsUrl(financialUrl);
+
         return IpoCreateResDTO.from(ipo);
     }
 

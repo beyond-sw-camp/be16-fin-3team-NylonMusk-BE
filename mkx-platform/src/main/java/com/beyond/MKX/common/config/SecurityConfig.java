@@ -41,7 +41,8 @@ public class SecurityConfig {
             "/auth/**",
             "/admin/approval-requests/me",
             "/api/internal/**",
-            "/api/stocks"
+            "/api/stocks",
+            "/public/**"
     };
 
     @Bean

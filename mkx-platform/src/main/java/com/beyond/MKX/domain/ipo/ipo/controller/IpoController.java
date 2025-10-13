@@ -2,6 +2,7 @@ package com.beyond.MKX.domain.ipo.ipo.controller;
 
 import com.beyond.MKX.common.apiResponse.ApiResponse;
 import com.beyond.MKX.domain.ipo.ipo.dto.IpoCreateReqDTO;
+import com.beyond.MKX.domain.ipo.ipo.dto.IpoCreateResDTO;
 import com.beyond.MKX.domain.ipo.ipo.dto.IpoListReqDTO;
 import com.beyond.MKX.domain.ipo.ipo.dto.IpoReviewReqDTO;
 import com.beyond.MKX.domain.ipo.ipo.entity.Ipo;
@@ -21,10 +22,9 @@ public class IpoController {
     private final IpoService ipoService;
 
     @PostMapping("/request")
-    public ResponseEntity<?> createReq(@RequestBody @Valid IpoCreateReqDTO ipoCreateReqDTO) {
-        Ipo ipo = ipoService.createRequest(ipoCreateReqDTO);
-
-        return ApiResponse.ok(ipo.getId(), "IPO 상장 요청이 성공적으로 접수되었습니다.");
+    public ResponseEntity<?> createReq(@ModelAttribute IpoCreateReqDTO ipoCreateReqDTO) {
+        IpoCreateResDTO ipoCreateResDTO = ipoService.createRequest(ipoCreateReqDTO);
+        return ApiResponse.ok(ipoCreateResDTO, "IPO 상장 요청이 성공적으로 접수되었습니다.");
     }
 
         @PostMapping("/{ipoId}/review")

@@ -1,9 +1,11 @@
 package com.beyond.MKX.domain.ipo.ipo.dto;
 
+import com.beyond.MKX.domain.corporation.entity.Corporation;
 import com.beyond.MKX.domain.ipo.ipo.entity.Ipo;
 import com.beyond.MKX.domain.ipo.ipo.entity.IpoStatus;
 import jakarta.validation.constraints.*;
 import lombok.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 
@@ -12,28 +14,30 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @Builder
 public class IpoCreateReqDTO {
+    private Corporation corporation;
 
     @NotNull
     private String symbol;
     @NotNull @Positive
     private Long faceValue;
     @NotNull @Positive
-    private Long totalShares;
+    private Long preOutstandingShares;
     @NotNull
-    @DecimalMin("0.0") @DecimalMax("1.0")
-    private Double majorShareholderRatio;
+    private MultipartFile preShareholdersFile;
+    @NotNull
+    private MultipartFile financialStatements;
     @NotNull
     private Boolean isOffering;
 
-    public Ipo toEntity() {
+    public Ipo toEntity(Corporation corporation) {
         return Ipo.builder()
                 .symbol(this.symbol)
                 .faceValue(this.faceValue)
-                .totalShares(this.totalShares)
-                .majorShareholderRatio(this.majorShareholderRatio)
+                .preOutstandingShares(this.preOutstandingShares)
                 .isOffering(this.isOffering)
                 .status(IpoStatus.REQUESTED)       // 기본 상태
                 .requestedAt(LocalDateTime.now())  // 생성 시 요청 시각 자동 세팅
+                .corporation(corporation)
                 .build();
     }
 

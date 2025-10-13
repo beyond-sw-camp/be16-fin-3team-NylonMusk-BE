@@ -1,6 +1,10 @@
 package com.beyond.MKX.domain.ipo.ipo.service;
 
+import com.beyond.MKX.common.s3.S3Manager;
+import com.beyond.MKX.domain.corporation.entity.Corporation;
+import com.beyond.MKX.domain.corporation.repository.CorporationRepository;
 import com.beyond.MKX.domain.ipo.ipo.dto.IpoCreateReqDTO;
+import com.beyond.MKX.domain.ipo.ipo.dto.IpoCreateResDTO;
 import com.beyond.MKX.domain.ipo.ipo.dto.IpoListReqDTO;
 import com.beyond.MKX.domain.ipo.ipo.dto.IpoReviewReqDTO;
 import com.beyond.MKX.domain.ipo.ipo.entity.Ipo;
@@ -10,9 +14,14 @@ import com.beyond.MKX.domain.ipo.ipo.entity.IpoStatus;
 import com.beyond.MKX.domain.ipo.offering.repository.IpoOfferingRepository;
 import com.beyond.MKX.domain.ipo.ipo.repository.IpoRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
+import java.io.IOException;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -20,18 +29,49 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class IpoService {
+    @Value("${cloud.aws.s3.bucket}")
+    private String bucketName;
+
     private final IpoRepository ipoRepository;
     private final IpoOfferingRepository ipoOfferingRepository;
+    private final CorporationRepository corporationRepository;
+    private final S3Client s3Client;
     private Clock clock = Clock.systemDefaultZone();
 
 //    1. 기업 상장 요청 (requested)
     @Transactional
-    public Ipo createRequest(IpoCreateReqDTO ipoCreateReqDTO) {
+    public IpoCreateResDTO createRequest(IpoCreateReqDTO ipoCreateReqDTO) {
         if (ipoRepository.existsBySymbol(ipoCreateReqDTO.getSymbol())) {
             throw new IllegalArgumentException("이미 사용중인 종목 이름입니다." + ipoCreateReqDTO.getSymbol());
         }
-        Ipo ipo = ipoCreateReqDTO.toEntity();
-        return ipoRepository.save(ipo);
+        Corporation corporation = corporationRepository.findById(ipoCreateReqDTO.getCorporation().getId())
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 기업입니다."));
+
+        Ipo ipo = ipoCreateReqDTO.toEntity(corporation);
+        ipoRepository.save(ipo);
+
+        if (ipoCreateReqDTO.getPreShareholdersFile() != null) {
+            String holdersFileName = "preHolder-" + ipo.getId() + "-file-" + ipoCreateReqDTO.getPreShareholdersFile().getOriginalFilename();
+
+//            저장 객체 구성
+            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(holdersFileName)
+                    .contentType(ipoCreateReqDTO.getPreShareholdersFile().getContentType())
+                    .build();
+
+            try {
+                s3Client.putObject(putObjectRequest, RequestBody.fromBytes(ipoCreateReqDTO.getPreShareholdersFile().getBytes()));
+            } catch (IOException e) {
+                throw new IllegalArgumentException("이미지 업로드 실패!");
+            }
+
+//            이미지 url 추출
+            String holdersUrl = s3Client.utilities().getUrl(a -> a.bucket(bucketName).key(holdersFileName)).toExternalForm();
+            ipo.updatePreShareholdersFileUrl(holdersUrl);
+
+        }
+        return IpoCreateResDTO.from(ipo);
     }
 
 //    2. 거래소 관리자 심사(under review)

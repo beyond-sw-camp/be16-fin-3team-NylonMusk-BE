@@ -21,7 +21,7 @@ public class OutBoxPublisher {
     }
 
     // @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @Scheduled(fixedDelay = 3000) // 실서비스는 5ms로 설정
+    @Scheduled(fixedDelay = 5000) // 실서비스는 5ms로 설정
     public void publishOrder() {
         // 데이터 조회(SKIP LOCKED)
         List<OrderOutbox> batch = outBoxService.findUnpublishedBatch(200);

@@ -1,7 +1,8 @@
-package com.beyond.MKX.common.redis;
+package com.beyond.MKX.common.redis.common;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -15,13 +16,14 @@ import org.springframework.data.redis.core.StringRedisTemplate;
  * - StringRedisTemplate만 제공(키/값 모두 문자열)
  */
 @Configuration
+@EnableConfigurationProperties(CommonRedisProps.class)
 public class IdemRedisConfig {
 
-    @Value("${spring.redis.host}")
-    private String host;
+    private final CommonRedisProps props;
 
-    @Value("${spring.redis.port}")
-    private int port;
+    public IdemRedisConfig(CommonRedisProps props) {
+        this.props = props;
+    }
 
     /**
      * Lettuce 기반 Redis 커넥션 팩토리(DB 2)
@@ -30,8 +32,8 @@ public class IdemRedisConfig {
     @Qualifier("idempotency")
     public RedisConnectionFactory redisConnectionFactory() {
         RedisStandaloneConfiguration configuration = new RedisStandaloneConfiguration();
-        configuration.setHostName(host);
-        configuration.setPort(port);
+        configuration.setHostName(props.getHost());
+        configuration.setPort(props.getPort());
         configuration.setDatabase(2);
         return new LettuceConnectionFactory(configuration);
     }

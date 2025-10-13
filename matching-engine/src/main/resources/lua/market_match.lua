@@ -83,7 +83,7 @@ while qty_left > 0 and matchCount < max_matches do
         redis.call("ZREM", bookKey, topId)
         redis.call("DEL",  oKey)
       else
-        -- ✅ 가격 가드 적용
+        -- 가격 가드 적용
         if guardPxInt ~= nil then
           if side == "BUY" then
             -- BUY는 guardPxInt(최대 허용가) 보다 비싼 가격이면 체결 금지
@@ -122,23 +122,37 @@ end
 
 -- LIMIT 잔량 적재: qty_left > 0 이고 orderIdToAdd 지정된 경우에만
 if qty_left > 0 and orderIdToAdd ~= "" then
-  local addSide = side          -- 요청의 side로 결정
-  local zsetKey
-  if addSide == "BUY" then
-    zsetKey = KEYS[1]           -- bids에 적재
-  else
-    zsetKey = KEYS[2]           -- asks에 적재
+  local addSide = side
+  local zsetKey = (addSide == "BUY") and KEYS[1] or KEYS[2]
+
+  -- 시간 tie-breaker 시퀀스 (자바와 동일 키)
+  local seqKey  = (addSide == "BUY") and KEYS[3] or KEYS[4]
+  local seq     = redis.call("INCR", seqKey)
+
+  -- 자바와 동일 FACTOR (ARGV[8]로 전달됨)
+  local FACTOR  = tonumber(ARGV[8]) or 1000000
+
+  local function bidScore(priceInt, seq)
+    local s = seq % FACTOR
+    return priceInt * FACTOR + (FACTOR - s)   -- 높은 가격, 빠른 시간 우선
   end
+  local function askScore(priceInt, seq)
+    local s = seq % FACTOR
+    return priceInt * FACTOR + s              -- 낮은 가격, 빠른 시간 우선
+  end
+
+  local score = (addSide == "BUY")
+          and bidScore(priceIntForAdd, seq)
+          or  askScore(priceIntForAdd, seq)
+
   local addKey = "orders:{" .. ticker .. "}:" .. orderIdToAdd
-  -- 주문 상세 저장
   redis.call("HSET", addKey,
-    "ticker",  ticker,
-    "side",    addSide,
-    "quantity", tostring(qty_left),
-    "priceInt", tostring(priceIntForAdd)
+          "ticker",  ticker,
+          "side",    addSide,
+          "quantity", tostring(qty_left),
+          "priceInt", tostring(priceIntForAdd)
   )
-  -- 오더북 적재(score=priceIntForAdd, member=orderId)
-  redis.call("ZADD", zsetKey, priceIntForAdd, orderIdToAdd)
+  redis.call("ZADD", zsetKey, score, orderIdToAdd)
 end
 
 -- out: [ remaining, matchCount, orderId1, fill1, priceInt1, ... ]

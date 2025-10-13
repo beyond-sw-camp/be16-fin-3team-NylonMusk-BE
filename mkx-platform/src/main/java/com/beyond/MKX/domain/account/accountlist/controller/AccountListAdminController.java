@@ -41,7 +41,7 @@ public class AccountListAdminController {
     private final MemberRepository memberRepository;
 
     /**
-     * 📄 account_list 목록 조회
+     *   account_list 목록 조회
      *   - type: EXCHANGE | BROKERAGE | CORPORATION | MEMBER (optional)
      *   - status: PENDING | APPROVED | REJECTED | SUSPENDED (optional)
      *   - search: 계좌번호 부분 검색 (optional)
@@ -53,10 +53,10 @@ public class AccountListAdminController {
             @RequestParam(value = "status", required = false) String status,
             @RequestParam(value = "search", required = false) String search
     ) {
-        // 1️⃣ 필터링된 기본 목록 조회
+        //  필터링된 기본 목록 조회
         List<AccountList> accountLists = accountListService.search(type, status, search);
 
-        // 2️⃣ 각 계좌 타입별로 세부정보 enrich
+        // 각 계좌 타입별로 세부정보 enrich
         List<AccountListAdminItemDto> enrichedList = accountLists.stream()
                 .map(account -> {
 
@@ -70,7 +70,7 @@ public class AccountListAdminController {
 
                     switch (account.getType()) {
 
-                        // 🏦 증권사 계좌
+                        //  증권사 계좌
                         case BROKERAGE -> brokerageDepositAccountRepository
                                 .findByAccountNumber(account.getAccountNumber())
                                 .ifPresent(depositAccount ->
@@ -80,7 +80,7 @@ public class AccountListAdminController {
                                                 )
                                 );
 
-                        // 🏢 법인 계좌
+                        //  법인 계좌
                         case CORPORATION -> corporationAccountRepository
                                 .findByAccountNumber(account.getAccountNumber())
                                 .ifPresent(corpAccount ->
@@ -90,7 +90,7 @@ public class AccountListAdminController {
                                                 )
                                 );
 
-                        // 👤 회원 계좌
+                        //  회원 계좌
                         case MEMBER -> {
                             try {
                                 MemberAccountInternalClient.MemberAccountByNumberRes memberRes =
@@ -107,13 +107,19 @@ public class AccountListAdminController {
                                     // 소속 증권사 이름 추가
                                     securitiesFirmRepository.findById(memberRes.brokerageId())
                                             .ifPresent(sf -> builder.brokerageName(sf.getNameKo()));
+                                } else {
+                                    // 회원 정보 조회 실패 시 기본값 설정
+                                    System.err.println("[AccountListAdmin] Member info not found for account: " + account.getAccountNumber());
+                                    builder.memberName("회원 정보 없음");
                                 }
-                            } catch (Exception ignore) {
-                                // 내부 통신 실패 시 무시
+                            } catch (Exception e) {
+                                // 내부 통신 실패 시 로그 남기고 기본값 설정
+                                System.err.println("[AccountListAdmin] Failed to get member info for account " + account.getAccountNumber() + ": " + e.getMessage());
+                                builder.memberName("회원 정보 조회 실패");
                             }
                         }
 
-                        // 💹 거래소 계좌
+                        //  거래소 계좌
                         case EXCHANGE -> builder.brokerageName("거래소");
                     }
 
@@ -121,7 +127,7 @@ public class AccountListAdminController {
                 })
                 .toList();
 
-        // 3️⃣ 응답 래핑
+        // 응답 래핑
         return ApiResponse.ok(enrichedList, "account_list 목록 조회");
     }
 }

@@ -63,7 +63,9 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             "/auth/**",
             "/health",
             "/order/**",
-            "/test/**"
+            "/test/**",
+            "/public/**",
+            "/api/stocks/**"
     );
 
     /**

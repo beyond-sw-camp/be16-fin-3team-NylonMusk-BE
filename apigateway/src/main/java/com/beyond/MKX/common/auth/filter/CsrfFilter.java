@@ -46,7 +46,9 @@ public class CsrfFilter implements GlobalFilter, Ordered {
             "/auth/**",   // 로그인/회원가입 등 인증 관련 엔드포인트
             "/health",     // 헬스체크
             "/order/**",
-            "/test/**"
+            "/test/**",
+            "/public/**",
+            "/api/stocks/**"
     );
 
     /** Gateway에서 경로 정규화 시 제거할 서비스 접두사 */

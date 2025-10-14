@@ -77,7 +77,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             "/ordering-service",
             "/matching-engine-service",
             "/market-data-service",
-            "community-service"
+            "/community-service"
     );
 
     public JwtAuthFilter(@Value("${jwt.secretKeyAt}") String secretKeyAtValue) {

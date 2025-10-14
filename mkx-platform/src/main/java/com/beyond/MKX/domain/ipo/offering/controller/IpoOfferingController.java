@@ -37,28 +37,28 @@ public class IpoOfferingController {
     }
 
     /* 공모가 확정 */
-    @PatchMapping("/{offeringId}/fixed-price")
+    @PatchMapping("/offerings/{offeringId}/fixed-price")
     public ResponseEntity<?> fixOfferPrice(@PathVariable UUID offeringId, @Valid @RequestBody IpoOfferingPriceFixReqDTO fixReqDTO) {
         IpoOffering fixPrice = offeringService.fixOfferPrice(offeringId, fixReqDTO.getOfferPrice());
         return ApiResponse.ok(IpoOfferingResDTO.from(fixPrice), "확정 공모가가 등록되었습니다.");
     }
 
     /* 공모 청약 오픈 */
-    @PatchMapping("/{offeringId}/open")
+    @PatchMapping("/offerings/{offeringId}/open")
     public ResponseEntity<?> open(@PathVariable UUID offeringId) {
         IpoOffering opened = offeringService.open(offeringId); // SCHEDULED -> OPEN (청약 오픈)
         return ApiResponse.ok(IpoOfferingResDTO.from(opened), "청약이 개시되었습니다.");
     }
 
     /* 공모 청약 마감 */
-    @PatchMapping("/{offeringId}/close")
+    @PatchMapping("/offerings/{offeringId}/close")
     public ResponseEntity<?> close(@PathVariable UUID offeringId) {
         IpoOffering closed = offeringService.close(offeringId); // OPEN -> CLOSED (집계 준비)
         return ApiResponse.ok(IpoOfferingResDTO.from(closed), "청약이 마감되었습니다.");
     }
 
     /* 공모 청약 취소 */
-    @PatchMapping("/{offeringId}/cancel")
+    @PatchMapping("/offerings/{offeringId}/cancel")
     public ResponseEntity<?> cancel(@PathVariable UUID offeringId) {
         IpoOffering cancelled = offeringService.cancel(offeringId); // SCHEDULED/OPEN 한정 -> CANCELLED
         return ApiResponse.ok(IpoOfferingResDTO.from(cancelled), "공모가 취소되었습니다.");

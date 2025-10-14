@@ -40,7 +40,7 @@ public class IpoOffering extends BaseIdAndTimeEntity {
     /* 공모 확정 물량 */
     private Long issuedQuantity;
     /* 청약 단위 */
-    private Long lotSize;
+    private Integer lotSize;
 
     /* 청약 시작 시간 */
     private LocalDateTime subscriptionStart;
@@ -124,7 +124,7 @@ public class IpoOffering extends BaseIdAndTimeEntity {
         if (this.ipoOfferingStatus != IpoOfferingStatus.PRICE_FIXED) {
             throw new IllegalStateException("PRICE_FIXED 이후에만 배정 확정 가능");
         }
-        if (aQty <= 0 || aQty > this.offerQuantity) {
+        if (aQty < 0 || aQty > this.offerQuantity) {
             throw new IllegalStateException("배정 수량이 유효하지 않습니다.");
         }
         this.allocatedQuantity = aQty;
@@ -135,7 +135,7 @@ public class IpoOffering extends BaseIdAndTimeEntity {
         if (this.ipoOfferingStatus != IpoOfferingStatus.ALLOCATED) {
             throw new IllegalStateException("ALLOCATED 이후에만 정산 가능");
         }
-        if (sQty <= 0 || sQty > this.allocatedQuantity) {
+        if (sQty < 0 || sQty > this.allocatedQuantity) {
             throw new IllegalStateException("정산 수량이 유효하지 않습니다.");
         }
         this.issuedQuantity = sQty;

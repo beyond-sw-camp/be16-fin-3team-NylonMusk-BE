@@ -7,17 +7,29 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.UUID;
+import java.util.*;
+
 @Repository
 public interface IpoSubscriptionRepository extends JpaRepository<IpoSubscription, UUID> {
     boolean existsByIpoOffering_IdAndAccountId(UUID ipoOfferingId, UUID accountId);
 
     @Query("""
-   select coalesce(sum(s.appliedQuantity), 0)
-   from IpoSubscription s
-   where s.ipoOffering.id = :offeringId
-     and s.status = :status
-""")
+               select coalesce(sum(s.appliedQuantity), 0)
+               from IpoSubscription s
+               where s.ipoOffering.id = :offeringId
+                 and s.status = :status
+            """)
     long sumAppliedQuantityByOffering(@Param("offeringId") UUID offeringId,
                                       @Param("status") SubscriptionStatus status);
+
+
+    @Query("""
+               select s from IpoSubscription s
+               where s.ipoOffering.id = :offeringId
+                 and s.status = :status
+               order by s.paidAt asc, s.id asc
+            """)
+    List<IpoSubscription> findAllByOfferingIdAndStatusOrderByPaid(
+            @Param("offeringId") UUID offeringId,
+            @Param("status") SubscriptionStatus status);
 }

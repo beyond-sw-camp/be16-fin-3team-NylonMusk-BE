@@ -18,7 +18,7 @@ public class IpoOfferingResDTO {
     private UUID ipoId;
     private Integer roundNo;
     private Long offerQuantity;
-    private Long lotSize;
+    private Integer lotSize;
     private Long priceBandMin;
     private Long priceBandMax;
     private Long offerPrice; // 확정 전이면 null

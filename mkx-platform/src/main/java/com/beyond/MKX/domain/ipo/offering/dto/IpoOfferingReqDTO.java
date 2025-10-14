@@ -23,7 +23,7 @@ public class IpoOfferingReqDTO {
     /* 청약 단위 */
     @NotNull
     @Positive
-    private Long lotSize;
+    private Integer lotSize;
 
     /* 청약 시작 시간 */
     @NotNull

@@ -25,7 +25,7 @@ public class IpoSubscriptionController {
         return ApiResponse.ok(subscriptionRes, "청약 접수가 완료되었습니다.");
     }
 
-    /** 청약 취소 (APPLIED -> CANCELLED) */
+    /** 청약 취소 (APPLIED or PAID -> CANCELLED) */
     @PatchMapping("/{subscriptionId}/cancel")
     public ResponseEntity<?> cancel(@PathVariable UUID subscriptionId) {
         IpoSubscriptionResDTO res = subscriptionService.cancel(subscriptionId);

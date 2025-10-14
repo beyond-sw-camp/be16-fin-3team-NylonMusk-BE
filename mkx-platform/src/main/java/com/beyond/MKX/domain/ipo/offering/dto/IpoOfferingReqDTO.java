@@ -16,8 +16,6 @@ import java.util.UUID;
 @NoArgsConstructor
 @Builder
 public class IpoOfferingReqDTO {
-    /* 어떤 상장에 대한 공모인지 */
-    private UUID ipoId;
     /* 공모 물량 */
     @NotNull
     @Positive
@@ -53,10 +51,6 @@ public class IpoOfferingReqDTO {
     @NotNull
     @DecimalMin("0.00") @DecimalMax("100.00")
     private BigDecimal depositRate;
-    /* 상한 비율 */
-    @NotNull
-    @DecimalMin("0.00") @DecimalMax("100.00")
-    private BigDecimal capRatio;
 
 //    /* 청약 경쟁률 */
 //    // 사후 집계값이지만 DTO에 두면 업데이트용 엔드포인트에서 활용

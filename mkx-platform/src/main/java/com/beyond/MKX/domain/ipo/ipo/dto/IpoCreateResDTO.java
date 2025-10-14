@@ -16,7 +16,7 @@ public class IpoCreateResDTO {
     private UUID ipoId;
     private String symbol;
     private Long faceValue;
-    private Long preOutstandingShares;
+    private Long preIpoOutstandingShares;
     private Boolean isOffering;
     private String preShareholdersFileUrl;
     private String financialStatementsUrl;
@@ -26,7 +26,7 @@ public class IpoCreateResDTO {
                 .ipoId(ipo.getId())
                 .symbol(ipo.getSymbol())
                 .faceValue(ipo.getFaceValue())
-                .preOutstandingShares(ipo.getPreOutstandingShares())
+                .preIpoOutstandingShares(ipo.getPreIpoOutstandingShares())
                 .isOffering(ipo.getIsOffering())
                 .preShareholdersFileUrl(ipo.getPreShareholdersFileUrl())
                 .financialStatementsUrl(ipo.getFinancialStatementsUrl())

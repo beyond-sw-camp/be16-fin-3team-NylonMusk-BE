@@ -23,7 +23,6 @@ public class IpoOfferingResDTO {
     private Long priceBandMax;
     private Long offerPrice; // 확정 전이면 null
     private java.math.BigDecimal depositRate;
-    private java.math.BigDecimal capRatio;
     private java.math.BigDecimal competitionRatio;
     private java.time.LocalDateTime subscriptionStart;
     private java.time.LocalDateTime subscriptionEnd;
@@ -42,7 +41,6 @@ public class IpoOfferingResDTO {
                 .priceBandMax(o.getPriceBandMax())
                 .offerPrice(o.getOfferPrice())
                 .depositRate(o.getDepositRate())
-                .capRatio(o.getCapRatio())
                 .competitionRatio(o.getCompetitionRatio())
                 .subscriptionStart(o.getSubscriptionStart())
                 .subscriptionEnd(o.getSubscriptionEnd())

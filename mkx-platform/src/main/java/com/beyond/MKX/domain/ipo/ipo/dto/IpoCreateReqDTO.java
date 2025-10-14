@@ -21,7 +21,7 @@ public class IpoCreateReqDTO {
     @NotNull @Positive
     private Long faceValue;
     @NotNull @Positive
-    private Long preOutstandingShares;
+    private Long preIpoOutstandingShares;
     @NotNull
     private MultipartFile preShareholdersFile;
     @NotNull
@@ -33,7 +33,7 @@ public class IpoCreateReqDTO {
         return Ipo.builder()
                 .symbol(this.symbol)
                 .faceValue(this.faceValue)
-                .preOutstandingShares(this.preOutstandingShares)
+                .preIpoOutstandingShares(this.preIpoOutstandingShares)
                 .isOffering(this.isOffering)
                 .status(IpoStatus.REQUESTED)       // 기본 상태
                 .requestedAt(LocalDateTime.now())  // 생성 시 요청 시각 자동 세팅

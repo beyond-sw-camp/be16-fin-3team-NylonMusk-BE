@@ -2,6 +2,7 @@ package com.beyond.MKX.domain.ipo.offering.service;
 
 import com.beyond.MKX.domain.ipo.offering.dto.IpoOfferingReqDTO;
 import com.beyond.MKX.domain.ipo.ipo.entity.Ipo;
+import com.beyond.MKX.domain.ipo.offering.dto.IpoOfferingResDTO;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOffering;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOfferingStatus;
 import com.beyond.MKX.domain.ipo.ipo.entity.IpoStatus;
@@ -10,6 +11,7 @@ import com.beyond.MKX.domain.ipo.ipo.repository.IpoRepository;
 import com.beyond.MKX.domain.ipo.subscription.entity.SubscriptionStatus;
 import com.beyond.MKX.domain.ipo.subscription.repository.IpoSubscriptionRepository;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.mapping.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,12 +29,12 @@ public class IpoOfferingService {
 
     /* 공모 생성 */
     @Transactional
-    public IpoOffering create(IpoOfferingReqDTO offeringReqDTO) {
-        if (offeringReqDTO.getIpoId() == null) {
+    public IpoOffering create(UUID ipoId, IpoOfferingReqDTO offeringReqDTO) {
+        if (ipoId == null) {
             throw new IllegalArgumentException("상장(ipo) 아이디는 필수 입력값입니다.");
         }
         // 1) 상장 존재/상태 검증
-        Ipo ipo = ipoRepository.findByIdForUpdate(offeringReqDTO.getIpoId())
+        Ipo ipo = ipoRepository.findByIdForUpdate(ipoId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 Ipo입니다."));
 
         Integer lastRoundNo = ipoOfferingRepository.findMaxRoundNo(ipo.getId());
@@ -294,6 +296,12 @@ public class IpoOfferingService {
         ipoOffering.setCompetitionRatio(BigDecimal.valueOf(r).setScale(2, RoundingMode.HALF_UP)); // 전용 세터 권장
         ipoOffering.fixOfferPrice(price, min, max, face);
         return ipoOffering;
+    }
+
+    public IpoOfferingResDTO findById(UUID ipoOfferingId) {
+        IpoOffering ipoOffering = ipoOfferingRepository.findById(ipoOfferingId)
+                .orElseThrow(() -> new IllegalArgumentException("찾는 공모가 없습니다."));
+        return IpoOfferingResDTO.from(ipoOffering);
     }
 
 }

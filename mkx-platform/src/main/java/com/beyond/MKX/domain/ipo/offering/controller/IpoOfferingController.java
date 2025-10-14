@@ -7,6 +7,7 @@ import com.beyond.MKX.domain.ipo.offering.dto.IpoOfferingResDTO;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOffering;
 import com.beyond.MKX.domain.ipo.offering.service.IpoOfferingService;
 import jakarta.validation.Valid;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -15,17 +16,24 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/ipo/offering")
+@RequestMapping("/ipo")
 @RequiredArgsConstructor
 @Validated
 public class IpoOfferingController {
     private final IpoOfferingService offeringService;
 
     /* 공모 생성 */
-    @PostMapping
-    public ResponseEntity<?> create(@Valid @RequestBody IpoOfferingReqDTO dto) {
-        IpoOffering saved = offeringService.create(dto);
+    @PostMapping("/{ipoId}/offerings")
+    public ResponseEntity<?> create(@PathVariable UUID ipoId, @Valid @RequestBody IpoOfferingReqDTO dto) {
+        IpoOffering saved = offeringService.create(ipoId, dto);
         return ApiResponse.ok(IpoOfferingResDTO.from(saved), "공모 차수 등록이 완료되었습니다.");
+    }
+
+    /* 공모 조회 */
+    @GetMapping("/offerings/{offeringId}")
+    public ResponseEntity<?> findById(@PathVariable UUID offeringId) {
+        IpoOfferingResDTO info = offeringService.findById(offeringId);
+        return ApiResponse.ok(info, "공모 조회 결과입니다.");
     }
 
     /* 공모가 확정 */
@@ -48,6 +56,7 @@ public class IpoOfferingController {
         IpoOffering closed = offeringService.close(offeringId); // OPEN -> CLOSED (집계 준비)
         return ApiResponse.ok(IpoOfferingResDTO.from(closed), "청약이 마감되었습니다.");
     }
+
     /* 공모 청약 취소 */
     @PatchMapping("/{offeringId}/cancel")
     public ResponseEntity<?> cancel(@PathVariable UUID offeringId) {

@@ -51,9 +51,6 @@ public class IpoSubscription extends BaseIdAndTimeEntity {
     @Column(nullable=false)
     private Long requiredDeposit;  // 필요 증거금
     @Column(nullable=false)
-    @Builder.Default private
-    Long depositAmount = 0L;      // 납입 금액
-    @Column(nullable=false)
     @Builder.Default
     private Long refundedAmount = 0L;  // 환불 금액
 
@@ -70,9 +67,13 @@ public class IpoSubscription extends BaseIdAndTimeEntity {
 
     // 청약 총액 계산 메서드
     public Long appliedAmount() { return appliedQuantity * offerPriceSnapshot; }
-    public void setDepositAmount(Long depositAmount) { this.depositAmount = depositAmount; }
+    public void setRequiredDeposit(Long requiredDeposit) { this.requiredDeposit = requiredDeposit; }
     public void setStatus(SubscriptionStatus status) { this.status = status; }
-    public void setPaidAt(LocalDateTime paidAt) { this.paidAt = paidAt; }
     public void setCancelledAt(LocalDateTime cancelledAt) { this.cancelledAt = cancelledAt; }
+
+    public void setRefundedAmount(Long refundedAmount) {
+        this.refundedAmount = refundedAmount;
+    }
+//    public void setPaidAt(LocalDateTime paidAt) { this.paidAt = paidAt; }
 
 }

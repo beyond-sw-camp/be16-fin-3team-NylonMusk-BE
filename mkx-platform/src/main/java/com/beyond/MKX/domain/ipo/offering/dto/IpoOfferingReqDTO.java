@@ -18,11 +18,6 @@ import java.util.UUID;
 public class IpoOfferingReqDTO {
     /* 어떤 상장에 대한 공모인지 */
     private UUID ipoId;
-    /* 몇 번째 공모 신청인지 */
-    @Null
-    @Positive
-    private Integer roundNo;
-
     /* 공모 물량 */
     @NotNull
     @Positive

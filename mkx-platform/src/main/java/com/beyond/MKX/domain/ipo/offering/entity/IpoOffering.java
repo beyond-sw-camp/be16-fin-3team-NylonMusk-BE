@@ -33,8 +33,12 @@ public class IpoOffering extends BaseIdAndTimeEntity {
     private Ipo ipo;
     /* 확정 공모가 */
     private Long offerPrice;
-    /* 공모 물량 */
+    /* 예정 공모 물량 */
     private Long offerQuantity;
+    /* 공모 배정 물량 */
+    private Long allocatedQuantity;
+    /* 공모 확정 물량 */
+    private Long issuedQuantity;
     /* 청약 단위 */
     private Long lotSize;
 
@@ -61,9 +65,7 @@ public class IpoOffering extends BaseIdAndTimeEntity {
     /* 잔여 주식 배분 */
     // TODO: 계좌 생성 이후 진행 할 예정
 
-    /* 상한 비율 */
-    @Column(precision = 5, scale = 2, nullable = false)
-    private BigDecimal capRatio;
+
     /* 청약 경쟁률 */
     @Column(precision = 5, scale = 2, nullable = false)
     private BigDecimal competitionRatio;
@@ -117,4 +119,27 @@ public class IpoOffering extends BaseIdAndTimeEntity {
         }
         this.ipoOfferingStatus = IpoOfferingStatus.CANCELLED;
     }
+
+    public void allocated(long aQty) {
+        if (this.ipoOfferingStatus != IpoOfferingStatus.PRICE_FIXED) {
+            throw new IllegalStateException("PRICE_FIXED 이후에만 배정 확정 가능");
+        }
+        if (aQty <= 0 || aQty > this.offerQuantity) {
+            throw new IllegalStateException("배정 수량이 유효하지 않습니다.");
+        }
+        this.allocatedQuantity = aQty;
+        this.ipoOfferingStatus = IpoOfferingStatus.ALLOCATED;
+    }
+
+    public void settle(long sQty) {
+        if (this.ipoOfferingStatus != IpoOfferingStatus.ALLOCATED) {
+            throw new IllegalStateException("ALLOCATED 이후에만 정산 가능");
+        }
+        if (sQty <= 0 || sQty > this.allocatedQuantity) {
+            throw new IllegalStateException("정산 수량이 유효하지 않습니다.");
+        }
+        this.issuedQuantity = sQty;
+        this.ipoOfferingStatus = IpoOfferingStatus.SETTLED;
+    }
+
 }

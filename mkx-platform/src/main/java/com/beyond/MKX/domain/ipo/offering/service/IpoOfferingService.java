@@ -107,7 +107,6 @@ public class IpoOfferingService {
                 .allocationDate(offeringReqDTO.getAllocationDate())
                 .refundDate(offeringReqDTO.getRefundDate())
                 .depositRate(offeringReqDTO.getDepositRate())
-                .capRatio(offeringReqDTO.getCapRatio())
                 .competitionRatio(BigDecimal.ZERO)
                 .ipoOfferingStatus(IpoOfferingStatus.SCHEDULED)
                 .build();
@@ -204,7 +203,6 @@ public class IpoOfferingService {
         validateSchedule(ipoOffering.getSubscriptionStart(), ipoOffering.getSubscriptionEnd(),
                 ipoOffering.getAllocationDate(), ipoOffering.getRefundDate());
         requirePercent(ipoOffering.getDepositRate(), "depositRate");
-        requirePercent(ipoOffering.getCapRatio(), "capRatio");
 
         // 동일 IPO에 이미 OPEN 존재 금지(경합 방지 위해 잠금 쿼리 사용)
         long openCnt = ipoOfferingRepository.countOpenForIpoForUpdate(ipoOffering.getIpo().getId());

@@ -46,6 +46,9 @@ public class Ipo extends BaseIdAndTimeEntity {
     @Column(nullable = false)
     private Long preOutstandingShares;
 
+    /* 상장 시점 총 발행 주식 수 = 비상장 주식 수 + 배정 및 정산 완료 후 (SETTLED 된 값)  */
+    private Long outStandingSharesAtListing;
+
 //    /* 대주주 지분율 */
 //    @Column(nullable = false)
 //    private Double majorShareholderRatio; // 0.0 ~ 1.0

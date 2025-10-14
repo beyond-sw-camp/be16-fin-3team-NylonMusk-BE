@@ -47,6 +47,8 @@ public class CsrfFilter implements GlobalFilter, Ordered {
             "/health",     // 헬스체크
             "/order/**",
             "/test/**",
+            "/public/**",
+            "/api/stocks/**"
             "/ipo/**"
     );
 
@@ -55,7 +57,8 @@ public class CsrfFilter implements GlobalFilter, Ordered {
             "/mkx-platform-service",
             "/ordering-service",
             "/matching-engine-service",
-            "/market-data-service"
+            "/market-data-service",
+            "/community-service"
     );
 
     private final AntPathMatcher matcher = new AntPathMatcher();

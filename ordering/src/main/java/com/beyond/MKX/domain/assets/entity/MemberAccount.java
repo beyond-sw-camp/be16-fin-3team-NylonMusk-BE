@@ -70,16 +70,18 @@ public class MemberAccount extends BaseIdAndTimeEntity {
             throw new IllegalArgumentException("입금 금액이 올바르지 않습니다.");
         }
         this.balance += amount;
+        this.availableBalance += amount; // 출금 가능 금액도 함께 증가
     }
 
     public void withdraw(Long amount) {
         if (amount == null || amount < 0) {
             throw new IllegalArgumentException("출금 금액이 올바르지 않습니다.");
         }
-        if (this.balance < amount) {
-            throw new IllegalArgumentException("잔액이 부족합니다.");
+        if (this.availableBalance < amount) {
+            throw new IllegalArgumentException("출금 가능 금액이 부족합니다.");
         }
         this.balance -= amount;
+        this.availableBalance -= amount; // 출금 가능 금액도 함께 차감
     }
     public void decreaseAvailableBalance(Long amount) {
         this.availableBalance -= amount;

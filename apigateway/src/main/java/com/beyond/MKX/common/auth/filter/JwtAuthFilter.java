@@ -63,7 +63,9 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             "/auth/**",
             "/health",
             "/order/**",
-            "/test/**"
+            "/test/**",
+            "/public/**",
+            "/api/stocks/**"
 //            "/ipo/**"
     );
 
@@ -75,7 +77,8 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             "/mkx-platform-service",
             "/ordering-service",
             "/matching-engine-service",
-            "/market-data-service"
+            "/market-data-service",
+            "community-service"
     );
 
     public JwtAuthFilter(@Value("${jwt.secretKeyAt}") String secretKeyAtValue) {

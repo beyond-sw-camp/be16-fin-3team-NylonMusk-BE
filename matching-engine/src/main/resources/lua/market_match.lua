@@ -1,80 +1,103 @@
 -- KEYS:
---   KEYS[1] = orderbook:{ticker}:bids        -- 매수 호가 ZSET
---   KEYS[2] = orderbook:{ticker}:asks        -- 매도 호가 ZSET
+--   KEYS[1] = orderbook:{ticker}:bids        -- 매수 호가 ZSET (score = priceInt, 높은 값 우선)
+--   KEYS[2] = orderbook:{ticker}:asks        -- 매도 호가 ZSET (score = priceInt, 낮은 값 우선)
 --
 -- ARGV:
---   1: ticker                                -- 종목 코드
---   2: side ("BUY" or "SELL")                -- 들어온 시장가 주문의 사이드
+--   1: ticker
+--   2: side ("BUY" or "SELL")                -- 들어온 주문의 사이드
 --   3: quantity (string number)              -- 주문 수량(문자열 숫자)
---   4: maxMatches (integer per invocation)   -- 한 번 실행에서 최대 매칭 건수(예: 100)
+--   4: maxMatches (int)                      -- 한 번 실행에서 최대 매칭 수
+--   5: guardPxInt (int or nil-string)        -- 가격 가드(시장가면 nil/빈문자)
+--   6: orderIdToAdd (string)                 -- LIMIT 잔량 적재용(시장가면 "")
+--   7: priceIntForAdd (int)                  -- LIMIT 잔량 적재 가격(시장가면 0)
 --
--- 주문 상세 해시(HASH) 키 스키마(반드시 동일 {ticker} 해시태그 슬롯 사용):
---   orders:{ticker}:{orderId}                -- 필드: quantity, priceInt, side, ticker
+-- 주문 상세 해시(HASH) 스키마(동일 {ticker} 해시태그 슬롯 사용 필수):
+--   orders:{ticker}:{orderId}  -- fields: quantity(string), priceInt(string), side, ticker
 
-local ticker      = ARGV[1]
-local side        = ARGV[2]
-local qty_left    = tonumber(ARGV[3])
-local max_matches = tonumber(ARGV[4])
+local ticker         = ARGV[1]
+local side           = string.upper(ARGV[2] or "")
+local qty_left       = tonumber(ARGV[3])
+local max_matches    = tonumber(ARGV[4])
+local guardPxInt_raw = ARGV[5]
+local orderIdToAdd   = ARGV[6] or ""
+local priceIntForAdd = tonumber(ARGV[7] or "0")
 
-if qty_left == nil or qty_left <= 0 then
-  return { "0", "0" } -- remaining, matchCount
+if not qty_left or qty_left <= 0 then
+  return { "0", "0" }
+end
+if not max_matches or max_matches <= 0 then
+  max_matches = 100
 end
 
--- 단일 슬롯 실행을 보장하기 위해 KEYS로 반대편 호가를 선택한다.
--- 시장가 BUY면 매도호가(ASKS, KEYS[2])를, 시장가 SELL이면 매수호가(BIDS, KEYS[1])를 조회한다.
-local upper_side = string.upper(side)
-local bookKey
-local fetch_cmd
+-- guardPxInt: nil/빈문자면 가드 미적용(시장가)
+local guardPxInt = nil
+if guardPxInt_raw and guardPxInt_raw ~= "" then
+  guardPxInt = tonumber(guardPxInt_raw)
+end
 
-if upper_side == "BUY" then
-  bookKey   = KEYS[2]       -- 매도호가 사용
-  fetch_cmd = "ZRANGE"      -- 최저가부터
+-- 시장가 BUY면 매도호가(ASKS), 시장가 SELL이면 매수호가(BIDS)를 소비
+local bookKey, fetch_cmd, zscore_cmd, oppositeSide
+if side == "BUY" then
+  bookKey      = KEYS[2]      -- asks
+  fetch_cmd    = "ZRANGE"     -- 최저가부터
+  zscore_cmd   = "ZSCORE"
+  oppositeSide = "SELL"
+elseif side == "SELL" then
+  bookKey      = KEYS[1]      -- bids
+  fetch_cmd    = "ZREVRANGE"  -- 최고가부터
+  zscore_cmd   = "ZSCORE"
+  oppositeSide = "BUY"
 else
-  bookKey   = KEYS[1]       -- 매수호가 사용
-  fetch_cmd = "ZREVRANGE"   -- 최고가부터
+  return { tostring(qty_left), "0" }
 end
 
-local matches = {}
-local matchCount = 0
-
--- 도우미: 해시에서 숫자 필드를 읽되 없으면 0 반환
 local function hget_number(key, field)
   local v = redis.call("HGET", key, field)
   if not v then return 0.0 end
   return tonumber(v)
 end
 
+local matches = {}
+local matchCount = 0
+
 while qty_left > 0 and matchCount < max_matches do
   local topIds = redis.call(fetch_cmd, bookKey, 0, 0)
   if (not topIds) or (#topIds == 0) then
     break
   end
-
   local topId = topIds[1]
-  -- 주문 상세 키는 반드시 동일한 {ticker} 슬롯을 사용해야 한다.
   local oKey  = "orders:{" .. ticker .. "}:" .. topId
 
-  -- If detail is gone, clean zset member
   if redis.call("EXISTS", oKey) == 0 then
     redis.call("ZREM", bookKey, topId)
-
   else
-    -- 안전 점검: 상세에 저장된 ticker가 일치하는지 확인(항상 참이어야 함)
     local topTicker = redis.call("HGET", oKey, "ticker")
     if (not topTicker) or (topTicker ~= ticker) then
       redis.log(redis.LOG_WARNING, "Unexpected ticker on " .. oKey .. " expected=" .. ticker .. " got=" .. tostring(topTicker))
       redis.call("ZREM", bookKey, topId)
-
     else
       local topQty   = hget_number(oKey, "quantity")
       local priceInt = hget_number(oKey, "priceInt")
 
       if topQty <= 0 then
-        -- 오래된/무효 주문 정리
         redis.call("ZREM", bookKey, topId)
         redis.call("DEL",  oKey)
-
       else
+        -- 가격 가드 적용
+        if guardPxInt ~= nil then
+          if side == "BUY" then
+            -- BUY는 guardPxInt(최대 허용가) 보다 비싼 가격이면 체결 금지
+            if priceInt > guardPxInt then
+              break
+            end
+          else
+            -- SELL은 guardPxInt(최저 허용가) 보다 싼 가격이면 체결 금지
+            if priceInt < guardPxInt then
+              break
+            end
+          end
+        end
+
         local fill = qty_left
         if topQty < fill then fill = topQty end
 
@@ -82,12 +105,10 @@ while qty_left > 0 and matchCount < max_matches do
         if remain <= 0 then
           redis.call("ZREM", bookKey, topId)
           redis.call("DEL",  oKey)
-          -- 주의: orderIndex:{orderId}는 다른 슬롯에 있을 수 있으므로 여기서 건드리지 않음
         else
           redis.call("HSET", oKey, "quantity", tostring(remain))
         end
 
-        -- 매칭 결과 누적: orderId, 체결수량(fillQty), 가격정수(priceInt)
         table.insert(matches, topId)
         table.insert(matches, tostring(fill))
         table.insert(matches, tostring(priceInt))
@@ -99,8 +120,42 @@ while qty_left > 0 and matchCount < max_matches do
   end
 end
 
--- 반환 형식:
--- [ remaining, matchCount, orderId1, fill1, priceInt1, orderId2, fill2, priceInt2, ... ]
+-- LIMIT 잔량 적재: qty_left > 0 이고 orderIdToAdd 지정된 경우에만
+if qty_left > 0 and orderIdToAdd ~= "" then
+  local addSide = side
+  local zsetKey = (addSide == "BUY") and KEYS[1] or KEYS[2]
+
+  -- 시간 tie-breaker 시퀀스 (자바와 동일 키)
+  local seqKey  = (addSide == "BUY") and KEYS[3] or KEYS[4]
+  local seq     = redis.call("INCR", seqKey)
+
+  -- 자바와 동일 FACTOR (ARGV[8]로 전달됨)
+  local FACTOR  = tonumber(ARGV[8]) or 1000000
+
+  local function bidScore(priceInt, seq)
+    local s = seq % FACTOR
+    return priceInt * FACTOR + (FACTOR - s)   -- 높은 가격, 빠른 시간 우선
+  end
+  local function askScore(priceInt, seq)
+    local s = seq % FACTOR
+    return priceInt * FACTOR + s              -- 낮은 가격, 빠른 시간 우선
+  end
+
+  local score = (addSide == "BUY")
+          and bidScore(priceIntForAdd, seq)
+          or  askScore(priceIntForAdd, seq)
+
+  local addKey = "orders:{" .. ticker .. "}:" .. orderIdToAdd
+  redis.call("HSET", addKey,
+          "ticker",  ticker,
+          "side",    addSide,
+          "quantity", tostring(qty_left),
+          "priceInt", tostring(priceIntForAdd)
+  )
+  redis.call("ZADD", zsetKey, score, orderIdToAdd)
+end
+
+-- out: [ remaining, matchCount, orderId1, fill1, priceInt1, ... ]
 local out = { tostring(qty_left), tostring(matchCount) }
 for i = 1, #matches do
   table.insert(out, matches[i])

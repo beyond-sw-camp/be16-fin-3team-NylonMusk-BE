@@ -8,13 +8,13 @@ import lombok.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
 public class IpoCreateReqDTO {
-    private Corporation corporation;
 
     @NotNull
     private String symbol;

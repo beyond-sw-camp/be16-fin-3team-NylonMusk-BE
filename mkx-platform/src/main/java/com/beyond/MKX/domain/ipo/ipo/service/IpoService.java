@@ -1,6 +1,9 @@
 package com.beyond.MKX.domain.ipo.ipo.service;
 
+import com.beyond.MKX.common.auth.security.CustomAdminPrincipal;
+import com.beyond.MKX.common.auth.security.GatewayHeaderAuthFilter;
 import com.beyond.MKX.common.s3.S3Manager;
+import com.beyond.MKX.domain.admin.repository.AdminRepository;
 import com.beyond.MKX.domain.corporation.entity.Corporation;
 import com.beyond.MKX.domain.corporation.repository.CorporationRepository;
 import com.beyond.MKX.domain.ipo.ipo.dto.IpoCreateReqDTO;
@@ -15,6 +18,8 @@ import com.beyond.MKX.domain.ipo.offering.repository.IpoOfferingRepository;
 import com.beyond.MKX.domain.ipo.ipo.repository.IpoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import software.amazon.awssdk.core.sync.RequestBody;
@@ -22,8 +27,10 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
+import java.nio.file.AccessDeniedException;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -36,6 +43,7 @@ public class IpoService {
     private final IpoOfferingRepository ipoOfferingRepository;
     private final CorporationRepository corporationRepository;
     private final S3Manager s3Manager;
+    private final AdminRepository adminRepository;
     private Clock clock = Clock.systemDefaultZone();
 
 //    1. 기업 상장 요청 (requested)
@@ -44,7 +52,18 @@ public class IpoService {
         if (ipoRepository.existsBySymbol(ipoCreateReqDTO.getSymbol())) {
             throw new IllegalArgumentException("이미 사용중인 종목 이름입니다." + ipoCreateReqDTO.getSymbol());
         }
-        Corporation corporation = corporationRepository.findById(ipoCreateReqDTO.getCorporation().getId())
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof CustomAdminPrincipal customAdminPrincipal)) {
+            throw new IllegalArgumentException("인증되지 않은 요청입니다.");
+        }
+        var admin = adminRepository.findById(customAdminPrincipal.id())
+                .orElseThrow(() -> new IllegalArgumentException("관리자를 찾을 수 없습니다."));
+        var corp = admin.getCorporation();
+        if (corp == null) {
+            throw new IllegalArgumentException("해당 관리자 계정에 연결된 기업이 없습니다.");
+        }
+
+        Corporation corporation = corporationRepository.findById(corp.getId())
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 기업입니다."));
 
         Ipo ipo = ipoCreateReqDTO.toEntity(corporation);

@@ -84,15 +84,15 @@ public class IpoOfferingService {
         }
 
 //        long freeFloatCap = (long) Math.floor(ipo.getTotalShares() * (1.0 - ipo.getMajorShareholderRatio()));
-        BigDecimal total = BigDecimal.valueOf(ipo.getTotalShares());
-        BigDecimal ratio = BigDecimal.valueOf(ipo.getMajorShareholderRatio()); // 0.0~1.0
-        long freeFloatCap = total.multiply(BigDecimal.ONE.subtract(ratio))
-                .setScale(0, java.math.RoundingMode.FLOOR)
-                .longValueExact();
-        if (offeringReqDTO.getOfferQuantity() > freeFloatCap) {
-            throw new IllegalArgumentException(
-                    "공모 물량이 유통 한도(" + freeFloatCap + ")를 초과합니다. 요청=" + offeringReqDTO.getOfferQuantity());
-        }
+//        BigDecimal total = BigDecimal.valueOf(ipo.getTotalShares());
+//        BigDecimal ratio = BigDecimal.valueOf(ipo.getMajorShareholderRatio()); // 0.0~1.0
+//        long freeFloatCap = total.multiply(BigDecimal.ONE.subtract(ratio))
+//                .setScale(0, java.math.RoundingMode.FLOOR)
+//                .longValueExact();
+//        if (offeringReqDTO.getOfferQuantity() > freeFloatCap) {
+//            throw new IllegalArgumentException(
+//                    "공모 물량이 유통 한도(" + freeFloatCap + ")를 초과합니다. 요청=" + offeringReqDTO.getOfferQuantity());
+//        }
 
         IpoOffering ipoOffering = IpoOffering.builder()
                 .ipo(ipo)

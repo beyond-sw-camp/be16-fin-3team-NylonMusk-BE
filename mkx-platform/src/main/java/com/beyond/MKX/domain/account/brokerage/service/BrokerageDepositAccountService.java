@@ -59,14 +59,14 @@ public class BrokerageDepositAccountService {
         BrokerageDepositAccount acc = repository.findByAccountNumberForUpdate(accountNumber)
                 .orElseThrow(() -> new IllegalArgumentException("증권사 예치 계좌 없음"));
         acc.deposit(amount);
-        return acc.getDeposit();
+        return acc.getBalance();
     }
 
     public BigInteger withdraw(String accountNumber, BigInteger amount) {
         BrokerageDepositAccount acc = repository.findByAccountNumberForUpdate(accountNumber)
-                .orElseThrow(() -> new IllegalArgumentException("잔액 부족"));
+                .orElseThrow(() -> new IllegalArgumentException("증권사 예치 계좌 없음"));
         acc.withdraw(amount);
-        return acc.getDeposit();
+        return acc.getBalance();
     }
 
     public BrokerageDepositAccount getRequiredByBrokerageId(UUID brokerageId) {

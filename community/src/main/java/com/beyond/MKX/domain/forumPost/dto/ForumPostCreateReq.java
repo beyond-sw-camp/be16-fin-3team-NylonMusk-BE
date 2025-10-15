@@ -10,9 +10,9 @@ import java.util.UUID;
 
 public record ForumPostCreateReq(
         @NotNull UUID stockId,
-        @NotNull @Size(min = 1, max = 120) String title,
-        @NotNull @Size(min = 1) String contents,
         @NotEmpty(message = "카테고리를 최소 1개 이상 선택하세요.")
         List<UUID> categoryIds,
+        @NotNull @Size(min = 1, max = 120) String title,
+        @NotNull @Size(min = 1) String contents,
         MultipartFile imageFile
 ) {}

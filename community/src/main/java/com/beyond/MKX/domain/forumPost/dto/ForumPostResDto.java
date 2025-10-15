@@ -1,11 +1,16 @@
 package com.beyond.MKX.domain.forumPost.dto;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import java.time.LocalDateTime;
-import java.util.UUID;
+import com.beyond.MKX.domain.forumCategory.dto.ForumCategoryResDto;
 import com.beyond.MKX.domain.forumPost.entity.PostStatus;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.Builder;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@Builder(toBuilder = true)
 public record ForumPostResDto(
         UUID id,
         UUID stockId,
@@ -19,5 +24,7 @@ public record ForumPostResDto(
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
         LocalDateTime deletedAt,
-        long version
+        long version,
+        List<ForumCategoryResDto> categories,
+        boolean writtenByAdmin
 ) {}

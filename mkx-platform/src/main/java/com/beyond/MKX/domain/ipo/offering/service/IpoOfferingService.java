@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -27,6 +28,7 @@ public class IpoOfferingService {
     private final IpoRepository ipoRepository;
     private final IpoOfferingRepository ipoOfferingRepository;
     private final IpoSubscriptionRepository subscriptionRepository;
+    private final Clock clock;
 
     /* 공모 생성 */
     @Transactional
@@ -214,7 +216,7 @@ public class IpoOfferingService {
         }
 
         // 시간 조건(권장): 개시 시각 도달 확인
-        var now = LocalDateTime.now();
+        var now = LocalDateTime.now(clock);
         if (now.isBefore(ipoOffering.getSubscriptionStart())) {
             throw new IllegalStateException("청약 시작 시각 전에는 개시할 수 없습니다.");
         }
@@ -222,7 +224,7 @@ public class IpoOfferingService {
             throw new IllegalStateException("청약 마감 시각을 지나 개시할 수 없습니다.");
         }
 
-        ipoOffering.offeringOpen(LocalDateTime.now());
+        ipoOffering.offeringOpen(now);
         return ipoOffering;
     }
 
@@ -236,13 +238,13 @@ public class IpoOfferingService {
             throw new IllegalStateException("OPEN 상태에서만 마감할 수 있습니다.");
         }
 
-        var now = LocalDateTime.now();
+        var now = LocalDateTime.now(clock);
         // 권장: 마감 시각 도달 확인(운영자 강제 마감 허용 시 이 체크 완화 가능)
         if (now.isBefore(ipoOffering.getSubscriptionEnd())) {
             throw new IllegalStateException("청약 마감 시각 이전에는 마감할 수 없습니다.");
         }
 
-        ipoOffering.offeringCloseNow(java.time.LocalDateTime.now());
+        ipoOffering.offeringCloseNow(now);
         return ipoOffering;
     }
 
@@ -282,7 +284,9 @@ public class IpoOfferingService {
         }
         long quantity = quantityObj;
 
-        long min = ipoOffering.getPriceBandMin(), max = ipoOffering.getPriceBandMax(), face = ipoOffering.getIpo().getFaceValue();
+        long min = ipoOffering.getPriceBandMin();
+        long max = ipoOffering.getPriceBandMax();
+        long face = ipoOffering.getIpo().getFaceValue();
         double r = (double) totalApplied / (double) quantity;
 
         double tThreshold = (T <= 1.0) ? 3.0 : T;

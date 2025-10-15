@@ -7,6 +7,7 @@ import com.beyond.MKX.domain.ipo.allocation.entity.IpoAllocation;
 import com.beyond.MKX.domain.ipo.allocation.repository.IpoAllocationRepository;
 import com.beyond.MKX.domain.ipo.ipo.repository.IpoRepository;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOffering;
+import com.beyond.MKX.domain.ipo.offering.entity.IpoOfferingStatus;
 import com.beyond.MKX.domain.ipo.offering.repository.IpoOfferingRepository;
 import com.beyond.MKX.domain.ipo.subscription.entity.InvestorType;
 import com.beyond.MKX.domain.ipo.subscription.entity.IpoSubscription;
@@ -47,21 +48,27 @@ public class IpoSettlementService {
             throw new IllegalArgumentException("거래소 계좌 미설정");
         }
 
-        IpoOffering off = offeringRepository.findById(subscription.getIpoOffering().getId())
+        IpoOffering offering = offeringRepository.findById(subscription.getIpoOffering().getId())
                 .orElseThrow(() -> new IllegalArgumentException("공모를 찾을 수 없습니다."));
-        IpoAllocation alloc = allocationRepository
+
+        if (offering.getIpoOfferingStatus() != IpoOfferingStatus.PRICE_FIXED) {
+            throw new IllegalArgumentException("공모가 확정 상태에서만 정산할 수 있습니다.");
+        }
+
+        IpoAllocation allocation = allocationRepository
                 .findTopByIpoSubscription_IdOrderByRoundNoDesc(subscriptionId)
                 .orElse(null);
 
-        long price = nz(off.getOfferPrice()); // 확정 공모가
-        long allocQty = alloc == null ? 0L : nz(alloc.getAllocatedQuantity()); // 배정 수량
-        long finalAmt = Math.multiplyExact(allocQty, price); // 최종 청구액 (배정 수량 * 확정 공모가)
+        BigInteger price = bi(nz(offering.getOfferPrice())); // 확정 공모가
+        BigInteger allocQty = bi(allocation == null ? 0L : nz(allocation.getAllocatedQuantity())); // 배정 수량
+        BigInteger finalAmt = allocQty.multiply(price); // 최종 청구액 (배정 수량 * 확정 공모가)
 
-        long appliedQty = nz(subscription.getAppliedQuantity());
-        long depositAmt = calcDeposit(appliedQty, price, off.getDepositRate()); // 증거금(원단위 내림)
+        BigInteger appliedQty = bi(nz(subscription.getAppliedQuantity()));
+        BigInteger depositAmt = calcDeposit(appliedQty, price, offering.getDepositRate()); // 증거금(원단위 내림)
 
-        long additional = Math.max(0, finalAmt - depositAmt);
-        long refund    = Math.max(0, depositAmt - finalAmt);
+        int cmp = finalAmt.compareTo(depositAmt);
+        BigInteger additional = cmp > 0 ? finalAmt.subtract(depositAmt) : BigInteger.ZERO;
+        BigInteger refund = cmp < 0 ? depositAmt.subtract(finalAmt) : BigInteger.ZERO;
 
 //        증권사 예치 계좌 확보 (투자자 -> 청약/예치 => 증권사 => 거래소)
         var brokerageDeposit = brokerageDepositAccountService.getRequiredByBrokerageId(subscription.getBrokerageId());
@@ -69,20 +76,22 @@ public class IpoSettlementService {
 
         // CORPORATION만 우선 처리 (MEMBER는 TODO)
         if (subscription.getInvestorType() == InvestorType.CORPORATION) {
-            if (additional > 0) {
+            UUID corporationAccountId = subscription.getAccountId();
+
+            if (additional.signum() > 0) {
                 // 추가납입: Corporation → BrokerageDeposit → Exchange
-                corporationAccountService.withdraw(subscription.getAccountId(), toBI(additional));
-                brokerageDepositAccountService.deposit(brokerageDepositNo, toBI(additional));
+                corporationAccountService.withdraw(corporationAccountId, additional);
+                brokerageDepositAccountService.deposit(brokerageDepositNo, additional);
 
-                brokerageDepositAccountService.withdraw(brokerageDepositNo, toBI(additional));
-                exchangeAccountService.deposit(exchangeAccountNumber, toBI(additional));
-            } else if (refund > 0) {
+                brokerageDepositAccountService.withdraw(brokerageDepositNo, additional);
+                exchangeAccountService.deposit(exchangeAccountNumber, additional);
+            } else if (refund.signum() > 0) {
                 // 환불: Exchange → BrokerageDeposit → Corporation
-                exchangeAccountService.withdraw(exchangeAccountNumber, toBI(refund));
-                corporationAccountService.deposit(subscription.getAccountId(), toBI(refund));
+                exchangeAccountService.withdraw(exchangeAccountNumber, refund);
+                brokerageDepositAccountService.deposit(brokerageDepositNo, refund);
 
-                brokerageDepositAccountService.withdraw(brokerageDepositNo, toBI(refund));
-                corporationAccountService.deposit(subscription.getAccountId(), toBI(refund));
+                brokerageDepositAccountService.withdraw(brokerageDepositNo, refund);
+                corporationAccountService.deposit(subscription.getAccountId(), refund);
             }
         } else {
             // TODO: MEMBER 계좌 정산 연동
@@ -93,13 +102,14 @@ public class IpoSettlementService {
     }
 
     private long nz(Long v) { return v == null ? 0L : v; }
+    private BigInteger bi(long v) { return BigInteger.valueOf(v); }
     private java.math.BigInteger toBI(long v) { return BigInteger.valueOf(v); }
-    private long calcDeposit(long qty, long price, BigDecimal rate) {
-        if (qty <= 0 || price <= 0 || rate == null) return 0L;
-        return BigDecimal.valueOf(qty)
-                .multiply(java.math.BigDecimal.valueOf(price))
+    private BigInteger calcDeposit(BigInteger qty, BigInteger price, BigDecimal rate) {
+        if (qty.signum() <= 0 || price.signum() <= 0 || rate == null) return BigInteger.ZERO;
+        return new BigDecimal(qty)
+                .multiply(new BigDecimal(price))
                 .multiply(rate)
                 .setScale(0, RoundingMode.DOWN)
-                .longValue();
+                .toBigInteger();
     }
 }

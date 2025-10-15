@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Service
@@ -213,7 +214,7 @@ public class IpoOfferingService {
         }
 
         // 시간 조건(권장): 개시 시각 도달 확인
-        var now = java.time.LocalDateTime.now();
+        var now = LocalDateTime.now();
         if (now.isBefore(ipoOffering.getSubscriptionStart())) {
             throw new IllegalStateException("청약 시작 시각 전에는 개시할 수 없습니다.");
         }
@@ -221,7 +222,7 @@ public class IpoOfferingService {
             throw new IllegalStateException("청약 마감 시각을 지나 개시할 수 없습니다.");
         }
 
-        ipoOffering.offeringOpen(java.time.LocalDateTime.now());
+        ipoOffering.offeringOpen(LocalDateTime.now());
         return ipoOffering;
     }
 
@@ -235,7 +236,7 @@ public class IpoOfferingService {
             throw new IllegalStateException("OPEN 상태에서만 마감할 수 있습니다.");
         }
 
-        var now = java.time.LocalDateTime.now();
+        var now = LocalDateTime.now();
         // 권장: 마감 시각 도달 확인(운영자 강제 마감 허용 시 이 체크 완화 가능)
         if (now.isBefore(ipoOffering.getSubscriptionEnd())) {
             throw new IllegalStateException("청약 마감 시각 이전에는 마감할 수 없습니다.");

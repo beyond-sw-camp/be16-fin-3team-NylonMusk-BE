@@ -11,4 +11,5 @@ public interface ForumPostQueryService {
     Page<ForumPostResDto> list(PostStatus status, Pageable pageable);
     Page<ForumPostResDto> listMine(UUID me, PostStatus status, Pageable pageable);
     Page<ForumPostResDto> listByUser(UUID userId, PostStatus status, Pageable pageable);
+    ForumPostResDto get(UUID postId);
 }

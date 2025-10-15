@@ -51,7 +51,8 @@ public class IpoSettlementService {
         IpoOffering offering = offeringRepository.findById(subscription.getIpoOffering().getId())
                 .orElseThrow(() -> new IllegalArgumentException("공모를 찾을 수 없습니다."));
 
-        if (offering.getIpoOfferingStatus() != IpoOfferingStatus.PRICE_FIXED) {
+        if (offering.getIpoOfferingStatus() != IpoOfferingStatus.PRICE_FIXED
+        && offering.getIpoOfferingStatus() != IpoOfferingStatus.ALLOCATED) {
             throw new IllegalArgumentException("공모가 확정 상태에서만 정산할 수 있습니다.");
         }
 

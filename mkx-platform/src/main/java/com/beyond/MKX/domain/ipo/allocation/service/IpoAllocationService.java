@@ -118,7 +118,4 @@ public class IpoAllocationService {
     }
     private long nvl(Long v) {return v == null ? 0L : v;}
     private int nvl(Integer v, int def) {return v == null ? def : v;}
-
-    
-
 }

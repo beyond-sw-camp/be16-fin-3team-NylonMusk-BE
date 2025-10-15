@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigInteger;
 import java.util.UUID;
 
 /**
@@ -54,14 +55,16 @@ public class BrokerageDepositAccountService {
                 .orElseThrow(() -> new IllegalArgumentException("증권사 예치금 계좌 없음"));
     }
 
-    public java.math.BigInteger deposit(String accountNumber, java.math.BigInteger amount) {
-        BrokerageDepositAccount acc = getByAccountNumber(accountNumber);
+    public BigInteger deposit(String accountNumber, BigInteger amount) {
+        BrokerageDepositAccount acc = repository.findByAccountNumberForUpdate(accountNumber)
+                .orElseThrow(() -> new IllegalArgumentException("증권사 예치 계좌 없음"));
         acc.deposit(amount);
         return acc.getDeposit();
     }
 
-    public java.math.BigInteger withdraw(String accountNumber, java.math.BigInteger amount) {
-        BrokerageDepositAccount acc = getByAccountNumber(accountNumber);
+    public BigInteger withdraw(String accountNumber, BigInteger amount) {
+        BrokerageDepositAccount acc = repository.findByAccountNumberForUpdate(accountNumber)
+                .orElseThrow(() -> new IllegalArgumentException("잔액 부족"));
         acc.withdraw(amount);
         return acc.getDeposit();
     }

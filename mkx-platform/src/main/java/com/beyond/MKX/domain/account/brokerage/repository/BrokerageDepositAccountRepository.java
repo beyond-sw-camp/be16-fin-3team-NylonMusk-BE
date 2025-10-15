@@ -20,6 +20,6 @@ public interface BrokerageDepositAccountRepository extends JpaRepository<Brokera
     Optional<BrokerageDepositAccount> findByAccountNumber(String accountNumber);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select a from BrokerageDepositAccount a where a.accountNumber = :No")
+    @Query("select a from BrokerageDepositAccount a where a.accountNumber = :no")
     Optional<BrokerageDepositAccount> findByAccountNumberForUpdate(String no);
 }

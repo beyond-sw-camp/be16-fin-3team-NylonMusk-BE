@@ -7,6 +7,7 @@ import com.beyond.MKX.domain.assets.repository.StockHoldingRepository;
 import com.beyond.MKX.domain.order.dto.CommissionAndTaxData;
 import com.beyond.MKX.domain.order.dto.OrderRequestDTO;
 import com.beyond.MKX.domain.order.dto.OrderResponseDTO;
+import com.beyond.MKX.domain.order.entity.OrderKind;
 import com.beyond.MKX.domain.order.entity.OrderLog;
 import com.beyond.MKX.domain.order.entity.Side;
 import com.beyond.MKX.domain.order.repository.OrderLogRepository;
@@ -17,10 +18,14 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -29,13 +34,15 @@ import java.util.UUID;
 public class OrderService {
 
     private final OrderValidatorService validator;
-    private final MemberAccountRepository memberAccountRepository;
     private final FeePolicyService feePolicyService;
+    private final OrderBookService orderBookService;
+    private final MemberAccountRepository memberAccountRepository;
     private final OrderLogRepository orderLogRepository;
     private final OrderOutboxRepository outboxRepository;
     private final StockHoldingRepository stockHoldingRepository;
     private final ObjectMapper objectMapper;
 
+    private static final BigDecimal PROTECTIVE_CAP_RATIO = new BigDecimal("0.05"); // 시장가 보호한도
 
     public OrderResponseDTO placeOrder(OrderRequestDTO dto) {
         UUID accountId = dto.accountId();
@@ -51,7 +58,30 @@ public class OrderService {
         validator.validateTradable(ticker);
 
         // 2. 예상 비용 계산
-        long transactionAmount = Math.multiplyExact(dto.price(), dto.quantity()); // 대금 계산
+        // 2-1. 주문종류에 따른 가격 결정
+        Long askingPrice = 0L;
+        if (dto.orderKind() == OrderKind.MARKET) {
+            if (dto.side() == Side.BUY) {
+                // 오더북 레디스에서 최저가 조회
+                askingPrice = orderBookService.getLowestAsk(ticker)
+                        .orElseThrow(()-> new NoSuchElementException("매도 호가가 존재하지 않아 시장가 매수를 할 수 없습니다."));
+
+                // 보호한도(CAP) 적용
+                askingPrice = calculateAdjustedPrice(dto.side(), askingPrice);
+            } else if (dto.side() == Side.SELL) {
+                // 오더북 레디스에서 최고가 조회
+                askingPrice = orderBookService.getHighestBid(ticker)
+                        .orElseThrow(()-> new NoSuchElementException("매수 호가가 존재하지 않아 시장가 매도를 할 수 없습니다."));
+
+                // 보호한도(CAP) 적용
+                askingPrice = calculateAdjustedPrice(dto.side(), askingPrice);
+            }
+        } else if (dto.orderKind() == OrderKind.LIMIT) {
+            askingPrice = dto.price();
+        }
+
+        // 2-2. 수수료, 세글 및 동결할 총액을 계산
+        long transactionAmount = Math.multiplyExact(askingPrice, dto.quantity()); // 대금 계산
         Long brokerageCommission;
         Long transactionTax = null;
         Long totalAmount;
@@ -91,7 +121,7 @@ public class OrderService {
                 .ticker(ticker)
                 .orderKind(dto.orderKind())
                 .side(dto.side())
-                .price(dto.price())
+                .price(askingPrice)
                 .quantity(dto.quantity())
                 .commission(brokerageCommission)
                 .transactionTax(transactionTax)
@@ -136,4 +166,16 @@ public class OrderService {
             throw new RuntimeException(e);
         }
     }
+
+    // 보호 한도 계산 메서드
+    private Long calculateAdjustedPrice(Side side, Long price) {
+        BigDecimal originalPrice = new BigDecimal(price);
+        BigDecimal bufferFactor = switch (side) {
+            case BUY -> BigDecimal.ONE.add(PROTECTIVE_CAP_RATIO); // 1 + 보호한도
+            case SELL -> BigDecimal.ONE.subtract(PROTECTIVE_CAP_RATIO); // 1 - 보호한도
+        };
+        // 계산된 값을 Long으로 변환하여 반환 (소수점 이하는 버림)
+        return originalPrice.multiply(bufferFactor).longValue();
+    }
+
 }

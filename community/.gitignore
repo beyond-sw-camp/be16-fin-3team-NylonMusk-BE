@@ -39,4 +39,3 @@ out/
 ### yml설정 ###
 application-local.yml
 application-prod.yml
-docker-compose.yml

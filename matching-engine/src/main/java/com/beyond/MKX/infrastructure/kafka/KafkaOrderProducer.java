@@ -14,10 +14,10 @@ import java.util.UUID;
 /**
  * 매칭 엔진 결과/상태/에러를 카프카로 발행하는 프로듀서.
  *
- * 설계 요점
- * - 토픽: executions(체결), order-status(상태), order-errors(문자열 에러)
- * - 파티션 키: 종목(ticker) 또는 주문ID를 사용해 순서 일관성 유지
- * - KafkaTemplate<String, Object>: JSON 직렬화 사용(이벤트 POJO를 값으로 전송)
+ * 표준화 원칙
+ * - order-status 이벤트의 표시가격(price)은 "지정가 주문 입력값(=limitPrice)"로 고정한다.
+ *   - 부분/완전 체결에서도 price는 vwap/last가 아니라 limitPrice를 사용한다.
+ *   - 체결 관련 보조지표는 lastFillPrice, limitPrice 필드로만 제공한다.
  */
 @Component("kafkaOrderProducer")
 @RequiredArgsConstructor
@@ -36,14 +36,14 @@ public class KafkaOrderProducer {
     // ---------------------------------------------------------------------
     public void sendExecution(String marketOrderId, String ticker, String side,
                               String counterOrderId, BigDecimal qty, long price) {
-        String execId = marketOrderId + "-" + counterOrderId + "-" + UUID.randomUUID(); // 멱등키
+        String execId = marketOrderId + "-" + counterOrderId + "-" + UUID.randomUUID(); // 멱등키(충분히 유일)
         ExecutionEvent evt = ExecutionEvent.builder()
                 .execId(execId)
                 .marketOrderId(marketOrderId)
                 .counterOrderId(counterOrderId)
                 .ticker(ticker)
                 .side(side)
-                .price(price)
+                .price(price)          // 개별 체결의 실제 체결가
                 .quantity(qty)
                 .timestamp(Instant.now().toEpochMilli())
                 .build();
@@ -98,7 +98,11 @@ public class KafkaOrderProducer {
         sendOrderStatus(ticker != null ? ticker : marketOrderId, evt);
     }
 
-    /** 부분 체결(대표가격=vwap, 보조=last/limit, 누적 체결수량 포함) */
+    /**
+     * 부분 체결 알림
+     * - 표시가격(price)은 '지정가(limitPrice)'로 고정한다. (요구사항: 로그/컨슈머에서 주문 입력가 그대로 보이도록)
+     * - 체결 관련 보조지표는 lastFillPrice/limitPrice로만 제공한다.
+     */
     public void sendMarketPartial(String orderId, String ticker, String side,
                                   BigDecimal remaining,
                                   long vwap, long lastPrice, long limitPrice, BigDecimal filledQty) {
@@ -108,7 +112,7 @@ public class KafkaOrderProducer {
                 .side(side)
                 .status("MARKET_PARTIAL")
                 .remaining(remaining)
-                .price(vwap)
+                .price(limitPrice)
                 .lastFillPrice(lastPrice)
                 .limitPrice(limitPrice)
                 .filledQuantity(filledQty)
@@ -117,7 +121,10 @@ public class KafkaOrderProducer {
         sendOrderStatus(ticker != null ? ticker : orderId, evt);
     }
 
-    /** 완전 체결(대표가격=vwap, last/limit/누적 체결수량 포함) */
+    /**
+     * 완전 체결 알림
+     * - 표시가격(price)은 '지정가(limitPrice)'로 고정한다.
+     */
     public void sendMarketFilled(String orderId, String ticker, String side,
                                  long vwap, long lastPrice, long limitPrice, BigDecimal filledQty) {
         OrderStatusEvent evt = OrderStatusEvent.builder()
@@ -125,7 +132,7 @@ public class KafkaOrderProducer {
                 .ticker(ticker)
                 .side(side)
                 .status("MARKET_FILLED")
-                .price(vwap)
+                .price(limitPrice)
                 .lastFillPrice(lastPrice)
                 .limitPrice(limitPrice)
                 .filledQuantity(filledQty)

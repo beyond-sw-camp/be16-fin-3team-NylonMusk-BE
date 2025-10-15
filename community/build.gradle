@@ -34,6 +34,8 @@ dependencies {
 	runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
 	annotationProcessor 'org.projectlombok:lombok'
 
+	implementation 'software.amazon.awssdk:s3:2.17.58'
+
 	// test 관련 의존성
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'

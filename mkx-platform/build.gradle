@@ -58,6 +58,8 @@ dependencies {
 
 	// @ConfigurationProperties 메타데이터 생성용 (IDE 자동완성 지원)
 	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
+	implementation 'org.springframework.boot:spring-boot-starter-security'
 }
 
 dependencyManagement {

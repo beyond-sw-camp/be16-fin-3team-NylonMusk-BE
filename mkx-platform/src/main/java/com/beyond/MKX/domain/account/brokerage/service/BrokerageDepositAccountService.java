@@ -65,4 +65,9 @@ public class BrokerageDepositAccountService {
         acc.withdraw(amount);
         return acc.getDeposit();
     }
+
+    public BrokerageDepositAccount getRequiredByBrokerageId(UUID brokerageId) {
+        return repository.findByBrokerageId(brokerageId)
+                .orElseThrow(() -> new IllegalArgumentException("증권사 계좌가 존재하지 않습니다."));
+    }
 }

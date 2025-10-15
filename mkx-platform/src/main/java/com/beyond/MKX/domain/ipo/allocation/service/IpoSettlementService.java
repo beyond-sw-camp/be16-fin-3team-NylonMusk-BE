@@ -41,7 +41,7 @@ public class IpoSettlementService {
     public UUID settlePaymentsBySubscription(UUID subscriptionId) {
         IpoSubscription subscription = subscriptionRepository.findById(subscriptionId)
                 .orElseThrow(() -> new IllegalArgumentException("공모 청약이 존재하지 않습니다."));
-        if (subscription.getStatus() != SubscriptionStatus.PAID) {
+        if (subscription.getStatus() != SubscriptionStatus.PAID && subscription.getStatus() != SubscriptionStatus.ALLOCATED) {
             throw new IllegalArgumentException("납입/환불은 PAID 상태만 가능합니다.");
         }
         if (exchangeAccountNumber == null || exchangeAccountNumber.isBlank()) {
@@ -112,4 +112,42 @@ public class IpoSettlementService {
                 .setScale(0, RoundingMode.DOWN)
                 .toBigInteger();
     }
+
+    @Transactional
+    public UUID payoutOfferingToIssuer(UUID offeringId) {
+        IpoOffering offering = offeringRepository.findByIdForUpdate(offeringId)
+                .orElseThrow(() -> new IllegalArgumentException("공모 없음"));
+
+        if (offering.getIpoOfferingStatus() == IpoOfferingStatus.SETTLED) return offeringId;
+        if (offering.getIpoOfferingStatus() != IpoOfferingStatus.ALLOCATED
+                && offering.getIpoOfferingStatus() != IpoOfferingStatus.PRICE_FIXED) {
+            throw new IllegalStateException("ALLOCATED/PRICE_FIXED 상태에서만 송금");
+        }
+
+        // 1) sQty = 배정 스냅샷값
+        long sQty = Optional.ofNullable(offering.getAllocatedQuantity()).orElse(0L);
+
+        // (선택) 안전검증: 실제 Allocation 합과 일치하는지 체크만 하고, 소스는 스냅샷값을 신뢰
+        var price = BigInteger.valueOf(offering.getOfferPrice());
+        var allocations = allocationRepository.findAllByOfferingId(offeringId);
+        long sumAllocQty = allocations.stream().mapToLong(IpoAllocation::getAllocatedQuantity).sum();
+        if (sQty != sumAllocQty) {
+            throw new IllegalStateException("배정 스냅샷과 실제 합계가 일치하지 않습니다.");
+        }
+
+        BigInteger totalProceeds = BigInteger.valueOf(sQty).multiply(price);
+        BigInteger payout = totalProceeds; // 수수료 없으면 그대로
+
+        var issuerAcc = corporationAccountService.getByCorporationId(
+                offering.getIpo().getCorporation().getId()
+        );
+        exchangeAccountService.withdraw(exchangeAccountNumber, payout);
+        corporationAccountService.deposit(issuerAcc.getId(), payout);
+
+        // 정산 완료: issuedQuantity에 스냅샷값 기록
+        offering.settle(sQty); // issuedQuantity = sQty, 상태 SETTLED
+        offeringRepository.save(offering);
+        return offeringId;
+    }
+
 }

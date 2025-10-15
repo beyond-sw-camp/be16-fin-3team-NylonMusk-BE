@@ -45,7 +45,7 @@ public class IpoOfferingService {
         boolean priorUnfinished = ipoOfferingRepository.existsByIpo_IdAndIpoOfferingStatusIn(
                 ipo.getId(),
                 java.util.EnumSet.of(
-                        IpoOfferingStatus.DRAFT, IpoOfferingStatus.SCHEDULED, IpoOfferingStatus.OPEN
+                        IpoOfferingStatus.SCHEDULED, IpoOfferingStatus.OPEN
                         // CLOSED 이후 공모를 진행 가능하게 할 것인지, 공모가 확정/배정 이후 공모를 진행 가능하게 할 것인지 팀원과 협의하기!
                 )
         );

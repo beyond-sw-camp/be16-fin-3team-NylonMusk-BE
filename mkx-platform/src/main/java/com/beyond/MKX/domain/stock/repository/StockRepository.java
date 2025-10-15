@@ -7,6 +7,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Optional;
 import java.util.UUID;
 
 public interface StockRepository extends JpaRepository<Stock, UUID> {
@@ -26,4 +27,10 @@ public interface StockRepository extends JpaRepository<Stock, UUID> {
             @Param("q") String q,
             Pageable pageable
     );
+
+    boolean existsByTicker(String ticker);
+
+    Optional<Stock> findByTicker(String ticker);
+
+    Optional<Stock> findByCorporationIdAndTicker(UUID corporationId, String ticker);
 }

@@ -48,7 +48,7 @@ public class CsrfFilter implements GlobalFilter, Ordered {
             "/order/**",
             "/test/**",
             "/public/**",
-            "/api/stocks/**"
+            "/api/stocks/**",
             "/ipo/**"
     );
 

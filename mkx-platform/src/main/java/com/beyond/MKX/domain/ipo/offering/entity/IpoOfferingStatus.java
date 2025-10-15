@@ -1,8 +1,7 @@
 package com.beyond.MKX.domain.ipo.offering.entity;
 
 public enum IpoOfferingStatus {
-    DRAFT,              // 초안: 생성 직후, 일정·밴드 초안 단계(승인/검토 전)
-    SCHEDULED,          // 일정 확정: 개시 전 대기(현재 create 후 기본 상태로 사용 추천)
+    SCHEDULED,          // 일정 확정: 개시 전 대기(현재 create 후 기본 상태로 사용중)
     OPEN,               // 청약 진행 중
     CLOSED,             // 청약 마감(집계/검증 가능)
     PRICE_FIXED,        // 확정 공모가 고시(밴드 내 확정). 배정 전제 충족 상태

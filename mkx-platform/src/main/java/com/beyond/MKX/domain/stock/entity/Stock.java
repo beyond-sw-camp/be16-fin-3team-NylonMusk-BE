@@ -26,7 +26,7 @@ public class Stock extends BaseIdAndTimeEntity {
     private UUID corporationId;
 
     // ====== 비즈니스 키 ======
-    @Column(name = "ticker", length = 20, nullable = false)
+    @Column(name = "ticker", length = 6, nullable = false)
     private String ticker;
 
     // ====== 한글 종목명 ======

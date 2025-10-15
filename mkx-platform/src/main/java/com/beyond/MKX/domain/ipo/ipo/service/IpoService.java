@@ -16,6 +16,9 @@ import com.beyond.MKX.domain.ipo.offering.entity.IpoOfferingStatus;
 import com.beyond.MKX.domain.ipo.ipo.entity.IpoStatus;
 import com.beyond.MKX.domain.ipo.offering.repository.IpoOfferingRepository;
 import com.beyond.MKX.domain.ipo.ipo.repository.IpoRepository;
+import com.beyond.MKX.domain.stock.entity.Stock;
+import com.beyond.MKX.domain.stock.repository.StockRepository;
+import com.beyond.MKX.domain.stock.util.StockTickerGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
@@ -31,7 +34,7 @@ import java.nio.file.AccessDeniedException;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -42,9 +45,11 @@ public class IpoService {
     private final IpoRepository ipoRepository;
     private final IpoOfferingRepository ipoOfferingRepository;
     private final CorporationRepository corporationRepository;
+    private final StockRepository stockRepository;
     private final S3Manager s3Manager;
     private final AdminRepository adminRepository;
     private Clock clock = Clock.systemDefaultZone();
+    private static final int TICKER_GEN_MAX_ATTEMPTS = 20;
 
 //    1. 기업 상장 요청 (requested)
     @Transactional
@@ -133,7 +138,7 @@ public class IpoService {
             if (!hasOffering) throw new IllegalStateException("공모가 필요한 상장입니다. 공모가 생성되지 않았습니다.");
 
             boolean done = ipoOfferingRepository.existsByIpo_IdAndIpoOfferingStatusIn(
-                    ipoId, java.util.List.of(IpoOfferingStatus.ALLOCATED, IpoOfferingStatus.SETTLED)
+                    ipoId, List.of(IpoOfferingStatus.SETTLED)
             );
             if (!done) throw new IllegalStateException("공모 절차(배정/정산)가 완료되지 않아 상장할 수 없습니다.");
 
@@ -149,6 +154,50 @@ public class IpoService {
             // 공모 미사용 경로: 바로 상장 가능(요청 값으로 기준가 세팅)
             ipo.list(LocalDateTime.now(clock), ipoListReqDTO.getPriceOnListing());
         }
+
+        // --- 여기서 TICKER 생성 + Stock 1회 생성 ---
+        final UUID corporationId = ipo.getCorporation().getId();
+        final String nameKo = ipo.getSymbol(); // 종목명(한글명)
+
+        // 총발행주식수: list()가 세팅한 값을 사용
+        Long totalSharesAtListing = ipo.getOutstandingSharesAtListing();
+        if (totalSharesAtListing == null) {
+            throw new IllegalStateException("상장 시점 총발행주식수가 계산되지 않았습니다.");
+        }
+
+        // 이미 종목이 존재하면 재생성하지 않음
+        // (선택) ipoId 기준으로 한 번만 만들고 싶다면 StockRepository에 findByCorporationIdAndTicker 대신 findByIpo_Id 등을 사용
+        String ticker = null;
+        for (int attempt = 0; attempt < TICKER_GEN_MAX_ATTEMPTS; attempt++) {
+            String candidate = StockTickerGenerator.generate(corporationId, attempt);
+            try {
+                Stock stock = Stock.builder()
+                        .corporationId(corporationId)
+                        .ticker(candidate)
+                        .nameKo(nameKo)
+                        .status(Stock.Status.LISTED)
+                        .totalSharesOutstanding(totalSharesAtListing)
+                        .build();
+                stockRepository.saveAndFlush(stock); // 즉시 반영해 충돌 조기 감지
+                ticker = candidate;
+                break; // 성공
+            } catch (org.springframework.dao.DataIntegrityViolationException dup) {
+                // uk_stock_ticker 충돌 → 다음 attempt
+            }
+        }
+        if (ticker == null) {
+            throw new IllegalStateException("종목코드 생성에 실패했습니다. 잠시 후 다시 시도하세요.");
+        }
+
+        Stock stock = Stock.builder()
+                .corporationId(corporationId)
+                .ticker(ticker)                        // ← 부여된 6자리 숫자 코드
+                .nameKo(nameKo)                        // ← 종목명(= symbol)
+                .status(Stock.Status.LISTED)
+                .totalSharesOutstanding(totalSharesAtListing)
+                .build();
+
+        stockRepository.save(stock);
 
         return ipo;
     }

@@ -38,4 +38,19 @@ public interface IpoOfferingRepository extends JpaRepository<IpoOffering, UUID> 
 
     @Query("select max(o.roundNo) from IpoOffering o where o.ipo.id = :ipoId")
     Integer findMaxRoundNo(UUID ipoId);
+
+    @Query("""
+            select o.issuedQuantity
+            from IpoOffering o
+            where o.ipo.id = :ipoId
+              and o.ipoOfferingStatus = :status
+              and o.roundNo = (
+                  select max(o2.roundNo)
+                  from IpoOffering o2
+                  where o2.ipo.id = :ipoId
+                    and o2.ipoOfferingStatus = :status
+              )
+            """)
+    Optional<Long> findLatestSettledIssuedQuantity(UUID ipoId,
+                                                   IpoOfferingStatus status);
 }

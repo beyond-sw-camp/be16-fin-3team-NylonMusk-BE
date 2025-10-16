@@ -83,12 +83,30 @@ public class MemberAccount extends BaseIdAndTimeEntity {
         this.balance -= amount;
         this.availableBalance -= amount; // 출금 가능 금액도 함께 차감
     }
+
+    /** 가용 금액(availableBalance) 감소  */
     public void decreaseAvailableBalance(Long amount) {
         this.availableBalance -= amount;
     }
 
+    /**
+     * 가용 금액(availableBalance) 증가
+     */
+    public void increaseAvailableBalance(Long amount) {
+        this.availableBalance = Math.addExact(this.availableBalance, amount);
+    }
 
+    /** 잔고(balance) 감소  */
+    public long decreaseBalance(Long amount) {
+        this.balance -= amount;
+        return this.balance;
+    }
 
+    /** 잔고(balance) 증가 */
+    public long increaseBalance(Long amount) {
+        this.balance = Math.addExact(this.balance, amount);
+        return this.balance;
+    }
 
     public MemberAccount(UUID memberId, UUID brokerageId, String accountNumber) {
         this.memberId = memberId;

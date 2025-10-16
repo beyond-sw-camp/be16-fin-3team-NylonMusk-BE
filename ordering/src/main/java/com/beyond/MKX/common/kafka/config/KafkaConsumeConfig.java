@@ -13,6 +13,8 @@ import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.listener.ContainerProperties;
+import org.springframework.kafka.listener.DefaultErrorHandler;
+import org.springframework.kafka.support.ExponentialBackOffWithMaxRetries;
 import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 
@@ -38,7 +40,7 @@ public class KafkaConsumeConfig {
         configs.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class.getName());
         // JSON 공통 설정
         configs.put(JsonDeserializer.TRUSTED_PACKAGES, "*");           // 패키지 신뢰(모듈 이동 대응)
-        configs.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, true);     // 프로듀서 타입 헤더 사용 시 호환
+        configs.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);     // 프로듀서 타입 헤더 사용 시 'true' 값으로 변경 요함
         return configs;
     }
 
@@ -71,7 +73,6 @@ public class KafkaConsumeConfig {
 
     /// **-------------- KafkaListenerContainerFactory 설정 --------------**
 
-
     @Bean("kafkaExecutionListenerFactory")
     public ConcurrentKafkaListenerContainerFactory<String, ExecutionEvent> kafkaExecutionListenerFactory(
             ConsumerFactory<String, ExecutionEvent> executionConsumerFactory
@@ -79,10 +80,20 @@ public class KafkaConsumeConfig {
         ConcurrentKafkaListenerContainerFactory<String, ExecutionEvent> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(executionConsumerFactory);
-
+        factory.setCommonErrorHandler(commonErrorHandler());
         // yml의 enable-auto-commit: false 설정에 따른 수동 커밋 설정
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
         return factory;
+    }
+
+
+    private DefaultErrorHandler commonErrorHandler() {
+        // 초기 100ms, 배수 2.0, 최대 5회 재시도 후 레코드 스킵
+        ExponentialBackOffWithMaxRetries backoff = new ExponentialBackOffWithMaxRetries(5);
+        backoff.setInitialInterval(100);
+        backoff.setMultiplier(2.0);
+        backoff.setMaxInterval(2_000);
+        return new DefaultErrorHandler(backoff);
     }
 
 }

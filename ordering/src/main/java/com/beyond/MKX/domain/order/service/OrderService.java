@@ -125,7 +125,7 @@ public class OrderService {
                 .quantity(dto.quantity())
                 .commission(brokerageCommission)
                 .transactionTax(transactionTax)
-                .totalAmount(totalAmount)
+                .freezeAmount(totalAmount)
                 .remainQuantity(dto.quantity())
                 .build();
         orderLogRepository.save(order);

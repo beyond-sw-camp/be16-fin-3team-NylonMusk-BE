@@ -16,7 +16,7 @@ import java.math.BigDecimal;
  * - status          : 상태 코드 (예: NEW_ACCEPTED, MARKET_PARTIAL, MARKET_FILLED, WAITING, CANCEL_OK, …)
  * - ticker / side   : 선택적 메타데이터(필요 시만 포함)
  * - price           : 대표 가격(기본은 VWAP 등으로 사용; 발신 측 정책에 따름)
- * - remaining       : 남은 수량(부분 체결 시 유의)
+ * - remaining       : 남은 적재 수량(부분 체결 시 유의)
  * - timestamp       : 이벤트 생성 시각(epoch millis)
  * - avgFillPrice    : 체결 평균가(VWAP)
  * - lastFillPrice   : 마지막 체결가

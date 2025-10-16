@@ -1,5 +1,6 @@
 package com.beyond.MKX.common.kafka.event;
 
+import com.beyond.MKX.domain.order.entity.Side;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -32,8 +33,8 @@ public class ExecutionEvent {
     private String marketOrderId;
     private String counterOrderId;
     private String ticker;
-    private String side;     // BUY/SELL (시장주문 방향)
+    private Side side;     // BUY/SELL (시장주문 방향)
     private long price;
-    private BigDecimal quantity;
+    private long quantity;
     private long timestamp;
 }

@@ -67,8 +67,8 @@ public class OrderLog extends BaseIdAndTimeEntity {
     // 매도 시 거래세
     private Long transactionTax;
 
-    // 총 금액 = 대금 + 수수료
-    private Long totalAmount;
+    // 매수 동결 금액 = 대금 + 수수료
+    private Long freezeAmount;
 
     // 잔여 수량
     @Column(nullable = false)
@@ -84,4 +84,26 @@ public class OrderLog extends BaseIdAndTimeEntity {
     @Version
     @Column(name = "version", nullable = false)
     private Long version;
+
+    public void updateFilledAt() {
+        this.filledAt = LocalDateTime.now();
+    }
+
+    public void decFreezeAmount(Long decAmount) {
+        this.freezeAmount -= decAmount;
+    }
+
+    public long decRemainQuantity(long decQuantity) {
+        this.remainQuantity -= decQuantity;
+        if (remainQuantity < 0) {
+            throw new IllegalArgumentException("잔여 수량이 0 미만입니다.");
+        }
+
+        return this.remainQuantity;
+    }
+
+    public void updateOrderStatus(OrderStatus orderStatus) {
+        this.status = orderStatus;
+    }
+
 }

@@ -20,7 +20,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ForumPostCommandController {
 
-    private final ForumPostCommandService service;
+    private final ForumPostCommandService forumPostCommandService;
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> create(
@@ -28,10 +28,9 @@ public class ForumPostCommandController {
             @RequestHeader(value = "X-User-Role", required = false) String roleHeader,
             @Valid @ModelAttribute ForumPostCreateReq req
     ) {
-        ForumPostResDto res = service.create(actorId, roleHeader, req);
+        ForumPostResDto res = forumPostCommandService.create(actorId, roleHeader, req);
         URI location = URI.create("/api/forum/posts/" + res.id());
-        // ApiResponse.created(location, ...) 헬퍼가 없으면 그냥 created 사용 or ok 로 통일
-        return ResponseEntity.created(location).body(ApiResponse.created(res, "게시글 작성 성공").getBody());
+        return ApiResponse.created(res, location, "게시글 작성 성공!");
     }
 
     /** 글 수정 (작성자만) */
@@ -39,8 +38,9 @@ public class ForumPostCommandController {
     public ResponseEntity<?> update(@PathVariable UUID postId,
                                     @RequestHeader("X-User-Id") UUID actorId,
                                     @RequestHeader(value = "X-User-Role", required = false) String roleHeader,
-                                    @Valid @RequestBody ForumPostUpdateReq req) {
-        ForumPostResDto res = service.update(postId, actorId, roleHeader, req);
+                                    @Valid @ModelAttribute ForumPostUpdateReq req
+    ) {
+        ForumPostResDto res = forumPostCommandService.update(postId, actorId, roleHeader, req);
         return ApiResponse.ok(res, "게시글 수정 성공");
     }
 
@@ -49,8 +49,8 @@ public class ForumPostCommandController {
     public ResponseEntity<?> delete(@PathVariable UUID postId,
                                     @RequestHeader("X-User-Id") UUID actorId,
                                     @RequestHeader(value = "X-User-Role", required = false) String roleHeader) {
-        service.delete(postId, actorId, roleHeader);
-        return ApiResponse.noContent(null, "게시글 삭제(소프트) 성공");
+        forumPostCommandService.delete(postId, actorId, roleHeader);
+        return ApiResponse.ok(null, "게시글 삭제(소프트) 성공");
     }
 
     /** 글 상태 수정 (관리자만) */
@@ -58,7 +58,7 @@ public class ForumPostCommandController {
     public ResponseEntity<?> updateStatus(@PathVariable UUID postId,
                                           @RequestHeader("X-User-Role") String roleHeader,
                                           @Valid @RequestBody ForumPostStatusUpdateReq req) {
-        ForumPostResDto res = service.updateStatus(postId, roleHeader, req);
+        ForumPostResDto res = forumPostCommandService.updateStatus(postId, roleHeader, req);
         return ApiResponse.ok(res, "게시글 상태 변경 성공");
     }
 }

@@ -64,8 +64,7 @@ public class IpoSettlementService {
         BigInteger allocQty = bi(allocation == null ? 0L : nz(allocation.getAllocatedQuantity())); // 배정 수량
         BigInteger finalAmt = allocQty.multiply(price); // 최종 청구액 (배정 수량 * 확정 공모가)
 
-        BigInteger appliedQty = bi(nz(subscription.getAppliedQuantity()));
-        BigInteger depositAmt = calcDeposit(appliedQty, price, offering.getDepositRate()); // 증거금(원단위 내림)
+        BigInteger depositAmt = BigInteger.valueOf(nz(subscription.getRequiredDeposit())); // 증거금(원단위 내림), 재계산 X 스냅샷 사용!
 
         int cmp = finalAmt.compareTo(depositAmt);
         BigInteger additional = cmp > 0 ? finalAmt.subtract(depositAmt) : BigInteger.ZERO;
@@ -122,9 +121,8 @@ public class IpoSettlementService {
                 .orElseThrow(() -> new IllegalArgumentException("공모 없음"));
 
         if (offering.getIpoOfferingStatus() == IpoOfferingStatus.SETTLED) return offeringId;
-        if (offering.getIpoOfferingStatus() != IpoOfferingStatus.ALLOCATED
-                && offering.getIpoOfferingStatus() != IpoOfferingStatus.PRICE_FIXED) {
-            throw new IllegalStateException("ALLOCATED/PRICE_FIXED 상태에서만 송금");
+        if (offering.getIpoOfferingStatus() != IpoOfferingStatus.ALLOCATED) {
+            throw new IllegalStateException("ALLOCATED 상태에서만 송금");
         }
 
         // 1) sQty = 배정 스냅샷값

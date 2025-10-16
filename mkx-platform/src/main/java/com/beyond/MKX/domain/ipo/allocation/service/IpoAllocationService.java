@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
@@ -29,15 +30,13 @@ public class IpoAllocationService {
      * - 결과: IpoAllocation 생성/저장, Offering은 ALLOCATED 전환
      */
     @Transactional
-
     public UUID ipoAllocated(UUID offeringId) {
-
         // 1) 오퍼링 잠금 조회 & 상태 가드
         IpoOffering ipoOffering = offeringRepository.findById(offeringId)
                 .orElseThrow(() -> new IllegalArgumentException("공모를 찾을 수 없습니다."));
 
-        if (ipoOffering.getIpoOfferingStatus() != IpoOfferingStatus.PRICE_FIXED) {
-            throw new IllegalArgumentException("배정은 PRICE_FIXED 상태에서만 가능합니다.");
+        if (ipoOffering.getIpoOfferingStatus() != IpoOfferingStatus.CLOSED) {
+            throw new IllegalArgumentException("배정은 CLOSED 상태에서만 가능합니다.");
         }
         final long offerQuantity = nvl(ipoOffering.getOfferQuantity());
         if (offerQuantity <= 0) {
@@ -98,7 +97,7 @@ public class IpoAllocationService {
         }
 
         // 6) Allocation 생성(멱등 가드)
-        var now = java.time.LocalDateTime.now(clock);
+        var now = LocalDateTime.now(clock);
         List<IpoAllocation> toSave = new ArrayList<>();
         for (IpoSubscription s : subscriptions) {
             long qty = allocationMap.getOrDefault(s.getId(), 0L);
@@ -109,6 +108,16 @@ public class IpoAllocationService {
             toSave.add(IpoAllocation.of(s, qty, offerPrice, roundNo, now));
         }
         allocationRepository.saveAll(toSave);
+
+        // 여기 추가 (배정 수량 > 0인 구독만 ALLOCATED로 전환)
+        toSave.forEach(a -> {
+            IpoSubscription s = a.getIpoSubscription(); // 영속 상태(Managed) 엔티티
+            if (s.getStatus() == SubscriptionStatus.PAID) {
+                s.setStatus(SubscriptionStatus.ALLOCATED);
+            }
+        });
+
+        subscriptionRepository.flush();
 
         // 7) 배정 총합으로 상태 전환 (0도 허용)
         long assignedFinal = toSave.stream().mapToLong(IpoAllocation::getAllocatedQuantity).sum();

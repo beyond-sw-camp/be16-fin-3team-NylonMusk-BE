@@ -114,10 +114,11 @@ public class IpoSubscriptionService {
     }
     // 확정가가 있으면 그 값을, 없으면 밴드 상단을 사용(보수적 증거금).
     private long resolveEffectivePrice(IpoOffering ipoOffering) {
-        if (ipoOffering.getOfferPrice() != null && ipoOffering.getOfferPrice() > 0) return ipoOffering.getOfferPrice();
-//        확정공모가가 없다면, 희망공모가 MAX로 함. 이후 공모가가 확정되면 환불처리
-        if (ipoOffering.getPriceBandMax() != null && ipoOffering.getPriceBandMax() > 0) return ipoOffering.getPriceBandMax();
-        throw new IllegalStateException("청약 단가를 결정할 수 없습니다(확정가/밴드 미설정).");
+        Long price = ipoOffering.getOfferPrice();
+        if (price != null && price > 0) {
+            return price;
+        }
+        throw new IllegalStateException("확정 공모가가 설정되지 않았습니다.");
     }
 
     @Transactional

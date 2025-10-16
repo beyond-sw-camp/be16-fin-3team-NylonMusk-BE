@@ -5,6 +5,7 @@ import com.beyond.MKX.domain.ipo.offering.entity.IpoOfferingStatus;
 import com.beyond.MKX.domain.ipo.offering.repository.IpoOfferingRepository;
 import com.beyond.MKX.domain.ipo.subscription.dto.IpoSubscriptionReqDTO;
 import com.beyond.MKX.domain.ipo.subscription.dto.IpoSubscriptionResDTO;
+import com.beyond.MKX.domain.ipo.subscription.entity.InvestorType;
 import com.beyond.MKX.domain.ipo.subscription.entity.IpoSubscription;
 import com.beyond.MKX.domain.ipo.subscription.entity.SubscriptionStatus;
 import com.beyond.MKX.domain.ipo.subscription.repository.IpoSubscriptionRepository;
@@ -41,6 +42,11 @@ public class IpoSubscriptionService {
         IpoOffering ipoOffering = offeringRepository.findById(subReqDto.ipoOfferingId())
                 .orElseThrow(() -> new IllegalArgumentException("공모를 찾을 수 없습니다."));
 
+        if (subReqDto.investorType() == InvestorType.CORPORATION
+                && ipoOffering.getIpo().getCorporation().getId().equals(subReqDto.subscriberId())) { // 청약을 한 자기 기업 청약 X
+            throw new IllegalArgumentException("발행 기업은 자기 공모에 청약할 수 없습니다.");
+        }
+
         LocalDateTime now = LocalDateTime.now(clock);
 
 //        2) 상태/기간 제약
@@ -66,6 +72,10 @@ public class IpoSubscriptionService {
         if (subReqDto.appliedQuantity() <= 0) {
             throw new IllegalArgumentException("신청 수량은 1 이상이어야 합니다.");
         }
+        if (subReqDto.appliedQuantity() > ipoOffering.getOfferQuantity()) {
+            throw new IllegalStateException("신청 수량이 공모 물량을 초과하였습니다.");
+        }
+
         if (ipoOffering.getLotSize() != null && ipoOffering.getLotSize() > 0) {
             if (subReqDto.appliedQuantity() % ipoOffering.getLotSize() != 0) {
                 throw new IllegalArgumentException("청약 수량은 청약 단위(lotSize)의 배수만큼이어야 합니다.");

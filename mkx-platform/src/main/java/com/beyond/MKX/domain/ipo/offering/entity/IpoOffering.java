@@ -121,8 +121,8 @@ public class IpoOffering extends BaseIdAndTimeEntity {
     }
 
     public void allocated(long aQty) {
-        if (this.ipoOfferingStatus != IpoOfferingStatus.PRICE_FIXED) {
-            throw new IllegalStateException("PRICE_FIXED 이후에만 배정 확정 가능");
+        if (this.ipoOfferingStatus != IpoOfferingStatus.CLOSED) {
+            throw new IllegalStateException("CLOSED 이후에만 배정 확정 가능");
         }
         if (aQty < 0 || aQty > this.offerQuantity) {
             throw new IllegalStateException("배정 수량이 유효하지 않습니다.");

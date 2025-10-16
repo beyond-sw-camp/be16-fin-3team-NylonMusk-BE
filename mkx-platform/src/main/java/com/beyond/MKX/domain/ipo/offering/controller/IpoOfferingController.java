@@ -74,6 +74,6 @@ public class IpoOfferingController {
     @PatchMapping("{offeringId}/auto-fix-price-random")
     public ResponseEntity<?> autoFixRandom(@PathVariable UUID offeringId) {
         IpoOffering fixed = offeringService.autoFixOfferPriceRandom(offeringId);
-        return ApiResponse.ok(IpoOfferingResDTO.from(fixed), "경쟁률 기반 확정 공모가가 산정되었습니다.");
+        return ApiResponse.ok(IpoOfferingResDTO.from(fixed), "수요예측결과에 기반한 공모가가 산정되었습니다.");
     }
 }

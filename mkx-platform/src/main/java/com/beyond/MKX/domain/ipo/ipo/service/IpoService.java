@@ -131,6 +131,7 @@ public class IpoService {
         if (ipo.getStatus() != IpoStatus.APPROVED) {
             throw new IllegalArgumentException("승인(APPROVED)된 건만 상장 확정할 수 있습니다.");
         }
+        Long pre = Optional.ofNullable(ipo.getPreIpoOutstandingShares()).orElse(0L);
 
         if (Boolean.TRUE.equals(ipo.getIsOffering())) {
             // 공모 필수 경로: 공모가 존재하고, 배정(또는 정산) 완료 상태여야 상장 가능
@@ -148,7 +149,13 @@ public class IpoService {
             if (last.getOfferPrice() == null) {
                 throw new IllegalStateException("확정 공모가가 없어 상장 기준가를 결정할 수 없습니다.");
             }
+            // ★ 상장 시점 총 발행 주식 수 = pre + issuedQuantity(정산 시 스냅샷)
+            Long issued = Optional.ofNullable(last.getIssuedQuantity()).orElse(0L);
+            long totalSharesAtListing = Math.addExact(pre, issued);
+            // (1) LISTED 전환 + 기준가 반영
             ipo.list(LocalDateTime.now(clock), last.getOfferPrice());
+            // (2) 총 발행 주식 수 스냅샷 적용
+            ipo.updateOutstandingSharesAtListing(totalSharesAtListing);
 
         } else {
             // 공모 미사용 경로: 바로 상장 가능(요청 값으로 기준가 세팅)
@@ -159,7 +166,7 @@ public class IpoService {
         final UUID corporationId = ipo.getCorporation().getId();
         final String nameKo = ipo.getSymbol(); // 종목명(한글명)
 
-        // 총발행주식수: list()가 세팅한 값을 사용
+        // 총 발행 주식 수: list()가 세팅한 값을 사용
         Long totalSharesAtListing = ipo.getOutstandingSharesAtListing();
         if (totalSharesAtListing == null) {
             throw new IllegalStateException("상장 시점 총 발행 주식 수가 계산되지 않았습니다.");
@@ -188,17 +195,6 @@ public class IpoService {
         if (ticker == null) {
             throw new IllegalStateException("종목코드 생성에 실패했습니다. 잠시 후 다시 시도하세요.");
         }
-
-        Stock stock = Stock.builder()
-                .corporationId(corporationId)
-                .ticker(ticker)                        // ← 부여된 6자리 숫자 코드
-                .nameKo(nameKo)                        // ← 종목명(= symbol)
-                .status(Stock.Status.LISTED)
-                .totalSharesOutstanding(totalSharesAtListing)
-                .build();
-
-        stockRepository.save(stock);
-
         return ipo;
     }
 

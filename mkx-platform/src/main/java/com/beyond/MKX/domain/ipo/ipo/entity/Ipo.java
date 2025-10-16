@@ -136,6 +136,10 @@ public class Ipo extends BaseIdAndTimeEntity {
         this.financialStatementsUrl = url;
     }
 
+    public void updateOutstandingSharesAtListing(Long total) {
+        this.outstandingSharesAtListing = total;
+    }
+
 
 
 }

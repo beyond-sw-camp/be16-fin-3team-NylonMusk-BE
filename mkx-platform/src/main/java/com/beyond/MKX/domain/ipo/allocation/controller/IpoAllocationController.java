@@ -43,14 +43,14 @@ public class IpoAllocationController {
     }
 
     /* 3) 발행사로 공모 대금 송금 (ALLOCATED/PRICE_FIXED 허용, 내부 검증 포함) */
-    @PostMapping("/offerings/{offeringId}/payout")
+    @PostMapping("/{offeringId}/payout")
     public ResponseEntity<?> payoutToIssuer(@PathVariable @NotNull UUID offeringId) {
         IpoPayoutResDTO dto = settlementService.payoutOfferingToIssuer(offeringId);
         return ApiResponse.ok(dto, "발행사 송금을 완료하고 공모를 정산(SETTLED) 처리했습니다.");
     }
 
     /* 4) (옵션) 특정 공모의 배정 목록 조회 — 운영 점검/관리자용 */
-    @GetMapping("/offerings/{offeringId}/allocations")
+    @GetMapping("/{offeringId}/get-offering-info")
     public ResponseEntity<?> findAllocationsOfOffering(@PathVariable @NotNull UUID offeringId) {
         List<IpoAllocation> list = allocationRepository.findAllByOfferingId(offeringId);
         return ApiResponse.ok(list, "해당 공모의 배정 목록입니다.");

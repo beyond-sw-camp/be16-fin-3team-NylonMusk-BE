@@ -25,4 +25,6 @@ public interface ForumPostRepository extends JpaRepository<ForumPost, UUID> {
 
     // 특정 사용자 + 상태
     Page<ForumPost> findByCreatedByAndStatus(UUID createdBy, PostStatus status, Pageable pageable);
+
+
 }

@@ -17,13 +17,13 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ForumPostPublicController {
 
-    private final ForumPostQueryService serviceQuery;
+    private final ForumPostQueryService forumPostQueryService;
 
     /** 글 목록: status 필터(optional), pageable */
     @GetMapping
     public ResponseEntity<?> list(@RequestParam(required = false) PostStatus status,
                                   Pageable pageable) {
-        Page<ForumPostResDto> page = serviceQuery.list(status, pageable);
+        Page<ForumPostResDto> page = forumPostQueryService.list(status, pageable);
         return ApiResponse.ok(page, "게시글 목록 조회 성공");
     }
 
@@ -32,14 +32,14 @@ public class ForumPostPublicController {
     public ResponseEntity<?> listByUser(@PathVariable UUID userId,
                                         @RequestParam(required = false) PostStatus status,
                                         Pageable pageable) {
-        Page<ForumPostResDto> page = serviceQuery.listByUser(userId, status, pageable);
+        Page<ForumPostResDto> page = forumPostQueryService.listByUser(userId, status, pageable);
         return ApiResponse.ok(page, "사용자 게시글 조회 성공");
     }
 
     /** 특정 글 조회 */
     @GetMapping("/{postId}")
     public ResponseEntity<?> get(@PathVariable UUID postId) {
-        ForumPostResDto res = serviceQuery.get(postId);
+        ForumPostResDto res = forumPostQueryService.get(postId);
         return ApiResponse.ok(res, "게시글 조회 성공");
     }
 }

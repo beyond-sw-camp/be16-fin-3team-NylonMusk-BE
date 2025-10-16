@@ -41,25 +41,27 @@ public class AskExecutionService {
         boolean b = fillLogRepository.existsByOrderLogIdAndExecId(askOrderId, executionEvent.getExecId());
         if (b) {
             return true;
-        } else {
-            fillLogRepository.save(
-                    FillLog.builder()
-                            .orderLogId(askOrderId)
-                            .execId(executionEvent.getExecId())
-                            .ticker(executionEvent.getTicker())
-                            .side(Side.SELL)
-                            .price(executionEvent.getPrice())
-                            .quantity(executionEvent.getQuantity())
-                            .build()
-            );
         }
 
-        /// 0-2. 기본 엔티티 가져오기
+        /// 1. 체결 로그
+        fillLogRepository.save(
+                FillLog.builder()
+                        .orderLogId(askOrderId)
+                        .execId(executionEvent.getExecId())
+                        .ticker(executionEvent.getTicker())
+                        .side(Side.SELL)
+                        .price(executionEvent.getPrice())
+                        .quantity(executionEvent.getQuantity())
+                        .build()
+        );
+
+
+        /// 2. 기본 엔티티 가져오기
         OrderLog orderLog = orderLogRepository.findById(askOrderId)
                 .orElseThrow(() -> new EntityNotFoundException("해당 주문기록이 없습니다."));
         MemberAccount memberAccount = orderLog.getAccount();
 
-        /// 1. 보유 주식 update
+        /// 3. 보유 주식 반영
         StockHolding stockHolding = stockHoldingRepository
                 .findByMemberAccountIdAndTicker(memberAccount.getId(), executionEvent.getTicker())
                 .orElseThrow(() -> new EntityNotFoundException("해당 보유 주식이 존재하지 않습니다."));
@@ -67,7 +69,7 @@ public class AskExecutionService {
         log.info("보유 주식 {}개 감소", executionEvent.getQuantity());
         stockHolding.decTotalPurchasePrice(executionEvent.getQuantity(), executionEvent.getPrice());
 
-        /// 2. 계좌 동결 금액 update
+        /// 4. 돈 계산(체결 단위)
         // 체결 이벤트 값으로 총체결금액, 수수로, 거래금액 계산.
         // 절대 OrderLog의 기록된 값이 아닌 체결 이벤트의 값으로 계산하기.
         long notionalValue = Math.multiplyExact(executionEvent.getPrice(), executionEvent.getQuantity());
@@ -83,7 +85,7 @@ public class AskExecutionService {
         memberAccount.deposit(total_filled_amount);
         log.info("전체 잔고 {}원 증감", total_filled_amount);
 
-        /// 4. 주문 상태 변경
+        /// 5. 주문 상태 변경
         orderLog.updateOrderStatus(OrderStatus.PARTIALLY_FILLED);
         orderLog.updateFilledAt();
         // 잔여 수량 감소
@@ -92,7 +94,7 @@ public class AskExecutionService {
             orderLog.updateOrderStatus(OrderStatus.FILLED);
         }
 
-        /// 5. 원장 기록
+        /// 6. 원장 기록
         Ledger ledger = Ledger.builder()
                 .orderLogId(orderLog.getId())
                 .debitAccountId(memberAccount.getId())

@@ -2,6 +2,7 @@ package com.beyond.MKX.common.kafka.config;
 
 //import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.beyond.MKX.common.kafka.event.ExecutionEvent;
+import com.beyond.MKX.common.kafka.event.OrderStatusEvent;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.springframework.beans.factory.annotation.Value;
@@ -59,6 +60,16 @@ public class KafkaConsumeConfig {
     }
 
     // ----------------------------------------------------------------------
+    // order-status 전용 ConsumerFactory (OrderStatusEvent)
+    // ----------------------------------------------------------------------
+    @Bean
+    public ConsumerFactory<String, OrderStatusEvent> orderStatusConsumerFactory(KafkaProperties properties) {
+        Map<String, Object> configs = baseConsumerConfigs(properties);
+        configs.put(JsonDeserializer.VALUE_DEFAULT_TYPE, OrderStatusEvent.class.getName());
+        return new DefaultKafkaConsumerFactory<>(configs);
+    }
+
+    // ----------------------------------------------------------------------
     // 문자열 전용 ConsumerFactory (에러/보조 토픽 등)
     //  - 단순 문자열 수신이므로 ErrorHandlingDeserializer 생략
     // ----------------------------------------------------------------------
@@ -71,6 +82,7 @@ public class KafkaConsumeConfig {
         return new DefaultKafkaConsumerFactory<>(configs);
     }
 
+
     /// **-------------- KafkaListenerContainerFactory 설정 --------------**
 
     @Bean("kafkaExecutionListenerFactory")
@@ -80,6 +92,19 @@ public class KafkaConsumeConfig {
         ConcurrentKafkaListenerContainerFactory<String, ExecutionEvent> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(executionConsumerFactory);
+        factory.setCommonErrorHandler(commonErrorHandler());
+        // yml의 enable-auto-commit: false 설정에 따른 수동 커밋 설정
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+        return factory;
+    }
+
+    @Bean("kafkaOrderStatusListenerFactory")
+    public ConcurrentKafkaListenerContainerFactory<String, OrderStatusEvent> kafkaOrderStatusListenerFactory(
+            ConsumerFactory<String, OrderStatusEvent> orderStatusConsumerFactory
+    ) {
+        ConcurrentKafkaListenerContainerFactory<String, OrderStatusEvent> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(orderStatusConsumerFactory);
         factory.setCommonErrorHandler(commonErrorHandler());
         // yml의 enable-auto-commit: false 설정에 따른 수동 커밋 설정
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);

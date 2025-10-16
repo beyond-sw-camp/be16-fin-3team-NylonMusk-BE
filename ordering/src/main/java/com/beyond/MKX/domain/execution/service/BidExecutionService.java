@@ -117,7 +117,7 @@ public class BidExecutionService {
             log.info("{}원 환불 처리", orderLog.getFreezeAmount());
         }
 
-        /// 5. 원장 기록
+        /// 6. 원장 기록
         Ledger ledger = Ledger.builder()
                 .orderLogId(orderLog.getId())
                 .creditAccountId(memberAccount.getId())

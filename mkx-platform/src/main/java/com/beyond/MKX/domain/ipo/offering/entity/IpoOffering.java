@@ -82,13 +82,13 @@ public class IpoOffering extends BaseIdAndTimeEntity {
     // TODO: 계좌 생성 이후 진행 할 예정
 
     public void offeringOpen(java.time.LocalDateTime now) {
-        if (this.ipoOfferingStatus != IpoOfferingStatus.SCHEDULED) {
-            throw new IllegalArgumentException("SCHEDULED 상태에서만 OPEN 가능");
+        if (this.ipoOfferingStatus != IpoOfferingStatus.PRICE_FIXED) {
+            throw new IllegalArgumentException("PRICE_FIXED 상태에서만 OPEN 가능");
         }
         this.ipoOfferingStatus = IpoOfferingStatus.OPEN;
     }
 
-    public void offeringCloseNow(java.time.LocalDateTime now) {
+    public void offeringCloseNow(LocalDateTime now) {
         if (this.ipoOfferingStatus != IpoOfferingStatus.OPEN) {
             throw new IllegalStateException("OPEN에서만 CLOSED 가능");
         }
@@ -102,8 +102,8 @@ public class IpoOffering extends BaseIdAndTimeEntity {
     }
 
     public void fixOfferPrice(long price, long min, long max, long face) {
-        if (this.ipoOfferingStatus != IpoOfferingStatus.CLOSED) {
-            throw new IllegalStateException("CLOSED에서만 가격 확정 가능");
+        if (this.ipoOfferingStatus != IpoOfferingStatus.SCHEDULED) {
+            throw new IllegalStateException("SCHEDULED 에서만 가격 확정 가능");
         }
         if (price < face) throw new IllegalArgumentException("확정 공모가는 액면가(" + face + ") 이상이어야 합니다.");
         if (price < min || price > max) throw new IllegalArgumentException("확정 공모가는 밴드 범위(" + min + "~" + max + ") 내여야 합니다.");

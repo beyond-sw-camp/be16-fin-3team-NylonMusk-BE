@@ -15,21 +15,21 @@ import java.util.*;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/ipo")
+@RequestMapping("/ipo/allocation")
 public class IpoAllocationController {
     private final IpoAllocationService allocationService;
     private final IpoSettlementService settlementService;
     private final IpoAllocationRepository allocationRepository;
 
     /* 1) 배정 실행 (PRICE_FIXED 상태에서만) */
-    @PostMapping("/offerings/{offeringId}/allocate")
+    @PostMapping("/{offeringId}/allocate")
     public ResponseEntity<?> allocate(@PathVariable @NotNull UUID offeringId) {
         UUID id = allocationService.ipoAllocated(offeringId);
         return ApiResponse.ok(id, "배정을 완료했습니다.");
     }
 
-    /* 2) 구독 단건 정산 (추가납입/환불) — CORPORATION 우선 지원 */
-    @PostMapping("/subscriptions/{subscriptionId}/settle")
+    /* 2) 구독 단건 정산 (추가납입/환불)  */
+    @PostMapping("/{subscriptionId}/settle")
     public ResponseEntity<?> settleBySubscription(@PathVariable @NotNull UUID subscriptionId) {
         UUID id = settlementService.settlePaymentsBySubscription(subscriptionId);
         return ApiResponse.ok(id, "해당 청약 건의 추가납입/환불 정산을 완료했습니다.");

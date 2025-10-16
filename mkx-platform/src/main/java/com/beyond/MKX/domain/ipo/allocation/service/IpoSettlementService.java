@@ -41,9 +41,9 @@ public class IpoSettlementService {
     public UUID settlePaymentsBySubscription(UUID subscriptionId) {
         IpoSubscription subscription = subscriptionRepository.findById(subscriptionId)
                 .orElseThrow(() -> new IllegalArgumentException("공모 청약이 존재하지 않습니다."));
-        if (subscription.getStatus() != SubscriptionStatus.PAID && subscription.getStatus() != SubscriptionStatus.ALLOCATED) {
-            throw new IllegalArgumentException("납입/환불은 PAID 상태만 가능합니다.");
-        }
+//        if (subscription.getStatus() != SubscriptionStatus.ALLOCATED) {
+//            throw new IllegalArgumentException("납입/환불은 배정(ALLOCATED) 상태만 가능합니다.");
+//        }
         if (exchangeAccountNumber == null || exchangeAccountNumber.isBlank()) {
             throw new IllegalArgumentException("거래소 계좌 미설정");
         }
@@ -51,10 +51,10 @@ public class IpoSettlementService {
         IpoOffering offering = offeringRepository.findById(subscription.getIpoOffering().getId())
                 .orElseThrow(() -> new IllegalArgumentException("공모를 찾을 수 없습니다."));
 
-        if (offering.getIpoOfferingStatus() != IpoOfferingStatus.PRICE_FIXED
-        && offering.getIpoOfferingStatus() != IpoOfferingStatus.ALLOCATED) {
-            throw new IllegalArgumentException("공모가 확정 상태에서만 정산할 수 있습니다.");
-        }
+//        if (offering.getIpoOfferingStatus() != IpoOfferingStatus.PRICE_FIXED
+//        || offering.getIpoOfferingStatus() != IpoOfferingStatus.ALLOCATED) {
+//            throw new IllegalArgumentException("공모가 확정 상태 또는 배정 상태에서만 정산할 수 있습니다.");
+//        }
 
         IpoAllocation allocation = allocationRepository
                 .findTopByIpoSubscription_IdOrderByRoundNoDesc(subscriptionId)
@@ -106,10 +106,12 @@ public class IpoSettlementService {
     private BigInteger bi(long v) { return BigInteger.valueOf(v); }
     private java.math.BigInteger toBI(long v) { return BigInteger.valueOf(v); }
     private BigInteger calcDeposit(BigInteger qty, BigInteger price, BigDecimal rate) {
+        BigDecimal decimalRate = rate.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
+
         if (qty.signum() <= 0 || price.signum() <= 0 || rate == null) return BigInteger.ZERO;
         return new BigDecimal(qty)
                 .multiply(new BigDecimal(price))
-                .multiply(rate)
+                .multiply(decimalRate)
                 .setScale(0, RoundingMode.DOWN)
                 .toBigInteger();
     }

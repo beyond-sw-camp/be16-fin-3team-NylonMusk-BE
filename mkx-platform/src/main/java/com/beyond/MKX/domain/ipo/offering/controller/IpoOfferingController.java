@@ -70,4 +70,10 @@ public class IpoOfferingController {
         IpoOffering fixed = offeringService.autoFixOfferPrice(offeringId, T);
         return ApiResponse.ok(IpoOfferingResDTO.from(fixed), "경쟁률 기반 확정 공모가가 산정되었습니다.");
     }
+
+    @PatchMapping("{offeringId}/auto-fix-price-random")
+    public ResponseEntity<?> autoFixRandom(@PathVariable UUID offeringId) {
+        IpoOffering fixed = offeringService.autoFixOfferPriceRandom(offeringId);
+        return ApiResponse.ok(IpoOfferingResDTO.from(fixed), "경쟁률 기반 확정 공모가가 산정되었습니다.");
+    }
 }

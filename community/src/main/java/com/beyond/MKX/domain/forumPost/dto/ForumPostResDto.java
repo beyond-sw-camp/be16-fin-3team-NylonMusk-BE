@@ -1,5 +1,7 @@
+// com/beyond/MKX/domain/forumPost/dto/ForumPostResDto.java
 package com.beyond.MKX.domain.forumPost.dto;
 
+import com.beyond.MKX.domain.common.entity.WriterRole;
 import com.beyond.MKX.domain.forumCategory.dto.ForumCategoryResDto;
 import com.beyond.MKX.domain.forumPost.entity.PostStatus;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -26,5 +28,5 @@ public record ForumPostResDto(
         LocalDateTime deletedAt,
         long version,
         List<ForumCategoryResDto> categories,
-        boolean writtenByAdmin
+        WriterRole writerRole
 ) {}

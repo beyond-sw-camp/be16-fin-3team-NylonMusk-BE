@@ -22,6 +22,7 @@ import java.math.BigDecimal;
  * - lastFillPrice   : 마지막 체결가
  * - limitPrice      : 지정가(또는 시장가 가드 가격)
  * - filledQuantity  : 누적 체결 수량
+ * - notional        : 총 체결 금액(원화 정수, ∑(체결가*체결수량))
  */
 @Builder
 @Getter @Setter
@@ -40,4 +41,5 @@ public class OrderStatusEvent {
     private long lastFillPrice;
     private long limitPrice;
     private BigDecimal filledQuantity;
+    private long notional;
 }

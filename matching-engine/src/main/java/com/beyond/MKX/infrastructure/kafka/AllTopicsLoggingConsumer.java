@@ -60,10 +60,10 @@ public class AllTopicsLoggingConsumer {
             @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
             @Header(KafkaHeaders.OFFSET) long offset
     ) {
-        log.info("[KAFKA/ORDER-STATUS] topic={} p={} off={} orderId={} status={} ticker={} side={} remaining={} price={} ts={}",
+        log.info("[KAFKA/ORDER-STATUS] topic={} p={} off={} orderId={} status={} ticker={} side={} remaining={} price={} notional={} ts={}",
                 topic, partition, offset,
                 payload.getOrderId(), payload.getStatus(), payload.getTicker(), payload.getSide(),
-                payload.getRemaining(), payload.getPrice(), payload.getTimestamp());
+                payload.getRemaining(), payload.getPrice(), payload.getNotional(), payload.getTimestamp());
     }
 
     /**

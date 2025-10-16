@@ -74,6 +74,13 @@ public class IpoSettlementService {
         var brokerageDeposit = brokerageDepositAccountService.getRequiredByBrokerageId(subscription.getBrokerageId());
         String brokerageDepositNo = brokerageDeposit.getAccountNumber();
 
+        // === 선이관: 증권사예치 -> 거래소 (min(depositAmt, finalAmt)) =================
+        BigInteger moveFromBrokerageToExchange = depositAmt.min(finalAmt);
+        if (moveFromBrokerageToExchange.signum() > 0) {
+            brokerageDepositAccountService.withdraw(brokerageDepositNo, moveFromBrokerageToExchange);
+            exchangeAccountService.deposit(exchangeAccountNumber, moveFromBrokerageToExchange);
+        }
+
         // CORPORATION만 우선 처리 (MEMBER는 TODO)
         if (subscription.getInvestorType() == InvestorType.CORPORATION) {
             UUID corporationAccountId = subscription.getAccountId();
@@ -86,10 +93,7 @@ public class IpoSettlementService {
                 brokerageDepositAccountService.withdraw(brokerageDepositNo, additional);
                 exchangeAccountService.deposit(exchangeAccountNumber, additional);
             } else if (refund.signum() > 0) {
-                // 환불: Exchange → BrokerageDeposit → Corporation
-                exchangeAccountService.withdraw(exchangeAccountNumber, refund);
-                brokerageDepositAccountService.deposit(brokerageDepositNo, refund);
-
+                // 환불: BrokerageDeposit → Corporation
                 brokerageDepositAccountService.withdraw(brokerageDepositNo, refund);
                 corporationAccountService.deposit(subscription.getAccountId(), refund);
             }

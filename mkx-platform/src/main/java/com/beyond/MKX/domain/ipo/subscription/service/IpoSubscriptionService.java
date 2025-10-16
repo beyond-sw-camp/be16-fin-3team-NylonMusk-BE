@@ -1,5 +1,7 @@
 package com.beyond.MKX.domain.ipo.subscription.service;
 
+import com.beyond.MKX.domain.account.brokerage.service.BrokerageDepositAccountService;
+import com.beyond.MKX.domain.account.corporation.service.CorporationAccountService;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOffering;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOfferingStatus;
 import com.beyond.MKX.domain.ipo.offering.repository.IpoOfferingRepository;
@@ -14,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -25,6 +28,9 @@ public class IpoSubscriptionService {
     private final IpoOfferingRepository offeringRepository;
     private final IpoSubscriptionRepository subscriptionRepository;
     private final Clock clock = Clock.systemDefaultZone();
+
+    private final BrokerageDepositAccountService brokerageDepositAccountService;
+    private final CorporationAccountService corporationAccountService;
 
     /**
      * 최소 제약:
@@ -86,7 +92,7 @@ public class IpoSubscriptionService {
         long priceSnapshot = resolveEffectivePrice(ipoOffering);             // 확정가가 있으면 사용, 없으면 희망 공모가 최댓값 사용
         BigDecimal depositRateSnapshot = ipoOffering.getDepositRate();       // DECIMAL(5,2)
 
-//        6) 필요 증거금(보증금) 계산 : applidedQty(신청 수량) * price * rate/100
+//      applidedQty(신청 수량) * price * rate/100
         BigDecimal appliedAmount = BigDecimal.valueOf(subReqDto.appliedQuantity())
                 .multiply(BigDecimal.valueOf(priceSnapshot));
         if (depositRateSnapshot == null) {
@@ -96,6 +102,19 @@ public class IpoSubscriptionService {
                 .multiply(depositRateSnapshot)
                 .divide(BigDecimal.valueOf(100), 0, RoundingMode.DOWN)
                 .longValueExact();
+
+        // 6) [자금 이동] 투자자 → 증권사 예치 (기업 투자자만 우선)
+        if (subReqDto.investorType() == InvestorType.CORPORATION) {
+            var brokerageDeposit = brokerageDepositAccountService.getRequiredByBrokerageId(subReqDto.brokerageId());
+            String brokerageDepositNo = brokerageDeposit.getAccountNumber();
+
+            // 출금(기업 계좌 UUID 기준) → 입금(증권사 예치 계좌번호 기준)
+            corporationAccountService.withdraw(subReqDto.accountId(), BigInteger.valueOf(requiredDeposit));
+            brokerageDepositAccountService.deposit(brokerageDepositNo, BigInteger.valueOf(requiredDeposit));
+        } else {
+            // TODO: MEMBER(개인) 계좌 흐름 연동
+            throw new UnsupportedOperationException("Member 투자자 청약 자금이체는 추후 구현 대상입니다.");
+        }
 
         // 7) 저장
         IpoSubscription ipoSubscription = IpoSubscription.builder()
@@ -151,7 +170,6 @@ public class IpoSubscriptionService {
         if (ipoSubscription.getStatus() != SubscriptionStatus.PAID && ipoSubscription.getStatus() != SubscriptionStatus.APPLIED) {
             throw new IllegalStateException("해당 상태에서는 취소할 수 없습니다.");
         }
-
         if (ipoSubscription.getStatus() == SubscriptionStatus.CANCELLED) {
             return IpoSubscriptionResDTO.from(ipoSubscription);
         }
@@ -161,11 +179,24 @@ public class IpoSubscriptionService {
         long ref = ipoSubscription.getRefundedAmount() == null ? 0L : ipoSubscription.getRefundedAmount();
         long refundable = Math.max(req - ref, 0);
 
-//        long refundable = (ipoSubscription.getRequiredDeposit() == null ? 0L : ipoSubscription.getRequiredDeposit());
+        // 4) [자금 이동] 증권사 예치 → 투자자
+        if (ipoSubscription.getInvestorType() == InvestorType.CORPORATION) {
+            var brokerageDeposit = brokerageDepositAccountService.getRequiredByBrokerageId(ipoSubscription.getBrokerageId());
+            String brokerageDepositNo = brokerageDeposit.getAccountNumber();
+
+            if (refundable > 0) {
+                brokerageDepositAccountService.withdraw(brokerageDepositNo, BigInteger.valueOf(refundable));
+                corporationAccountService.deposit(ipoSubscription.getAccountId(), BigInteger.valueOf(refundable));
+            }
+        } else {
+            // TODO: MEMBER(개인) 계좌 환불 흐름
+            throw new UnsupportedOperationException("Member 투자자 환불은 추후 구현 대상입니다.");
+        }
+
+//      5) 상태/환불 기록  long refundable = (ipoSubscription.getRequiredDeposit() == null ? 0L : ipoSubscription.getRequiredDeposit());
         ipoSubscription.setStatus(SubscriptionStatus.CANCELLED);
         ipoSubscription.setCancelledAt(now);
         ipoSubscription.setRefundedAmount(ref + refundable);
-
 
         // ✅ DB 변경이 합계 쿼리에 반영되도록 보장
         subscriptionRepository.flush();

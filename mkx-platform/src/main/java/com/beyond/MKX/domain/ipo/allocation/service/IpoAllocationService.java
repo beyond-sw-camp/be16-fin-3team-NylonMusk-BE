@@ -73,6 +73,7 @@ public class IpoAllocationService {
             if (lotSize != null && lotSize > 1) {
                 raw = (raw / lotSize) * lotSize;
             }
+            raw = Math.min(raw, applied);
             allocationMap.put(s.getId(), raw);
             assigned += raw;
         }
@@ -86,7 +87,9 @@ public class IpoAllocationService {
             for (IpoSubscription s : subscriptions) {
                 long applied = nvl(s.getAppliedQuantity());
                 long cur = allocationMap.getOrDefault(s.getId(), 0L);
-                if (applied - cur >= step) {
+
+                long canGive = Math.min(step, applied - cur);
+                if (canGive >= step) {
                     allocationMap.put(s.getId(), cur + step);
                     remain -= step;
                     gaveAny = true;
@@ -118,6 +121,7 @@ public class IpoAllocationService {
         });
 
         subscriptionRepository.flush();
+
 
         // 7) 배정 총합으로 상태 전환 (0도 허용)
         long assignedFinal = toSave.stream().mapToLong(IpoAllocation::getAllocatedQuantity).sum();

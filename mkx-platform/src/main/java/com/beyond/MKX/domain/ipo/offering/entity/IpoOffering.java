@@ -120,25 +120,25 @@ public class IpoOffering extends BaseIdAndTimeEntity {
         this.ipoOfferingStatus = IpoOfferingStatus.CANCELLED;
     }
 
-    public void allocated(long aQty) {
+    public void allocated(long totalAllocated) {
         if (this.ipoOfferingStatus != IpoOfferingStatus.CLOSED) {
             throw new IllegalStateException("CLOSED 이후에만 배정 확정 가능");
         }
-        if (aQty < 0 || aQty > this.offerQuantity) {
+        if (totalAllocated < 0 || totalAllocated > this.offerQuantity) {
             throw new IllegalStateException("배정 수량이 유효하지 않습니다.");
         }
-        this.allocatedQuantity = aQty;
+        this.allocatedQuantity = totalAllocated;
         this.ipoOfferingStatus = IpoOfferingStatus.ALLOCATED;
     }
 
-    public void settle(long sQty) {
+    public void settle(long issuedQuantity) {
         if (this.ipoOfferingStatus != IpoOfferingStatus.ALLOCATED) {
             throw new IllegalStateException("ALLOCATED 이후에만 정산 가능");
         }
-        if (sQty < 0 || sQty > this.allocatedQuantity) {
+        if (issuedQuantity < 0 || issuedQuantity > this.allocatedQuantity) {
             throw new IllegalStateException("정산 수량이 유효하지 않습니다.");
         }
-        this.issuedQuantity = sQty;
+        this.issuedQuantity = issuedQuantity;
         this.ipoOfferingStatus = IpoOfferingStatus.SETTLED;
     }
 

@@ -1,5 +1,6 @@
 package com.beyond.MKX.domain.ipo.allocation.service;
 
+import com.beyond.MKX.domain.ipo.allocation.dto.IpoAllocationSummaryResDTO;
 import com.beyond.MKX.domain.ipo.allocation.entity.IpoAllocation;
 import com.beyond.MKX.domain.ipo.allocation.repository.IpoAllocationRepository;
 import com.beyond.MKX.domain.ipo.ipo.entity.IpoStatus;
@@ -131,4 +132,19 @@ public class IpoAllocationService {
     }
     private long nvl(Long v) {return v == null ? 0L : v;}
     private int nvl(Integer v, int def) {return v == null ? def : v;}
+
+    @Transactional
+    public IpoAllocationSummaryResDTO allocateAndSummarize(UUID offeringId) {
+        // 기존 배정 로직 재사용(상태 가드/배정 생성/오퍼링 상태 전환)
+        ipoAllocated(offeringId);
+
+        // DTO 조립은 서비스에서
+        IpoOffering offering = offeringRepository.findById(offeringId)
+                .orElseThrow(() -> new IllegalArgumentException("공모를 찾을 수 없습니다."));
+        List<IpoAllocation> list = allocationRepository.findAllByOfferingId(offeringId);
+        long allocatedTotalQuantity = list.stream().mapToLong(IpoAllocation::getAllocatedQuantity).sum();
+
+        return IpoAllocationSummaryResDTO.of(offering, list, allocatedTotalQuantity);
+    }
+
 }

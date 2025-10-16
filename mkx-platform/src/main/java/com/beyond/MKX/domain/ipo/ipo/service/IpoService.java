@@ -162,7 +162,7 @@ public class IpoService {
         // 총발행주식수: list()가 세팅한 값을 사용
         Long totalSharesAtListing = ipo.getOutstandingSharesAtListing();
         if (totalSharesAtListing == null) {
-            throw new IllegalStateException("상장 시점 총발행주식수가 계산되지 않았습니다.");
+            throw new IllegalStateException("상장 시점 총 발행 주식 수가 계산되지 않았습니다.");
         }
 
         // 이미 종목이 존재하면 재생성하지 않음

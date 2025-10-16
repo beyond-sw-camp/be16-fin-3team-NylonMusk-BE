@@ -2,10 +2,16 @@ package com.beyond.MKX.domain.ipo.allocation.controller;
 
 
 import com.beyond.MKX.common.apiResponse.ApiResponse;
+import com.beyond.MKX.domain.ipo.allocation.dto.IpoAllocationItemResDTO;
+import com.beyond.MKX.domain.ipo.allocation.dto.IpoAllocationSummaryResDTO;
+import com.beyond.MKX.domain.ipo.allocation.dto.IpoPayoutResDTO;
+import com.beyond.MKX.domain.ipo.allocation.dto.IpoSettlementResDTO;
 import com.beyond.MKX.domain.ipo.allocation.entity.IpoAllocation;
 import com.beyond.MKX.domain.ipo.allocation.repository.IpoAllocationRepository;
 import com.beyond.MKX.domain.ipo.allocation.service.IpoAllocationService;
 import com.beyond.MKX.domain.ipo.allocation.service.IpoSettlementService;
+import com.beyond.MKX.domain.ipo.offering.entity.IpoOffering;
+import com.beyond.MKX.domain.ipo.offering.repository.IpoOfferingRepository;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -20,26 +26,27 @@ public class IpoAllocationController {
     private final IpoAllocationService allocationService;
     private final IpoSettlementService settlementService;
     private final IpoAllocationRepository allocationRepository;
+    private final IpoOfferingRepository offeringRepository;
 
     /* 1) 배정 실행 (PRICE_FIXED 상태에서만) */
     @PostMapping("/{offeringId}/allocate")
     public ResponseEntity<?> allocate(@PathVariable @NotNull UUID offeringId) {
-        UUID id = allocationService.ipoAllocated(offeringId);
-        return ApiResponse.ok(id, "배정을 완료했습니다.");
+        IpoAllocationSummaryResDTO dto = allocationService.allocateAndSummarize(offeringId);
+        return ApiResponse.ok(dto, "배정을 완료했습니다.");
     }
 
     /* 2) 구독 단건 정산 (추가납입/환불)  */
     @PostMapping("/{subscriptionId}/settle")
     public ResponseEntity<?> settleBySubscription(@PathVariable @NotNull UUID subscriptionId) {
-        UUID id = settlementService.settlePaymentsBySubscription(subscriptionId);
-        return ApiResponse.ok(id, "해당 청약 건의 추가납입/환불 정산을 완료했습니다.");
+        IpoSettlementResDTO dto = settlementService.settlePaymentsBySubscription(subscriptionId);
+        return ApiResponse.ok(dto, "해당 청약 건의 추가납입/환불 정산을 완료했습니다.");
     }
 
     /* 3) 발행사로 공모 대금 송금 (ALLOCATED/PRICE_FIXED 허용, 내부 검증 포함) */
     @PostMapping("/offerings/{offeringId}/payout")
     public ResponseEntity<?> payoutToIssuer(@PathVariable @NotNull UUID offeringId) {
-        UUID id = settlementService.payoutOfferingToIssuer(offeringId);
-        return ApiResponse.ok(id, "발행사 송금을 완료하고 공모를 정산(SETTLED) 처리했습니다.");
+        IpoPayoutResDTO dto = settlementService.payoutOfferingToIssuer(offeringId);
+        return ApiResponse.ok(dto, "발행사 송금을 완료하고 공모를 정산(SETTLED) 처리했습니다.");
     }
 
     /* 4) (옵션) 특정 공모의 배정 목록 조회 — 운영 점검/관리자용 */
@@ -54,6 +61,8 @@ public class IpoAllocationController {
     public ResponseEntity<?> findLatestAllocationOfSubscription(@PathVariable @NotNull UUID subscriptionId) {
         var latest = allocationRepository.findTopByIpoSubscription_IdOrderByRoundNoDesc(subscriptionId)
                 .orElse(null);
-        return ApiResponse.ok(latest, "해당 청약의 최신 배정 결과입니다.");
+        IpoAllocationItemResDTO dto = (latest == null) ? null
+                : IpoAllocationItemResDTO.from(latest);
+        return ApiResponse.ok(dto, "해당 청약의 최신 배정 결과입니다.");
     }
 }

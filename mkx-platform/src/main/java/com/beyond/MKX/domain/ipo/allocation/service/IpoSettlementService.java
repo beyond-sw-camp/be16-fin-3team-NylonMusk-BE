@@ -3,6 +3,8 @@ package com.beyond.MKX.domain.ipo.allocation.service;
 import com.beyond.MKX.domain.account.brokerage.service.BrokerageDepositAccountService;
 import com.beyond.MKX.domain.account.corporation.service.CorporationAccountService;
 import com.beyond.MKX.domain.account.exchange.service.ExchangeAccountService;
+import com.beyond.MKX.domain.ipo.allocation.dto.IpoPayoutResDTO;
+import com.beyond.MKX.domain.ipo.allocation.dto.IpoSettlementResDTO;
 import com.beyond.MKX.domain.ipo.allocation.entity.IpoAllocation;
 import com.beyond.MKX.domain.ipo.allocation.repository.IpoAllocationRepository;
 import com.beyond.MKX.domain.ipo.ipo.repository.IpoRepository;
@@ -38,7 +40,7 @@ public class IpoSettlementService {
     private String exchangeAccountNumber;
 
     @Transactional
-    public UUID settlePaymentsBySubscription(UUID subscriptionId) {
+    public IpoSettlementResDTO settlePaymentsBySubscription(UUID subscriptionId) {
         IpoSubscription subscription = subscriptionRepository.findById(subscriptionId)
                 .orElseThrow(() -> new IllegalArgumentException("공모 청약이 존재하지 않습니다."));
 //        if (subscription.getStatus() != SubscriptionStatus.ALLOCATED) {
@@ -63,7 +65,6 @@ public class IpoSettlementService {
         BigInteger price = bi(nz(offering.getOfferPrice())); // 확정 공모가
         BigInteger allocQty = bi(allocation == null ? 0L : nz(allocation.getAllocatedQuantity())); // 배정 수량
         BigInteger finalAmt = allocQty.multiply(price); // 최종 청구액 (배정 수량 * 확정 공모가)
-
         BigInteger depositAmt = BigInteger.valueOf(nz(subscription.getRequiredDeposit())); // 증거금(원단위 내림), 재계산 X 스냅샷 사용!
 
         int cmp = finalAmt.compareTo(depositAmt);
@@ -102,7 +103,14 @@ public class IpoSettlementService {
             throw new UnsupportedOperationException("Member 투자자 정산(추가납입환불)은 추후 구현 대상입니다.");
         }
 
-        return subscriptionId;
+        return IpoSettlementResDTO.of(
+                subscriptionId.toString(),
+                offering.getId().toString(),
+                subscription.getInvestorType(),
+                brokerageDepositNo,
+                exchangeAccountNumber,
+                finalAmt, depositAmt, moveFromBrokerageToExchange, additional, refund
+        );
     }
 
     private long nz(Long v) { return v == null ? 0L : v; }
@@ -120,11 +128,15 @@ public class IpoSettlementService {
     }
 
     @Transactional
-    public UUID payoutOfferingToIssuer(UUID offeringId) {
+    public IpoPayoutResDTO payoutOfferingToIssuer(UUID offeringId) {
         IpoOffering offering = offeringRepository.findByIdForUpdate(offeringId)
                 .orElseThrow(() -> new IllegalArgumentException("공모 없음"));
 
-        if (offering.getIpoOfferingStatus() == IpoOfferingStatus.SETTLED) return offeringId;
+        if (offering.getIpoOfferingStatus() == IpoOfferingStatus.SETTLED) {
+            var totalProceeds = BigInteger.valueOf(offering.getIssuedQuantity() == null ? 0L : offering.getIssuedQuantity())
+                    .multiply(BigInteger.valueOf(offering.getOfferPrice()));
+            return IpoPayoutResDTO.of(offering, totalProceeds);
+        }
         if (offering.getIpoOfferingStatus() != IpoOfferingStatus.ALLOCATED) {
             throw new IllegalStateException("ALLOCATED 상태에서만 송금");
         }
@@ -152,7 +164,7 @@ public class IpoSettlementService {
         // 정산 완료: issuedQuantity에 스냅샷값 기록
         offering.settle(sQty); // issuedQuantity = sQty, 상태 SETTLED
         offeringRepository.save(offering);
-        return offeringId;
+        return IpoPayoutResDTO.of(offering, totalProceeds);
     }
 
 }

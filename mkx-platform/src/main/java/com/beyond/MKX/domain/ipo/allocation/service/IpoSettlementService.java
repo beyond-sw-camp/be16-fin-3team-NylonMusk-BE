@@ -93,8 +93,8 @@ public class IpoSettlementService {
                 brokerageDepositAccountService.withdraw(brokerageDepositNo, additional);
                 exchangeAccountService.deposit(exchangeAccountNumber, additional);
             } else if (refund.signum() > 0) {
-                // 환불: BrokerageDeposit → Corporation
-                brokerageDepositAccountService.withdraw(brokerageDepositNo, refund);
+                // 환불:    BrokerageDeposit → Corporation
+                brokerageDepositAccountService.withdraw(brokerageDepositNo, refund); // 증권사에는 이미 환불금액이 있고, 거래소에는 필요한 만큼 증액한 상황
                 corporationAccountService.deposit(subscription.getAccountId(), refund);
             }
         } else {

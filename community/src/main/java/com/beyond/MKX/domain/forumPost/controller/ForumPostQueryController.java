@@ -17,14 +17,14 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ForumPostQueryController {
 
-    private final ForumPostQueryService service;
+    private final ForumPostQueryService forumPostQueryService;
 
     /** 내 글 목록: 헤더 X-User-Id 사용 */
     @GetMapping("/me")
     public ResponseEntity<?> listMine(@RequestHeader("X-User-Id") UUID actorId,
                                       @RequestParam(required = false) PostStatus status,
                                       Pageable pageable) {
-        Page<ForumPostResDto> page = service.listMine(actorId, status, pageable);
+        Page<ForumPostResDto> page = forumPostQueryService.listMine(actorId, status, pageable);
         return ApiResponse.ok(page, "내 게시글 조회 성공");
     }
 }

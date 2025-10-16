@@ -2,6 +2,7 @@ package com.beyond.MKX.domain.forumPost.entity;
 
 import com.beyond.MKX.common.domain.BaseIdAndTimeEntity;
 import com.beyond.MKX.domain.forumCategory.entity.ForumCategory;
+import com.beyond.MKX.domain.common.entity.WriterRole;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Size;
 import lombok.*;
@@ -42,9 +43,10 @@ public class ForumPost extends BaseIdAndTimeEntity {
     @Comment("작성자 사용자/관리자 UUID")
     private UUID createdBy;
 
-    @Column(name = "written_by_admin", nullable = false)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "writer_role", nullable = false, length = 16)
     @Builder.Default
-    private boolean writtenByAdmin = false;
+    private WriterRole writerRole = WriterRole.MEMBER;
 
     @Size(max = 255)
     @Column(name = "title", nullable = false, length = 255)

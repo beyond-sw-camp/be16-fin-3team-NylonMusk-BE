@@ -81,21 +81,21 @@ public class OrderService {
         }
 
         // 2-2. 수수료, 세글 및 동결할 총액을 계산
-        long transactionAmount = Math.multiplyExact(askingPrice, dto.quantity()); // 대금 계산
+        long notionalValue = Math.multiplyExact(askingPrice, dto.quantity()); // 대금 계산
         Long brokerageCommission;
         Long transactionTax = null;
         Long totalAmount;
 
         // 수수료 계산
         if (dto.side() == Side.BUY) {
-            brokerageCommission = feePolicyService.estimateAckFee(transactionAmount, memberAccount.getBrokerageId());
-            totalAmount = Math.addExact(brokerageCommission, transactionAmount);
+            brokerageCommission = feePolicyService.estimateBidFee(notionalValue, memberAccount.getBrokerageId());
+            totalAmount = Math.addExact(brokerageCommission, notionalValue);
         } else {
-            CommissionAndTaxData commissionAndTaxData = feePolicyService.estimateBidFee(transactionAmount, memberAccount.getBrokerageId());
+            CommissionAndTaxData commissionAndTaxData = feePolicyService.estimateAckFee(notionalValue, memberAccount.getBrokerageId());
             brokerageCommission = commissionAndTaxData.getCommission();
             transactionTax = commissionAndTaxData.getTax();
             long feeTotalAmount = Math.addExact(brokerageCommission, transactionTax);
-            totalAmount = Math.addExact(transactionAmount, feeTotalAmount);
+            totalAmount = Math.addExact(notionalValue, feeTotalAmount);
         }
 
         // 3. 자산 동결
@@ -125,9 +125,11 @@ public class OrderService {
                 .quantity(dto.quantity())
                 .commission(brokerageCommission)
                 .transactionTax(transactionTax)
-                .freezeAmount(totalAmount)
                 .remainQuantity(dto.quantity())
                 .build();
+        if (order.getSide() == Side.BUY) {
+            order.insertFreezeAmount(totalAmount);
+        }
         orderLogRepository.save(order);
 
         // 5. 아웃 박스 기록

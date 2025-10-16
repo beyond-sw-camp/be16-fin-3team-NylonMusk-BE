@@ -106,4 +106,8 @@ public class OrderLog extends BaseIdAndTimeEntity {
         this.status = orderStatus;
     }
 
+    public void insertFreezeAmount(Long freezeAmount) {
+        this.freezeAmount = freezeAmount;
+    }
+
 }

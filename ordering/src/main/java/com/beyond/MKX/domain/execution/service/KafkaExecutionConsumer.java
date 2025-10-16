@@ -34,6 +34,7 @@ public class KafkaExecutionConsumer {
             Acknowledgment ack
     ) {
         try {
+            System.out.println("=========== 체결 후처리 컨슘 시작 ===========");
             System.out.println("executionEvent = " + executionEvent);
             System.out.println("partition = " + partition + "  offset = " + offset);
 
@@ -55,15 +56,16 @@ public class KafkaExecutionConsumer {
             if (!isFilledBid) {
                 log.info("이미 처리된 매수자 체결 로직");
             }
-//
-//            // 3. 매도자 체결 로직
-//            boolean isFilledAsk = askExecutionService.askExecuteProcess(askOrderId, executionEvent);
-//            if (!isFilledAsk) {
-//                log.info("이미 처리된 매도자 체결 로직");
-//            }
+
+            // 3. 매도자 체결 로직
+            boolean isFilledAsk = askExecutionService.askExecuteProcess(askOrderId, executionEvent);
+            if (!isFilledAsk) {
+                log.info("이미 처리된 매도자 체결 로직");
+            }
 
             // 4. 카프카 수동 커밋
             ack.acknowledge(); // 수동 커밋
+            System.out.println("=========== 체결 후처리 컨슘 종료 및 커밋 ===========");
         } catch (Exception e) {
             log.error("Exception: {}", e.getMessage());
             throw e;

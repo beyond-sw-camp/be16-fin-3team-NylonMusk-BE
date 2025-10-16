@@ -56,13 +56,21 @@ public class StockHolding extends BaseIdAndTimeEntity {
     @Comment("전체 주식의 총 취득 원가")
     private Long totalPurchasePrice;
 
+    public void increaseTotalQuantity(Long incQuantity) {
+        this.totalQuantity = Math.addExact(this.totalQuantity, incQuantity);
+    }
+
+    public void decreaseTotalQuantity(Long decQuantity) {
+        this.totalQuantity -= decQuantity;
+        if (this.totalQuantity < 0) {
+            throw new IllegalArgumentException("보유주식의 개수가 0 이하일 수 없습니다.");
+        }
+    }
+
     public void decreaseAvailableQuantity(Long quantity) {
         this.availableQuantity = Math.subtractExact(this.availableQuantity, quantity);
     }
 
-    public void increaseTotalQuantity(Long incQuantity) {
-        this.totalQuantity = Math.addExact(this.totalQuantity, incQuantity);
-    }
 
     public void increaseAvaQuantity(Long incQuantity) {
         this.availableQuantity = Math.addExact(this.availableQuantity, incQuantity);

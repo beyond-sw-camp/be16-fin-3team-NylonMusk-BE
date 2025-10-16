@@ -37,29 +37,30 @@ public class BidExecutionService {
     // 매수자 체결 후처리 로직
     public boolean bidExecuteProcess(UUID bidOrderId, ExecutionEvent executionEvent) {
 
-        /// 0-1. 멱등성 검사
+        /// 0. 멱등성 검사
         boolean b = fillLogRepository.existsByOrderLogIdAndExecId(bidOrderId, executionEvent.getExecId());
         if (b) {
             return false;
-        } else {
-            fillLogRepository.save(
-                    FillLog.builder()
-                            .orderLogId(bidOrderId)
-                            .execId(executionEvent.getExecId())
-                            .ticker(executionEvent.getTicker())
-                            .side(Side.BUY)
-                            .price(executionEvent.getPrice())
-                            .quantity(executionEvent.getQuantity())
-                            .build()
-            );
         }
 
-        /// 0-2. 기본 엔티티 가져오기
+        /// 1. 체결 로그
+        fillLogRepository.save(
+                FillLog.builder()
+                        .orderLogId(bidOrderId)
+                        .execId(executionEvent.getExecId())
+                        .ticker(executionEvent.getTicker())
+                        .side(Side.BUY)
+                        .price(executionEvent.getPrice())
+                        .quantity(executionEvent.getQuantity())
+                        .build()
+        );
+
+        /// 2. 기본 엔티티 가져오기
         OrderLog orderLog = orderLogRepository.findById(bidOrderId)
                 .orElseThrow(() -> new EntityNotFoundException("해당 주문기록이 없습니다."));
         MemberAccount memberAccount = orderLog.getAccount();
 
-        /// 1. 보유 주식 update
+        /// 3. 보유 주식 반영
         Optional<StockHolding> stockHoldingOpt = stockHoldingRepository
                 .findByMemberAccountIdAndTicker(memberAccount.getId(), executionEvent.getTicker());
         if (stockHoldingOpt.isPresent()) {
@@ -81,12 +82,11 @@ public class BidExecutionService {
             stockHoldingRepository.save(stockHolding);
         }
 
-        /// 2. 계좌 동결 금액 update
+        /// 4. 돈 계산(체결 단위)
         // 체결 이벤트 값으로 총체결금액, 수수로, 거래금액 계산.
         // 절대 OrderLog의 기록된 값이 아닌 체결 이벤트의 값으로 계산하기.
         long transactionAmount = Math.multiplyExact(executionEvent.getPrice(), executionEvent.getQuantity());
-        Long commission = feePolicyService.estimateAckFee(transactionAmount, memberAccount.getBrokerageId());
-        System.out.println("======== 체결 후 commission: " + commission);
+        Long commission = feePolicyService.estimateBidFee(transactionAmount, memberAccount.getBrokerageId());
         Long total_filled_amount = Math.addExact(transactionAmount, commission);
 
         // 계좌 출금
@@ -97,7 +97,8 @@ public class BidExecutionService {
             // TODO: 계좌 잔고 부족 시 미수금 처리 및 알림 발송 (카프카 발행)
         }
 
-        /// 4. 주문 상태 변경
+        /// 5. 주문 상태 변경
+        orderLog.updateOrderStatus(OrderStatus.PARTIALLY_FILLED);
         orderLog.updateFilledAt();
         orderLog.decFreezeAmount(total_filled_amount); // 동결 금액 차감
         log.info("{}원 동결 금액 차감", total_filled_amount);
@@ -108,10 +109,10 @@ public class BidExecutionService {
              * == 전액 체결 시 로직 ==
              * 지정가 주문 시 order_log 테이블에 남은 수량이 0인지 확인 후 환불 진행
              */
-            // 4-1. order_log 상태 변경
+            // 5-1. order_log 상태 변경
             orderLog.updateOrderStatus(OrderStatus.FILLED);
 
-            // 4-2. 환불 처리 (계좌 가용 금액 증가)
+            // 5-2. 환불 처리 (계좌 가용 금액 증가)
             memberAccount.increaseAvailableBalance(orderLog.getFreezeAmount());
             log.info("{}원 환불 처리", orderLog.getFreezeAmount());
         }

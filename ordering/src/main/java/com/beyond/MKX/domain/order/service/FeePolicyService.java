@@ -37,7 +37,7 @@ public class FeePolicyService {
      * Redis에 저장된 증권사 수수료율을 적용해
      * 예수금(거래금액 + 수수료)을 계산한다.
      */
-    public Long estimateAckFee(Long transactionAmount, UUID brokerageId) {
+    public Long estimateBidFee(Long transactionAmount, UUID brokerageId) {
         String brokerageFeeStr = redisTemplate.opsForValue().get(getKeyPrefixCommission(brokerageId));
         long brokerageFee;
         if (brokerageFeeStr == null) {
@@ -56,7 +56,7 @@ public class FeePolicyService {
      * Redis에 저장된 증권사 수수료율, 거래세를 적용해
      * 증권사 수수료, 매도 거래세를 계산한다.
      */
-    public CommissionAndTaxData estimateBidFee(Long transactionAmount, UUID brokerageId) {
+    public CommissionAndTaxData estimateAckFee(Long transactionAmount, UUID brokerageId) {
         // Redis에서 수수료와 거래세 한번에 조회.
         List<String> multiGetResult = redisTemplate.opsForValue().multiGet(
                 Arrays.asList(getKeyPrefixCommission(brokerageId), KEY_PREFIX_TAX)

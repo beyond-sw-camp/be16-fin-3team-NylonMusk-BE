@@ -85,15 +85,15 @@ public class ForumCategoryCommandServiceImpl implements ForumCategoryCommandServ
     }
 
     private static ForumCategoryResDto map(ForumCategory e) {
-        return new ForumCategoryResDto(
-                e.getId(),
-                e.getName(),
-                e.getDescription(),
-                e.getCreatedBy(),
-                e.getCreatedAt(),
-                e.getUpdatedAt(),
-                e.getDeletedAt(),
-                e.getVersion()
-        );
+        return ForumCategoryResDto.builder()
+                .id(e.getId())
+                .name(e.getName())
+                .description(e.getDescription())
+                .createdBy(e.getCreatedBy())
+                .createdAt(e.getCreatedAt())
+                .updatedAt(e.getUpdatedAt())
+                .deletedAt(e.getDeletedAt())
+                .version(e.getVersion())
+                .build();
     }
 }

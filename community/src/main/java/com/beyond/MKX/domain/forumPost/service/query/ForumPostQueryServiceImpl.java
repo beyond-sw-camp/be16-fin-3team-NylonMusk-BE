@@ -22,37 +22,36 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class ForumPostQueryServiceImpl implements ForumPostQueryService {
 
-    private final ForumPostRepository repo;
+    private final ForumPostRepository forumPostRepository;
 
     @Override
     public Page<ForumPostResDto> list(PostStatus status, Pageable pageable) {
         Page<ForumPost> page = (status == null)
-                ? repo.findAll(pageable)
-                : repo.findByStatus(status, pageable);
+                ? forumPostRepository.findAllBy(pageable) // <- 일관성 위해 findAllBy 사용
+                : forumPostRepository.findByStatus(status, pageable);
         return page.map(this::map);
     }
 
     @Override
     public Page<ForumPostResDto> listMine(UUID me, PostStatus status, Pageable pageable) {
         Page<ForumPost> page = (status == null)
-                ? repo.findByCreatedBy(me, pageable)
-                : repo.findByCreatedByAndStatus(me, status, pageable);
+                ? forumPostRepository.findByCreatedBy(me, pageable)
+                : forumPostRepository.findByCreatedByAndStatus(me, status, pageable);
         return page.map(this::map);
     }
 
     @Override
     public Page<ForumPostResDto> listByUser(UUID userId, PostStatus status, Pageable pageable) {
         Page<ForumPost> page = (status == null)
-                ? repo.findByCreatedBy(userId, pageable)
-                : repo.findByCreatedByAndStatus(userId, status, pageable);
+                ? forumPostRepository.findByCreatedBy(userId, pageable)
+                : forumPostRepository.findByCreatedByAndStatus(userId, status, pageable);
         return page.map(this::map);
     }
 
     @Override
     public ForumPostResDto get(UUID postId) {
-        ForumPost p = repo.findById(postId)
+        ForumPost p = forumPostRepository.findById(postId)
                 .orElseThrow(() -> new EntityNotFoundException("ForumPost not found: " + postId));
-        // @SQLRestriction로 이미 삭제글은 조회 안 됨(추가 체크는 선택)
         return map(p);
     }
 
@@ -63,11 +62,6 @@ public class ForumPostQueryServiceImpl implements ForumPostQueryService {
                         .id(c.getId())
                         .name(c.getName())
                         .description(c.getDescription())
-                        .createdBy(c.getCreatedBy())
-                        .createdAt(c.getCreatedAt())
-                        .updatedAt(c.getUpdatedAt())
-                        .deletedAt(c.getDeletedAt())
-                        .version(c.getVersion())
                         .build()
                 )
                 .toList();
@@ -85,9 +79,9 @@ public class ForumPostQueryServiceImpl implements ForumPostQueryService {
                 .createdAt(p.getCreatedAt())
                 .updatedAt(p.getUpdatedAt())
                 .deletedAt(p.getDeletedAt())
-                .version(p.getVersion())
+                 .version(p.getVersion())
                 .categories(catDtos)
-                .writtenByAdmin(p.isWrittenByAdmin())
+                .writerRole(p.getWriterRole())
                 .build();
     }
 }

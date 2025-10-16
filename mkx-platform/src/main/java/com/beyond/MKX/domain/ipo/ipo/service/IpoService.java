@@ -6,10 +6,7 @@ import com.beyond.MKX.common.s3.S3Manager;
 import com.beyond.MKX.domain.admin.repository.AdminRepository;
 import com.beyond.MKX.domain.corporation.entity.Corporation;
 import com.beyond.MKX.domain.corporation.repository.CorporationRepository;
-import com.beyond.MKX.domain.ipo.ipo.dto.IpoCreateReqDTO;
-import com.beyond.MKX.domain.ipo.ipo.dto.IpoCreateResDTO;
-import com.beyond.MKX.domain.ipo.ipo.dto.IpoListReqDTO;
-import com.beyond.MKX.domain.ipo.ipo.dto.IpoReviewReqDTO;
+import com.beyond.MKX.domain.ipo.ipo.dto.*;
 import com.beyond.MKX.domain.ipo.ipo.entity.Ipo;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOffering;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOfferingStatus;
@@ -125,16 +122,21 @@ public class IpoService {
 
 //    3. 거래소 관리자 상장 확정(listing)
     @Transactional
-    public Ipo list(UUID ipoId, IpoListReqDTO ipoListReqDTO) {
-        Ipo ipo = ipoRepository.findById(ipoId).orElseThrow(() -> new IllegalArgumentException("심사된 IPO가 없습니다."));
-
+    public IpoListResDTO list(UUID ipoId, Long requestedPriceOnListing) {
+        Ipo ipo = ipoRepository.findByIdForUpdate(ipoId)
+                .orElseThrow(() -> new IllegalArgumentException("해당 IPO(ID: %s)를 찾을 수 없습니다.".formatted(ipoId))); // ← 동시 상장 시도 직격 차단
+        if (ipo.getStatus() == IpoStatus.LISTED) {
+            // 멱등 처리: 이미 상장된 경우 기존 스냅샷 기반으로 DTO 반환 or 에러
+            // return IpoListResDTO.of(ipo, existingTicker, issued);
+            throw new IllegalStateException("이미 상장 처리된 건입니다.");
+        }
         if (ipo.getStatus() != IpoStatus.APPROVED) {
             throw new IllegalArgumentException("승인(APPROVED)된 건만 상장 확정할 수 있습니다.");
         }
         Long pre = Optional.ofNullable(ipo.getPreIpoOutstandingShares()).orElse(0L);
+        Long issued = 0L;
 
         if (Boolean.TRUE.equals(ipo.getIsOffering())) {
-            // 공모 필수 경로: 공모가 존재하고, 배정(또는 정산) 완료 상태여야 상장 가능
             boolean hasOffering = ipoOfferingRepository.existsByIpo_Id(ipoId);
             if (!hasOffering) throw new IllegalStateException("공모가 필요한 상장입니다. 공모가 생성되지 않았습니다.");
 
@@ -142,24 +144,25 @@ public class IpoService {
                     ipoId, List.of(IpoOfferingStatus.SETTLED)
             );
             if (!done) throw new IllegalStateException("공모 절차(배정/정산)가 완료되지 않아 상장할 수 없습니다.");
-
-            // 통상 상장 기준가는 확정 공모가를 사용
+            // 공모 경로: 확정 공모가 사용, 요청 바디의 priceOnListing은 무시
             IpoOffering last = ipoOfferingRepository.findTopByIpo_IdOrderByRoundNoDesc(ipoId)
                     .orElseThrow(() -> new IllegalStateException("공모 정보가 없습니다."));
             if (last.getOfferPrice() == null) {
                 throw new IllegalStateException("확정 공모가가 없어 상장 기준가를 결정할 수 없습니다.");
             }
-            // ★ 상장 시점 총 발행 주식 수 = pre + issuedQuantity(정산 시 스냅샷)
-            Long issued = Optional.ofNullable(last.getIssuedQuantity()).orElse(0L);
+            issued = Optional.ofNullable(last.getIssuedQuantity()).orElse(0L);
             long totalSharesAtListing = Math.addExact(pre, issued);
-            // (1) LISTED 전환 + 기준가 반영
+
             ipo.list(LocalDateTime.now(clock), last.getOfferPrice());
-            // (2) 총 발행 주식 수 스냅샷 적용
             ipo.updateOutstandingSharesAtListing(totalSharesAtListing);
 
         } else {
-            // 공모 미사용 경로: 바로 상장 가능(요청 값으로 기준가 세팅)
-            ipo.list(LocalDateTime.now(clock), ipoListReqDTO.getPriceOnListing());
+            // 비공모 경로: 요청 바디의 priceOnListing 필수
+            if (requestedPriceOnListing == null || requestedPriceOnListing <= 0) {
+                throw new IllegalArgumentException("비공모 상장에서는 priceOnListing(양수)이 필수입니다.");
+            }
+            ipo.list(LocalDateTime.now(clock), requestedPriceOnListing);
+            ipo.updateOutstandingSharesAtListing(pre);
         }
 
         // --- 여기서 TICKER 생성 + Stock 1회 생성 ---
@@ -195,7 +198,7 @@ public class IpoService {
         if (ticker == null) {
             throw new IllegalStateException("종목코드 생성에 실패했습니다. 잠시 후 다시 시도하세요.");
         }
-        return ipo;
+        return IpoListResDTO.of(ipo, ticker, issued);
     }
 
 

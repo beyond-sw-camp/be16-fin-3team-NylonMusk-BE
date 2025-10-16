@@ -1,10 +1,7 @@
 package com.beyond.MKX.domain.ipo.ipo.controller;
 
 import com.beyond.MKX.common.apiResponse.ApiResponse;
-import com.beyond.MKX.domain.ipo.ipo.dto.IpoCreateReqDTO;
-import com.beyond.MKX.domain.ipo.ipo.dto.IpoCreateResDTO;
-import com.beyond.MKX.domain.ipo.ipo.dto.IpoListReqDTO;
-import com.beyond.MKX.domain.ipo.ipo.dto.IpoReviewReqDTO;
+import com.beyond.MKX.domain.ipo.ipo.dto.*;
 import com.beyond.MKX.domain.ipo.ipo.entity.Ipo;
 import com.beyond.MKX.domain.ipo.ipo.service.IpoService;
 import jakarta.validation.Valid;
@@ -38,10 +35,11 @@ public class IpoController {
         }
 
         @PostMapping("/{ipoId}/list")
-        public ResponseEntity<?> adminListing (@PathVariable UUID ipoId, @RequestBody @Valid IpoListReqDTO ipoListReqDTO)
+        public ResponseEntity<?> adminListing (@PathVariable UUID ipoId, @RequestBody(required = false) IpoListReqDTO priceOnListing)
         {
-            Ipo ipo = ipoService.list(ipoId, ipoListReqDTO);
-            return ApiResponse.ok(ipo.getListingAt(), "기업의 상장 요청이 정상적으로 저장되었습니다.");
+            Long requestedPrice = (priceOnListing == null) ? null : priceOnListing.getPriceOnListing();
+            IpoListResDTO dto = ipoService.list(ipoId, requestedPrice);
+            return ApiResponse.ok(dto, "기업의 상장 요청이 정상적으로 저장되었습니다.");
         }
 
 

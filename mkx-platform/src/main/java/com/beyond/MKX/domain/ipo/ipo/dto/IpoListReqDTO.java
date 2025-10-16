@@ -15,7 +15,6 @@ import java.util.UUID;
 @NoArgsConstructor
 @Builder
 public class IpoListReqDTO {
-    @NotNull
-    @Positive
+    @Positive(message = "(공모 없이 상장하는 경우) 상장 기준가는 양수여야 합니다.")
     private Long priceOnListing;
 }

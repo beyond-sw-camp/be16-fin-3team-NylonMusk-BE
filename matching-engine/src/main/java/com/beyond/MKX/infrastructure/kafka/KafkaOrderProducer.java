@@ -105,7 +105,8 @@ public class KafkaOrderProducer {
      */
     public void sendMarketPartial(String orderId, String ticker, String side,
                                   BigDecimal remaining,
-                                  long vwap, long lastPrice, long limitPrice, BigDecimal filledQty) {
+                                  long vwap, long lastPrice, long limitPrice, BigDecimal filledQty,
+                                  long notional) {
         OrderStatusEvent evt = OrderStatusEvent.builder()
                 .orderId(orderId)
                 .ticker(ticker)
@@ -116,6 +117,7 @@ public class KafkaOrderProducer {
                 .lastFillPrice(lastPrice)
                 .limitPrice(limitPrice)
                 .filledQuantity(filledQty)
+                .notional(notional)
                 .timestamp(Instant.now().toEpochMilli())
                 .build();
         sendOrderStatus(ticker != null ? ticker : orderId, evt);
@@ -126,7 +128,8 @@ public class KafkaOrderProducer {
      * - 표시가격(price)은 '지정가(limitPrice)'로 고정한다.
      */
     public void sendMarketFilled(String orderId, String ticker, String side,
-                                 long vwap, long lastPrice, long limitPrice, BigDecimal filledQty) {
+                                 long vwap, long lastPrice, long limitPrice, BigDecimal filledQty,
+                                 long notional) {
         OrderStatusEvent evt = OrderStatusEvent.builder()
                 .orderId(orderId)
                 .ticker(ticker)
@@ -136,6 +139,7 @@ public class KafkaOrderProducer {
                 .lastFillPrice(lastPrice)
                 .limitPrice(limitPrice)
                 .filledQuantity(filledQty)
+                .notional(notional)
                 .timestamp(Instant.now().toEpochMilli())
                 .build();
         sendOrderStatus(ticker != null ? ticker : orderId, evt);

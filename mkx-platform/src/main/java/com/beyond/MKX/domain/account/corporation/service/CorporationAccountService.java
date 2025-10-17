@@ -117,4 +117,14 @@ public class CorporationAccountService {
         acc.withdraw(amount);
         return acc.getBalance();
     }
+
+    public CorporationAccount getByCorporationId(UUID corporationId) {
+        return repository.findByCorporationId(corporationId)
+                .orElseThrow(() -> new IllegalArgumentException("찾는 기업의 계좌가 없습니다."));
+    }
+
+    /** 기업의 모든 계좌 목록 조회 */
+    public java.util.List<CorporationAccount> getAccountsByCorporationId(UUID corporationId) {
+        return repository.findAllByCorporationId(corporationId);
+    }
 }

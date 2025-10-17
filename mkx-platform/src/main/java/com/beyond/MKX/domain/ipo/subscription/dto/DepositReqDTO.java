@@ -1,19 +1,18 @@
-package com.beyond.MKX.domain.ipo.dto;
+package com.beyond.MKX.domain.ipo.subscription.dto;
 
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.UUID;
-
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
+@AllArgsConstructor
 @Builder
-public class IpoReviewReqDTO {
+public class DepositReqDTO {
     @NotNull
-    private Boolean approve;
-    private String rejectReason;
+    @Min(1)
+    private Long depositAmount;
 }

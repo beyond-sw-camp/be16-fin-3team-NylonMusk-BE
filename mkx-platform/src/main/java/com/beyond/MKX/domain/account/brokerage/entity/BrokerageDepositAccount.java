@@ -23,11 +23,11 @@ public class BrokerageDepositAccount extends BaseIdAndTimeEntity {
     @Column(name = "account_number", nullable = false, unique = true, length = 20, insertable = false, updatable = false)
     private String accountNumber;
 
-    @Column(nullable = false)
+    @Column(nullable = false, unique = true)
     private UUID brokerageId;
 
     @Column(nullable = false)
-    private BigInteger deposit = BigInteger.ZERO;
+    private BigInteger balance = BigInteger.ZERO;
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "account_number", referencedColumnName = "account_number", nullable = false)
@@ -46,7 +46,7 @@ public class BrokerageDepositAccount extends BaseIdAndTimeEntity {
         if (amount == null || amount.signum() < 0) {
             throw new IllegalArgumentException("입금 금액이 올바르지 않습니다.");
         }
-        this.deposit = this.deposit.add(amount);
+        this.balance = this.balance.add(amount);
     }
 
     /**
@@ -56,9 +56,9 @@ public class BrokerageDepositAccount extends BaseIdAndTimeEntity {
         if (amount == null || amount.signum() < 0) {
             throw new IllegalArgumentException("출금 금액이 올바르지 않습니다.");
         }
-        if (this.deposit.compareTo(amount) < 0) {
+        if (this.balance.compareTo(amount) < 0) {
             throw new IllegalArgumentException("잔액이 부족합니다.");
         }
-        this.deposit = this.deposit.subtract(amount);
+        this.balance = this.balance.subtract(amount);
     }
 }

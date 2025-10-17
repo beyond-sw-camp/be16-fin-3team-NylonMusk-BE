@@ -1,4 +1,4 @@
-package com.beyond.MKX.domain.ipo.entity;
+package com.beyond.MKX.domain.ipo.ipo.entity;
 
 import com.beyond.MKX.common.domain.BaseIdAndTimeEntity;
 import com.beyond.MKX.domain.corporation.entity.Corporation;
@@ -7,10 +7,9 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Entity
 @Getter
@@ -43,17 +42,24 @@ public class Ipo extends BaseIdAndTimeEntity {
     /* 상장일 기준가 */
     private Long priceOnListing;
 
-    /* 총 발행 주식 수 */
+    /* 상장 전 비상장주식 수 */
     @Column(nullable = false)
-    private Long totalShares;
+    private Long preIpoOutstandingShares;
 
-    /* 대주주 지분율 */
-    @Column(nullable = false)
-    private Double majorShareholderRatio; // 0.0 ~ 1.0
+    /* 상장 시점 총 발행 주식 수 = 비상장 주식 수 + 배정 및 정산 완료 후 (SETTLED 된 값)  */
+    private Long outstandingSharesAtListing;
+
+//    /* 대주주 지분율 */
+//    @Column(nullable = false)
+//    private Double majorShareholderRatio; // 0.0 ~ 1.0
 
     /* 보호예수 비율 */
     @Builder.Default
     private Double lockupRatio = 1.0; // 기본값: 서비스 계층에서 1.0 세팅!
+
+    private String preShareholdersFileUrl;
+
+    private String financialStatementsUrl;
 
     @Column(columnDefinition = "TEXT")
     private String rejectReason;
@@ -69,13 +75,16 @@ public class Ipo extends BaseIdAndTimeEntity {
     @Column(nullable = false)
     private Boolean isOffering;
 
+    private LocalDateTime reviewedAt;
+    private LocalDateTime listedAt;
 
-    // 상장일 스냅샷 유통 가능 주식 수 계산
-    public long calcFloatSharesAtListing() {
-        double lockedByMajor = totalShares * majorShareholderRatio * lockupRatio; // 대주주 지분 중 락업 비율만큼 비유통
-        long result = Math.round(totalShares - lockedByMajor);
-        return Math.max(result, 0L); // 방어적 처리
-    }
+
+//    // 상장일 스냅샷 유통 가능 주식 수 계산
+//    public long calcFloatSharesAtListing() {
+//        double lockedByMajor = totalShares * majorShareholderRatio * lockupRatio; // 대주주 지분 중 락업 비율만큼 비유통
+//        long result = Math.round(totalShares - lockedByMajor);
+//        return Math.max(result, 0L); // 방어적 처리
+//    }
 
     public void applyLockupDefault() {
         // 대주주 지분 보호예수(락업) 100%
@@ -118,8 +127,20 @@ public class Ipo extends BaseIdAndTimeEntity {
         this.priceOnListing = priceOnListing;
         applyLockupDefault();
         // 상장일 스냅샷 확정
-        this.floatSharesAtListing = calcFloatSharesAtListing();
+//        this.floatSharesAtListing = calcFloatSharesAtListing();
         this.status = IpoStatus.LISTED;
+    }
+
+    public void updatePreShareholdersFileUrl(String url) {
+        this.preShareholdersFileUrl = url;
+    }
+
+    public void updateFinancialStatementsUrl(String url) {
+        this.financialStatementsUrl = url;
+    }
+
+    public void updateOutstandingSharesAtListing(Long total) {
+        this.outstandingSharesAtListing = total;
     }
 
 

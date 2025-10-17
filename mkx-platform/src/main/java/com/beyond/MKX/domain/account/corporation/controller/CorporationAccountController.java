@@ -89,6 +89,20 @@ public class CorporationAccountController {
         return ApiResponse.ok(acc, "기업 계좌 조회 성공");
     }
 
+    /** 기업 계좌 목록 조회 (인증된 기업의 계좌들) */
+    @GetMapping("/my-accounts")
+    @CorporationOnly
+    public ResponseEntity<?> getMyAccounts(@AuthenticationPrincipal CustomAdminPrincipal principal) {
+        Admin admin = adminRepository.findById(principal.id())
+                .orElseThrow(() -> new IllegalArgumentException("관리자 없음"));
+        if (admin.getCorporation() == null) {
+            throw new IllegalArgumentException("기업 소속 관리자가 아닙니다.");
+        }
+        UUID corporationId = admin.getCorporation().getId();
+        var accounts = service.getAccountsByCorporationId(corporationId);
+        return ApiResponse.ok(accounts, "기업 계좌 목록 조회 성공");
+    }
+
     /** 기업 계좌 입금  */
     @PostMapping("/{id}/deposit")
     @CorporationOnly

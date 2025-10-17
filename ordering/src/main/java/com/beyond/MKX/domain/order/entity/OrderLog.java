@@ -70,6 +70,9 @@ public class OrderLog extends BaseIdAndTimeEntity {
     // 매수 동결 금액 = 대금 + 수수료
     private Long freezeAmount;
 
+    // 주문 시 동결금액 (SNAP 용도)
+    private Long holdAmount;
+
     // 잔여 수량
     @Column(nullable = false)
     private Long remainQuantity;
@@ -106,8 +109,9 @@ public class OrderLog extends BaseIdAndTimeEntity {
         this.status = orderStatus;
     }
 
-    public void insertFreezeAmount(Long freezeAmount) {
+    public void insertOrderFreezeAmount(Long freezeAmount) {
         this.freezeAmount = freezeAmount;
+        this.holdAmount = freezeAmount;
     }
 
 }

@@ -128,7 +128,7 @@ public class OrderService {
                 .remainQuantity(dto.quantity())
                 .build();
         if (order.getSide() == Side.BUY) {
-            order.insertFreezeAmount(totalAmount);
+            order.insertOrderFreezeAmount(totalAmount);
         }
         orderLogRepository.save(order);
 

@@ -59,7 +59,7 @@ public class KafkaOrderStatusConsumer {
                     .orElseThrow(() -> new EntityNotFoundException("해당 주문기록을 찾을 수 없습니다."));
 
             // 보유 수량 조회 및 환불 로직 처리
-            Long remainQty = orderStatusEvent.getRemaining().longValueExact();
+            Long remainQty = orderStatusEvent.getRemaining() == null ? null : orderStatusEvent.getRemaining().longValueExact();
             if (orderLog.getOrderKind() == OrderKind.MARKET && remainQty != 0L) {
                     /**
                      * 레디스에 잔여 수량 적재로 인한 시장가 환불 처리 위치 판단

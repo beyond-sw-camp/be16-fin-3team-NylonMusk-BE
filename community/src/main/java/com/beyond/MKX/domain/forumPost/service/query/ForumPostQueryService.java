@@ -8,8 +8,8 @@ import org.springframework.data.domain.Pageable;
 import java.util.UUID;
 
 public interface ForumPostQueryService {
-    Page<ForumPostResDto> list(PostStatus status, Pageable pageable);
+    Page<ForumPostResDto> list(PostStatus status, Pageable pageable, UUID viewerId);
     Page<ForumPostResDto> listMine(UUID me, PostStatus status, Pageable pageable);
-    Page<ForumPostResDto> listByUser(UUID userId, PostStatus status, Pageable pageable);
-    ForumPostResDto get(UUID postId);
+    Page<ForumPostResDto> listByUser(UUID userId, PostStatus status, Pageable pageable, UUID viewerId);
+    ForumPostResDto get(UUID postId, UUID viewerId);
 }

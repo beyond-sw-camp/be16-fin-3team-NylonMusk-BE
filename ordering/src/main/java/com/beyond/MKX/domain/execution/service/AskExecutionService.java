@@ -9,6 +9,7 @@ import com.beyond.MKX.domain.execution.entity.Ledger;
 import com.beyond.MKX.domain.execution.repository.FillLogRepository;
 import com.beyond.MKX.domain.execution.repository.LedgerRepository;
 import com.beyond.MKX.domain.order.dto.CommissionAndTaxData;
+import com.beyond.MKX.domain.order.entity.OrderKind;
 import com.beyond.MKX.domain.order.entity.OrderLog;
 import com.beyond.MKX.domain.order.entity.OrderStatus;
 import com.beyond.MKX.domain.order.entity.Side;
@@ -17,6 +18,8 @@ import com.beyond.MKX.domain.order.service.FeePolicyService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,7 +28,6 @@ import java.util.UUID;
 
 @Service
 @Transactional
-@RequiredArgsConstructor
 @Slf4j
 public class AskExecutionService {
 
@@ -34,6 +36,22 @@ public class AskExecutionService {
     private final StockHoldingRepository stockHoldingRepository;
     private final FeePolicyService feePolicyService;
     private final LedgerRepository ledgerRepository;
+    private final RedisTemplate<String, String> redisTemplate;
+
+    public AskExecutionService(FillLogRepository fillLogRepository,
+                               OrderLogRepository orderLogRepository,
+                               StockHoldingRepository stockHoldingRepository,
+                               FeePolicyService feePolicyService,
+                               LedgerRepository ledgerRepository,
+                               @Qualifier("marketPartialRefundTemplate") RedisTemplate<String, String> redisTemplate
+    ) {
+        this.fillLogRepository = fillLogRepository;
+        this.orderLogRepository = orderLogRepository;
+        this.stockHoldingRepository = stockHoldingRepository;
+        this.feePolicyService = feePolicyService;
+        this.ledgerRepository = ledgerRepository;
+        this.redisTemplate = redisTemplate;
+    }
 
     public boolean askExecuteProcess(UUID askOrderId, ExecutionEvent executionEvent) {
 
@@ -54,7 +72,6 @@ public class AskExecutionService {
                         .quantity(executionEvent.getQuantity())
                         .build()
         );
-
 
         /// 2. 기본 엔티티 가져오기
         OrderLog orderLog = orderLogRepository.findById(askOrderId)
@@ -92,6 +109,12 @@ public class AskExecutionService {
         long remainQuantity = orderLog.decRemainQuantity(executionEvent.getQuantity());
         if (remainQuantity == 0L) {
             orderLog.updateOrderStatus(OrderStatus.FILLED);
+        } else if (orderLog.getOrderKind() == OrderKind.MARKET) {
+            Long added = redisTemplate.opsForSet().add("order-id:" + orderLog.getId(), String.valueOf(remainQuantity));
+            if (added != null && added == 0) {
+                System.out.println("askExecuteProcess: 환불 로직 시작");
+                stockHolding.increaseAvaQuantity(remainQuantity);
+            }
         }
 
         /// 6. 원장 기록
@@ -112,4 +135,12 @@ public class AskExecutionService {
 
         return true;
     }
+
+    public void refundAvaQuantity(UUID memberAccountId, String ticker, Long remainQty) {
+        StockHolding stockHolding = stockHoldingRepository
+                .findByMemberAccountIdAndTicker(memberAccountId, ticker)
+                .orElseThrow(() -> new EntityNotFoundException("해당 보유 주식이 존재하지 않습니다."));
+        stockHolding.increaseAvaQuantity(remainQty);
+    }
+
 }

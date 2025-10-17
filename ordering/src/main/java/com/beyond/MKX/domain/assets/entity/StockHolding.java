@@ -48,15 +48,41 @@ public class StockHolding extends BaseIdAndTimeEntity {
     @Column(nullable = false)
     private Long availableQuantity;
 
-    @Column(nullable = false)
-    @Comment("주식 1주당 취득 원가")
-    private Long averagePrice;
+//    @Column(nullable = false)
+//    @Comment("주식 1주당 취득 원가")
+//    private Long averagePrice;
 
     @Column(nullable = false)
     @Comment("전체 주식의 총 취득 원가")
     private Long totalPurchasePrice;
 
-    public void decreaseAvailableQuantity(Long quantity) {
-        this.availableQuantity -= quantity;
+    public void increaseTotalQuantity(Long incQuantity) {
+        this.totalQuantity = Math.addExact(this.totalQuantity, incQuantity);
     }
+
+    public void decreaseTotalQuantity(Long decQuantity) {
+        this.totalQuantity -= decQuantity;
+        if (this.totalQuantity < 0) {
+            throw new IllegalArgumentException("보유주식의 개수가 0 이하일 수 없습니다.");
+        }
+    }
+
+    public void decreaseAvailableQuantity(Long quantity) {
+        this.availableQuantity = Math.subtractExact(this.availableQuantity, quantity);
+    }
+
+
+    public void increaseAvaQuantity(Long incQuantity) {
+        this.availableQuantity = Math.addExact(this.availableQuantity, incQuantity);
+    }
+
+    public void incTotalPurchasePrice(Long quantity, Long price) {
+        long totalAmount = Math.multiplyExact(quantity, price);
+        this.totalPurchasePrice = Math.addExact(this.totalPurchasePrice, totalAmount);
+    }
+    public void decTotalPurchasePrice(Long quantity, Long price) {
+        long totalAmount = Math.multiplyExact(quantity, price);
+        this.totalPurchasePrice = Math.subtractExact(this.totalPurchasePrice, totalAmount);
+    }
+
 }

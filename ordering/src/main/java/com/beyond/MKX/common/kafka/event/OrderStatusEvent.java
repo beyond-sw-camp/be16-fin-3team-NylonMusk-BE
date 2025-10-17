@@ -1,4 +1,4 @@
-package com.beyond.MKX.infrastructure.kafka.event;
+package com.beyond.MKX.common.kafka.event;
 
 import lombok.*;
 

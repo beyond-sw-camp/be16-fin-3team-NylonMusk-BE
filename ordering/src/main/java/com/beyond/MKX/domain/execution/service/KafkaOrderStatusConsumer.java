@@ -30,7 +30,7 @@ public class KafkaOrderStatusConsumer {
     private final AskExecutionService askExecutionService;
 
     public KafkaOrderStatusConsumer(OrderLogRepository orderLogRepository,
-                                    @Qualifier("marketPartialRefundTemplate") RedisTemplate<String, String> redisTemplate, BidExecutionService bidExecutionService, AskExecutionService askExecutionService
+                                    @Qualifier("idempotency") RedisTemplate<String, String> redisTemplate, BidExecutionService bidExecutionService, AskExecutionService askExecutionService
     ) {
         this.orderLogRepository = orderLogRepository;
         this.redisTemplate = redisTemplate;

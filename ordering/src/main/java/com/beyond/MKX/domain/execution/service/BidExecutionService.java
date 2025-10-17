@@ -42,7 +42,7 @@ public class BidExecutionService {
                                StockHoldingRepository stockHoldingRepository,
                                FeePolicyService feePolicyService,
                                LedgerRepository ledgerRepository,
-                               @Qualifier("marketPartialRefundTemplate") RedisTemplate<String, String> redisTemplate) {
+                               @Qualifier("idempotency") RedisTemplate<String, String> redisTemplate) {
         this.fillLogRepository = fillLogRepository;
         this.orderLogRepository = orderLogRepository;
         this.stockHoldingRepository = stockHoldingRepository;

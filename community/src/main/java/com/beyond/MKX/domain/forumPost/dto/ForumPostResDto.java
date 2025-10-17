@@ -1,4 +1,3 @@
-// com/beyond/MKX/domain/forumPost/dto/ForumPostResDto.java
 package com.beyond.MKX.domain.forumPost.dto;
 
 import com.beyond.MKX.domain.common.entity.WriterRole;
@@ -28,5 +27,6 @@ public record ForumPostResDto(
         LocalDateTime deletedAt,
         long version,
         List<ForumCategoryResDto> categories,
-        WriterRole writerRole
+        WriterRole writerRole,
+        boolean likedByMe
 ) {}

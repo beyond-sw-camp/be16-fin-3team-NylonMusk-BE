@@ -19,11 +19,22 @@ public class ForumPostPublicController {
 
     private final ForumPostQueryService forumPostQueryService;
 
+    private UUID parseViewer(String userHeader) {
+        if (userHeader == null || userHeader.isBlank()) return null;
+        try {
+            return UUID.fromString(userHeader);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
     /** 글 목록: status 필터(optional), pageable */
     @GetMapping
     public ResponseEntity<?> list(@RequestParam(required = false) PostStatus status,
-                                  Pageable pageable) {
-        Page<ForumPostResDto> page = forumPostQueryService.list(status, pageable);
+                                  Pageable pageable,
+                                  @RequestHeader(value = "X-User-Id", required = false) String userHeader) {
+        UUID viewerId = parseViewer(userHeader);
+        Page<ForumPostResDto> page = forumPostQueryService.list(status, pageable, viewerId);
         return ApiResponse.ok(page, "게시글 목록 조회 성공");
     }
 
@@ -31,15 +42,19 @@ public class ForumPostPublicController {
     @GetMapping("/by-user/{userId}")
     public ResponseEntity<?> listByUser(@PathVariable UUID userId,
                                         @RequestParam(required = false) PostStatus status,
-                                        Pageable pageable) {
-        Page<ForumPostResDto> page = forumPostQueryService.listByUser(userId, status, pageable);
+                                        Pageable pageable,
+                                        @RequestHeader(value = "X-User-Id", required = false) String userHeader) {
+        UUID viewerId = parseViewer(userHeader);
+        Page<ForumPostResDto> page = forumPostQueryService.listByUser(userId, status, pageable, viewerId);
         return ApiResponse.ok(page, "사용자 게시글 조회 성공");
     }
 
     /** 특정 글 조회 */
     @GetMapping("/{postId}")
-    public ResponseEntity<?> get(@PathVariable UUID postId) {
-        ForumPostResDto res = forumPostQueryService.get(postId);
+    public ResponseEntity<?> get(@PathVariable UUID postId,
+                                 @RequestHeader(value = "X-User-Id", required = false) String userHeader) {
+        UUID viewerId = parseViewer(userHeader);
+        ForumPostResDto res = forumPostQueryService.get(postId, viewerId);
         return ApiResponse.ok(res, "게시글 조회 성공");
     }
 }

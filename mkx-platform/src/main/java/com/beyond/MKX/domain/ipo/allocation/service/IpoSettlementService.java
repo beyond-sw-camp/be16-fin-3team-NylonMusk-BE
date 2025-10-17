@@ -76,7 +76,7 @@ public class IpoSettlementService {
         String brokerageDepositNo = brokerageDeposit.getAccountNumber();
 
         // === 선이관: 증권사예치 -> 거래소 (min(depositAmt, finalAmt)) =================
-        BigInteger moveFromBrokerageToExchange = depositAmt.min(finalAmt);
+        BigInteger moveFromBrokerageToExchange = depositAmt.max(finalAmt).subtract(depositAmt.min(finalAmt));
         if (moveFromBrokerageToExchange.signum() > 0) {
             brokerageDepositAccountService.withdraw(brokerageDepositNo, moveFromBrokerageToExchange);
             exchangeAccountService.deposit(exchangeAccountNumber, moveFromBrokerageToExchange);

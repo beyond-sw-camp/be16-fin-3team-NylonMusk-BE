@@ -13,6 +13,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -51,9 +52,10 @@ public interface IpoRepository extends JpaRepository<Ipo, UUID> {
     from Ipo i
       join fetch i.corporation c
     where i.status in :statuses
-      and (:q is null
+      and (:q is null or :q = ''
            or lower(i.symbol) like lower(concat('%', :q, '%'))
-           or lower(c.name)   like lower(concat('%', :q, '%')))
+           or lower(c.nameKo)   like lower(concat('%', :q, '%')))
+           or lower(c.nameEng) like lower(concat('%', :q, '%'))
       and (:from is null or i.requestedAt >= :from)
       and (:to   is null or i.requestedAt <  :to)
     """,
@@ -62,9 +64,10 @@ public interface IpoRepository extends JpaRepository<Ipo, UUID> {
     from Ipo i
       join i.corporation c
     where i.status in :statuses
-      and (:q is null
+      and (:q is null or :q = ''
            or lower(i.symbol) like lower(concat('%', :q, '%'))
-           or lower(c.name)   like lower(concat('%', :q, '%')))
+           or lower(c.nameKo)   like lower(concat('%', :q, '%')))
+           or lower(c.nameEng) like lower(concat('%', :q, '%'))
       and (:from is null or i.requestedAt >= :from)
       and (:to   is null or i.requestedAt <  :to)
     """
@@ -76,4 +79,7 @@ public interface IpoRepository extends JpaRepository<Ipo, UUID> {
             @Param("to") LocalDateTime to,
             Pageable pageable
     );
+
+    @Query("select i from Ipo i join fetch i.corporation c where c.id = :corporationId order by i.requestedAt desc")
+    List<Ipo> findByCorporationIdOrderByRequestedAtDesc(@Param("corporationId") UUID corporationId);
 }

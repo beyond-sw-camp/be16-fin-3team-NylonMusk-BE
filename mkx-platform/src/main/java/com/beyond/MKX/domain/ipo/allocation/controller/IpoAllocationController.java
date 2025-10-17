@@ -50,10 +50,10 @@ public class IpoAllocationController {
     }
 
     /* 4) (옵션) 특정 공모의 배정 목록 조회 — 운영 점검/관리자용 */
-    @GetMapping("/{offeringId}/get-offering-info")
+    @GetMapping("/{offeringId}/allocation")
     public ResponseEntity<?> findAllocationsOfOffering(@PathVariable @NotNull UUID offeringId) {
-        List<IpoAllocation> list = allocationRepository.findAllByOfferingId(offeringId);
-        return ApiResponse.ok(list, "해당 공모의 배정 목록입니다.");
+        IpoAllocationSummaryResDTO dto = allocationService.summarize(offeringId);
+        return ApiResponse.ok(dto, "해당 공모의 배정 목록입니다.");
     }
 
     /* 5) (옵션) 특정 구독의 최신 배정 조회 — 클라이언트 확인용 */

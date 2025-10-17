@@ -1,5 +1,6 @@
 package com.beyond.MKX.domain.ipo.offering.service;
 
+import com.beyond.MKX.domain.ipo.offering.dto.IpoOfferingListDTO;
 import com.beyond.MKX.domain.ipo.offering.dto.IpoOfferingReqDTO;
 import com.beyond.MKX.domain.ipo.ipo.entity.Ipo;
 import com.beyond.MKX.domain.ipo.offering.dto.IpoOfferingResDTO;
@@ -11,7 +12,8 @@ import com.beyond.MKX.domain.ipo.ipo.repository.IpoRepository;
 import com.beyond.MKX.domain.ipo.subscription.entity.SubscriptionStatus;
 import com.beyond.MKX.domain.ipo.subscription.repository.IpoSubscriptionRepository;
 import lombok.RequiredArgsConstructor;
-import org.hibernate.mapping.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,7 +22,7 @@ import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Service
@@ -361,10 +363,34 @@ public class IpoOfferingService {
         return ipoOffering;
     }
 
+    @Transactional(readOnly = true)
     public IpoOfferingResDTO findById(UUID ipoOfferingId) {
         IpoOffering ipoOffering = ipoOfferingRepository.findById(ipoOfferingId)
                 .orElseThrow(() -> new IllegalArgumentException("찾는 공모가 없습니다."));
         return IpoOfferingResDTO.from(ipoOffering);
     }
+
+    @Transactional(readOnly = true)
+    public Page<IpoOfferingListDTO> listByIpo(UUID ipoId, Collection<IpoOfferingStatus> statuses, Pageable pageable) {
+        Page<IpoOffering> page = (statuses==null || statuses.isEmpty())
+                ? ipoOfferingRepository.findByIpo_Id(ipoId, pageable)
+                : ipoOfferingRepository.findByIpo_IdAndIpoOfferingStatusIn(ipoId, statuses, pageable);
+        return page.map(e -> IpoOfferingListDTO.from(e, clock));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<IpoOfferingListDTO> listAll(Collection<IpoOfferingStatus> statuses, boolean onlySubscribable, Pageable pageable) {
+        Page<IpoOffering> page;
+        if (onlySubscribable) {
+            page = ipoOfferingRepository.findCurrentlySubscribable(LocalDateTime.now(clock), pageable);
+        } else if (statuses==null || statuses.isEmpty()) {
+            page = ipoOfferingRepository.findAll(pageable);
+        } else {
+            page = ipoOfferingRepository.findByIpoOfferingStatusIn(statuses, pageable);
+        }
+        return page.map(e -> IpoOfferingListDTO.from(e, clock));
+    }
+
+
 
 }

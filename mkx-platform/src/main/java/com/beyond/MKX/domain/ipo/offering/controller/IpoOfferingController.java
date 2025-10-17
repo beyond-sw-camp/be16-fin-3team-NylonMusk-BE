@@ -5,15 +5,17 @@ import com.beyond.MKX.domain.ipo.offering.dto.IpoOfferingPriceFixReqDTO;
 import com.beyond.MKX.domain.ipo.offering.dto.IpoOfferingReqDTO;
 import com.beyond.MKX.domain.ipo.offering.dto.IpoOfferingResDTO;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOffering;
+import com.beyond.MKX.domain.ipo.offering.entity.IpoOfferingStatus;
 import com.beyond.MKX.domain.ipo.offering.service.IpoOfferingService;
 import jakarta.validation.Valid;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.UUID;
+import java.util.*;
 
 @RestController
 @RequestMapping("/ipo")
@@ -75,5 +77,24 @@ public class IpoOfferingController {
     public ResponseEntity<?> autoFixRandom(@PathVariable UUID offeringId) {
         IpoOffering fixed = offeringService.autoFixOfferPriceRandom(offeringId);
         return ApiResponse.ok(IpoOfferingResDTO.from(fixed), "수요예측결과에 기반한 공모가가 산정되었습니다.");
+    }
+
+
+    @GetMapping("/{ipoId}/offerings/list-status")
+    public ResponseEntity<?> listByIpo(@PathVariable UUID ipoId,
+                                       @RequestParam(required = false, name = "statuses")
+                                       List<IpoOfferingStatus> statuses,
+                                       Pageable pageable) {
+        var page = offeringService.listByIpo(ipoId, statuses, pageable);
+        return ApiResponse.ok(page, "공모 목록입니다.");
+    }
+
+    @GetMapping("/offerings/list")
+    public ResponseEntity<?> listAll(@RequestParam(required = false, name = "statuses")
+                                     java.util.List<IpoOfferingStatus> statuses,
+                                     @RequestParam(defaultValue = "false") boolean onlySubscribable,
+                                     Pageable pageable) {
+        var page = offeringService.listAll(statuses, onlySubscribable, pageable);
+        return ApiResponse.ok(page, "공모 목록입니다.");
     }
 }

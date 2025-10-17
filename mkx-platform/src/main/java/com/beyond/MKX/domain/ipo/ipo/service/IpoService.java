@@ -201,6 +201,39 @@ public class IpoService {
         return IpoListResDTO.of(ipo, ticker, issued);
     }
 
+    @Transactional(readOnly = true)
+    public IpoDetailDTO getDetailById(UUID ipoId) {
+        Ipo ipo = ipoRepository.findById(ipoId)
+                .orElseThrow(() -> new IllegalArgumentException("IPO를 찾을 수 없습니다."));
+        return IpoDetailDTO.of(ipo);
+    }
+
+    @Transactional(readOnly = true)
+    public IpoDetailDTO getMyIpo() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof CustomAdminPrincipal customAdminPrincipal)) {
+            throw new IllegalArgumentException("인증되지 않은 요청입니다.");
+        }
+        
+        var admin = adminRepository.findById(customAdminPrincipal.id())
+                .orElseThrow(() -> new IllegalArgumentException("관리자를 찾을 수 없습니다."));
+        var corp = admin.getCorporation();
+        if (corp == null) {
+            throw new IllegalArgumentException("해당 관리자 계정에 연결된 기업이 없습니다.");
+        }
+
+        Ipo ipo = ipoRepository.findByCorporationIdOrderByRequestedAtDesc(corp.getId())
+                .stream()
+                .findFirst()
+                .orElse(null);
+        
+        if (ipo == null) {
+            throw new IllegalArgumentException("해당 기업의 IPO 정보가 없습니다.");
+        }
+        
+        return IpoDetailDTO.of(ipo);
+    }
+
 
 
 }

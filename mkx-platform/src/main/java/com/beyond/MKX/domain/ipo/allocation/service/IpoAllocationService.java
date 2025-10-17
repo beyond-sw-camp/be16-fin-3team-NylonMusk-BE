@@ -147,4 +147,19 @@ public class IpoAllocationService {
         return IpoAllocationSummaryResDTO.of(offering, list, allocatedTotalQuantity);
     }
 
+    @Transactional(readOnly = true)
+    public IpoAllocationSummaryResDTO summarize(UUID offeringId) {
+        IpoOffering o = offeringRepository.findById(offeringId)
+                .orElseThrow(() -> new IllegalArgumentException("공모를 찾을 수 없습니다."));
+
+        // N+1 방지: fetch join 레포지토리 메서드 권장
+        List<IpoAllocation> list = allocationRepository.findAllByOfferingId(offeringId);
+
+        long allocatedTotalQuantity = list.stream()
+                .mapToLong(IpoAllocation::getAllocatedQuantity)
+                .sum();
+
+        return IpoAllocationSummaryResDTO.of(o, list, allocatedTotalQuantity);
+    }
+
 }

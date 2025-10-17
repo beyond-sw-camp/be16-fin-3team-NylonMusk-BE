@@ -75,6 +75,9 @@ public class Ipo extends BaseIdAndTimeEntity {
     @Column(nullable = false)
     private Boolean isOffering;
 
+    private LocalDateTime reviewedAt;
+    private LocalDateTime listedAt;
+
 
 //    // 상장일 스냅샷 유통 가능 주식 수 계산
 //    public long calcFloatSharesAtListing() {

@@ -4,6 +4,7 @@ import com.beyond.MKX.domain.account.corporation.entity.CorporationAccount;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -13,5 +14,7 @@ public interface CorporationAccountRepository extends JpaRepository<CorporationA
     Optional<CorporationAccount> findByAccountNumber(String accountNumber);
     // 하나의 기업당 계좌 1개 보유 가정 → 단건 조회 메서드 사용
     Optional<CorporationAccount> findByCorporationId(UUID corporationId);
+    // 기업의 모든 계좌 목록 조회 (향후 확장 가능성 고려)
+    List<CorporationAccount> findAllByCorporationId(UUID corporationId);
 
 }

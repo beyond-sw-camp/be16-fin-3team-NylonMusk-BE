@@ -3,12 +3,15 @@ package com.beyond.MKX.domain.ipo.offering.repository;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOffering;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOfferingStatus;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
@@ -53,4 +56,21 @@ public interface IpoOfferingRepository extends JpaRepository<IpoOffering, UUID> 
             """)
     Optional<Long> findLatestSettledIssuedQuantity(UUID ipoId,
                                                    IpoOfferingStatus status);
+
+
+    Page<IpoOffering> findByIpo_Id(UUID ipoId, Pageable pageable);
+
+    Page<IpoOffering> findByIpo_IdAndIpoOfferingStatusIn(
+            UUID ipoId, Collection<IpoOfferingStatus> statuses, Pageable pageable);
+
+    Page<IpoOffering> findByIpoOfferingStatusIn(
+            Collection<IpoOfferingStatus> statuses, Pageable pageable);
+
+    @Query("""
+               select o from IpoOffering o
+               where o.ipoOfferingStatus = 'OPEN'
+                 and :now between o.subscriptionStart and o.subscriptionEnd
+            """)
+    Page<IpoOffering> findCurrentlySubscribable(@Param("now") LocalDateTime now, Pageable pageable);
+
 }

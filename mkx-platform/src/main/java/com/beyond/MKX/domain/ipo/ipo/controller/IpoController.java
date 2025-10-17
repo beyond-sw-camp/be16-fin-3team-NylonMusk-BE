@@ -48,6 +48,18 @@ public class IpoController {
         return ApiResponse.ok(page, "상장 요청 목록입니다.");
     }
 
+    @GetMapping("/{ipoId}")
+    public ResponseEntity<?> getById(@PathVariable UUID ipoId) {
+        IpoDetailDTO detail = ipoService.getDetailById(ipoId);
+        return ApiResponse.ok(detail, "IPO 상세 정보입니다.");
+    }
+
+    @GetMapping("/my-ipo")
+    public ResponseEntity<?> getMyIpo() {
+        IpoDetailDTO detail = ipoService.getMyIpo();
+        return ApiResponse.ok(detail, "내 기업의 IPO 정보입니다.");
+    }
+
     @PostMapping("/{ipoId}/review")
     public ResponseEntity<?> adminReview(@PathVariable UUID ipoId, @RequestBody @Valid IpoReviewReqDTO
             ipoReviewReqDTO) {

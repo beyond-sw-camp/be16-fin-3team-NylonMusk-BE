@@ -34,5 +34,7 @@ public class DisclosureRegisterReqFormDto {
 
     @NotBlank
     private String tickerSnapshot;
-}
 
+    // 최근 중복 경고를 무시하고 강행 여부 (기본 false) true 시 등록은 가능
+    private Boolean force;
+}

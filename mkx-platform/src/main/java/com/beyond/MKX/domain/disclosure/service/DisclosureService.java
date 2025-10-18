@@ -6,10 +6,12 @@ import com.beyond.MKX.domain.admin.entity.Admin;
 import com.beyond.MKX.domain.admin.entity.Role;
 import com.beyond.MKX.domain.admin.repository.AdminRepository;
 import com.beyond.MKX.domain.disclosure.dto.DisclosureRegisterReqFormDto;
+import com.beyond.MKX.domain.disclosure.dto.DuplicateDisclosureInfo;
 import com.beyond.MKX.domain.disclosure.entity.Disclosure;
 import com.beyond.MKX.domain.disclosure.repository.DisclosureRepository;
 import com.beyond.MKX.domain.stock.entity.Stock;
 import com.beyond.MKX.domain.stock.repository.StockRepository;
+import com.beyond.MKX.common.exception.DuplicateResourceException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Service
@@ -35,14 +38,27 @@ public class DisclosureService {
         // 1) 인증된 기업 관리자 확인 + 본인 소속 기업의 상장 종목인지 확인
         validateListedStockOwnership(request.getStockId());
 
-        // 2) 파일 업로드: disclosures/{stockId}/{type}/{yyyy}/{MM}
+        // 2) 최근 중복 제목 가드 (기본 10분)
+        if (!Boolean.TRUE.equals(request.getForce())) {
+            String titleNorm = request.getTitle() == null ? null : request.getTitle().trim();
+            LocalDateTime threshold = LocalDateTime.now().minusMinutes(10);
+            disclosureRepository.findRecentDuplicate(request.getStockId(), titleNorm, threshold)
+                    .ifPresent(dup -> {
+                        throw new DuplicateResourceException(
+                                "최근 동일 제목 공시가 제출되었습니다.",
+                                new DuplicateDisclosureInfo(dup.getId(), dup.getTitle(), dup.getCreatedAt())
+                        );
+                    });
+        }
+
+        // 3) 파일 업로드: disclosures/{stockId}/{type}/{yyyy}/{MM}
         String type = request.getDisclosureType().name().toLowerCase();
         LocalDate today = LocalDate.now();
         String prefix = String.format("disclosures/%s/%s/%04d/%02d",
                 request.getStockId(), type, today.getYear(), today.getMonthValue());
         String fileUrl = uploadOrThrow(request.getFile(), prefix);
 
-        // 3) 공시 저장
+        // 4) 공시 저장
         Disclosure disclosure = Disclosure.builder()
                 .stockId(request.getStockId())
                 .disclosureType(request.getDisclosureType())

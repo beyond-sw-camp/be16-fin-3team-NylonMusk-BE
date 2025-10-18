@@ -5,6 +5,9 @@ import com.beyond.MKX.domain.forumPost.entity.PostStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.UUID;
 
@@ -27,4 +30,12 @@ public interface ForumPostRepository extends JpaRepository<ForumPost, UUID> {
     Page<ForumPost> findByCreatedByAndStatus(UUID createdBy, PostStatus status, Pageable pageable);
 
     boolean existsByIdAndDeletedAtIsNull(UUID id);
+
+    @Modifying
+    @Query("update ForumPost p set p.commentCount = p.commentCount + 1 where p.id = :postId")
+    void incrementCommentCount(@Param("postId") UUID postId);
+
+    @Modifying
+    @Query("update ForumPost p set p.commentCount = case when p.commentCount > 0 then p.commentCount - 1 else 0 end where p.id = :postId")
+    void decrementCommentCount(@Param("postId") UUID postId);
 }

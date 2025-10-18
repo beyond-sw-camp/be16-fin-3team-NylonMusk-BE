@@ -51,11 +51,11 @@ public class DisclosureService {
                     });
         }
 
-        // 3) 파일 업로드: disclosures/{stockId}/{type}/{yyyy}/{MM}
+        // 3) 파일 업로드: disclosures/pending/{type}/{yyyy}/{MM}/{stockId}
         String type = request.getDisclosureType().name().toLowerCase();
         LocalDate today = LocalDate.now();
-        String prefix = String.format("disclosures/%s/%s/%04d/%02d",
-                request.getStockId(), type, today.getYear(), today.getMonthValue());
+        String prefix = String.format("disclosures/pending/%s/%04d/%02d/%s",
+                type, today.getYear(), today.getMonthValue(), request.getStockId());
         String fileUrl = uploadOrThrow(request.getFile(), prefix);
 
         // 4) 공시 저장
@@ -82,11 +82,11 @@ public class DisclosureService {
         validateListedStockOwnership(disclosure.getStockId());
 
         String oldUrl = disclosure.getFileUrl();
-        // disclosures/{stockId}/{type}/{yyyy}/{MM}
+        // disclosures/pending/{type}/{yyyy}/{MM}/{stockId}
         String type = disclosure.getDisclosureType().name().toLowerCase();
         LocalDate today = LocalDate.now();
-        String prefix = String.format("disclosures/%s/%s/%04d/%02d",
-                disclosure.getStockId(), type, today.getYear(), today.getMonthValue());
+        String prefix = String.format("disclosures/pending/%s/%04d/%02d/%s",
+                type, today.getYear(), today.getMonthValue(), disclosure.getStockId());
         String newUrl = uploadOrThrow(file, prefix);
 
         disclosure.updateFile(newUrl, newSummary);

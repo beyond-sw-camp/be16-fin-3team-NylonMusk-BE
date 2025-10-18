@@ -7,6 +7,7 @@ import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
@@ -62,6 +63,25 @@ public class S3Manager {
         } catch (Exception e) {
             throw new IllegalArgumentException("S3 파일 삭제 실패", e);
         }
+    }
+
+    /**
+     * 같은 버킷 내에서 객체를 복사하고 대상 URL을 반환합니다.
+     * destPrefix 예: disclosures/approved/{type}/{yyyy}/{MM}/{stockId}
+     * 원본 파일명은 유지됩니다.
+     */
+    public String copy(String sourceFileUrl, String destPrefix) {
+        String sourceKey = extractKeyFromUrl(sourceFileUrl);
+        String filename = sourceKey.substring(sourceKey.lastIndexOf('/') + 1);
+        String destKey = String.format("%s/%s", destPrefix, filename);
+        CopyObjectRequest copyReq = CopyObjectRequest.builder()
+                .sourceBucket(bucket)
+                .sourceKey(sourceKey)
+                .destinationBucket(bucket)
+                .destinationKey(destKey)
+                .build();
+        s3Client.copyObject(copyReq);
+        return s3Client.utilities().getUrl(b -> b.bucket(bucket).key(destKey)).toExternalForm();
     }
 
     /**

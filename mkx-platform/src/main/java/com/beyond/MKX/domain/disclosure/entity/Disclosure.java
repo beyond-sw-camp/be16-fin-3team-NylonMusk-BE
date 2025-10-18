@@ -19,7 +19,10 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(name = "disclosure")
+@Table(name = "disclosure",
+        indexes = {
+                @Index(name = "ix_disclosure_stock_title_created", columnList = "stockId,title,createdAt")
+        })
 public class Disclosure extends BaseIdAndTimeEntity {
 
     @Comment("대상 종목 ID (상장된 주식)")
@@ -59,6 +62,15 @@ public class Disclosure extends BaseIdAndTimeEntity {
     @Column(nullable = false, length = 20)
     private String tickerSnapshot;
 
+    @Comment("반려 사유")
+    @Column(length = 255)
+    private String rejectReason;
+
+    @Comment("반려 코드")
+    @Enumerated(EnumType.STRING)
+    @Column(length = 30)
+    private DisclosureRejectCode rejectCode;
+
     // ===== 비즈니스 로직 =====
 
     public void approve() {
@@ -70,9 +82,24 @@ public class Disclosure extends BaseIdAndTimeEntity {
         this.status = DisclosureStatus.REJECTED;
     }
 
+    public void reject(String reason) {
+        this.status = DisclosureStatus.REJECTED;
+        this.rejectReason = reason;
+    }
+
+    public void reject(DisclosureRejectCode code, String reason) {
+        this.status = DisclosureStatus.REJECTED;
+        this.rejectCode = code;
+        this.rejectReason = reason;
+    }
+
     public void updateFile(String newUrl, String newSummary) {
         if (newUrl != null && !newUrl.isBlank()) this.fileUrl = newUrl;
         if (newSummary != null) this.summary = newSummary;
         this.status = DisclosureStatus.PENDING; // 수정 시 재심사 대기
+    }
+
+    public void updateFileUrl(String newUrl) {
+        if (newUrl != null && !newUrl.isBlank()) this.fileUrl = newUrl;
     }
 }

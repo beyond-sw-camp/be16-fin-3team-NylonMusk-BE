@@ -21,6 +21,7 @@ public class DisclosureAdminService {
     private final DisclosureRepository disclosureRepository;
     private final DisclosureDecisionRepository decisionRepository;
     private final S3Manager s3Manager;
+    private final DisclosureNumberService numberService;
 
     @Transactional
     public Disclosure approve(UUID id) {
@@ -31,6 +32,23 @@ public class DisclosureAdminService {
         }
         // 상태 승인 + 공개 시각 세팅
         disclosure.approve();
+
+        // displayNo 발급/상속 + 최신 토글
+        UUID rootId = disclosure.getOriginId() != null ? disclosure.getOriginId() : disclosure.getId();
+        if (disclosure.getOriginId() == null) {
+            // 원본 승인 → 번호 발급(연도별 시퀀스)
+            if (disclosure.getDisplayNo() == null || disclosure.getDisplayNo().isBlank()) {
+                String disp = numberService.issueNumber();
+                disclosure.setDisplayNo(disp);
+            }
+        } else {
+            // 정정 승인 → 그룹 번호 상속
+            disclosureRepository.findGroupDisplayNo(rootId)
+                    .ifPresent(disclosure::setDisplayNo);
+        }
+        // 최신 플래그 갱신
+        disclosureRepository.clearLatestByGroup(rootId);
+        disclosure.setIsLatest(true);
 
         // 파일 경로를 approved prefix로 이동(copy + delete)
         String oldUrl = disclosure.getFileUrl();

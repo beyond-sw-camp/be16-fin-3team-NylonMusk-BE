@@ -88,4 +88,11 @@ public interface DisclosureRepository extends JpaRepository<Disclosure, UUID> {
 
     @Query("select coalesce(max(d.revisionNo), 0) from Disclosure d where (d.originId = :rootId or d.id = :rootId)")
     Integer findMaxRevisionInGroup(@Param("rootId") UUID rootId);
+
+    @Query("select d.displayNo from Disclosure d where (d.originId = :rootId or d.id = :rootId) and d.displayNo is not null order by d.createdAt asc")
+    Optional<String> findGroupDisplayNo(@Param("rootId") UUID rootId);
+
+    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true)
+    @Query("update Disclosure d set d.isLatest = false where (d.originId = :rootId or d.id = :rootId) and d.isLatest = true")
+    int clearLatestByGroup(@Param("rootId") UUID rootId);
 }

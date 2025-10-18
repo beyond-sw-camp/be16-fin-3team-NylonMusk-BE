@@ -123,4 +123,8 @@ public class Disclosure extends BaseIdAndTimeEntity {
     public void updateFileUrl(String newUrl) {
         if (newUrl != null && !newUrl.isBlank()) this.fileUrl = newUrl;
     }
+
+    // 내부 세터(승인 처리에서만 사용)
+    public void setDisplayNo(String displayNo) { this.displayNo = displayNo; }
+    public void setIsLatest(Boolean isLatest) { this.isLatest = isLatest; }
 }

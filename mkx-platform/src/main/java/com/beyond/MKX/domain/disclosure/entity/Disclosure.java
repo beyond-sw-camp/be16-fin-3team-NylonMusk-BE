@@ -40,7 +40,7 @@ public class Disclosure extends BaseIdAndTimeEntity {
     private String summary;
 
     @Comment("첨부 파일 경로 (PDF 등)")
-    @Column(nullable = false)
+    @Column(nullable = false, length = 512)
     private String fileUrl;
 
     @Comment("공시 상태 (대기/승인/반려)")

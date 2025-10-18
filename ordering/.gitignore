@@ -40,3 +40,6 @@ out/
 application-local.yml
 application-prod.yml
 docker-compose.yml
+
+### mariadb 런타임 데이터 무시 ###
+/ordering/mysql/data/

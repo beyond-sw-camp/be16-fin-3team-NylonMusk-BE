@@ -21,7 +21,9 @@ import java.util.UUID;
 @Entity
 @Table(name = "disclosure",
         indexes = {
-                @Index(name = "ix_disclosure_stock_title_created", columnList = "stockId,title,createdAt")
+                @Index(name = "ix_disclosure_stock_title_created", columnList = "stockId,title,createdAt"),
+                @Index(name = "ix_disclosure_origin", columnList = "originId"),
+                @Index(name = "ix_disclosure_display_latest", columnList = "displayNo,isLatest")
         })
 public class Disclosure extends BaseIdAndTimeEntity {
 
@@ -70,6 +72,25 @@ public class Disclosure extends BaseIdAndTimeEntity {
     @Enumerated(EnumType.STRING)
     @Column(length = 30)
     private DisclosureRejectCode rejectCode;
+
+    // ===== 정정(Revision) 관련 =====
+
+    @Comment("정정 대상 원본 공시 ID (최초 공시는 null)")
+    @Column
+    private UUID originId;
+
+    @Comment("정정 회차: 0=원본, 1=1차 정정 ...")
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer revisionNo = 0;
+
+    @Comment("외부 공개용 일련번호: 예) 2025-00003호")
+    @Column(length = 20)
+    private String displayNo;
+
+    @Comment("해당 displayNo 그룹의 최신 승인본 여부")
+    @Column
+    private Boolean isLatest;
 
     // ===== 비즈니스 로직 =====
 

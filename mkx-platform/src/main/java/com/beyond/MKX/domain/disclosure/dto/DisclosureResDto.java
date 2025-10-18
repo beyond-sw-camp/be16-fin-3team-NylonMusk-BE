@@ -20,6 +20,8 @@ public record DisclosureResDto(
         String tickerSnapshot,
         DisclosureRejectCode rejectCode,
         String rejectReason,
+        String displayNo,
+        Integer revisionNo,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {}

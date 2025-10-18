@@ -4,6 +4,7 @@ import com.beyond.MKX.common.apiResponse.ApiResponse;
 import com.beyond.MKX.common.auth.security.CorporationOnly;
 import com.beyond.MKX.domain.disclosure.dto.DisclosureRegisterReqFormDto;
 import com.beyond.MKX.domain.disclosure.dto.DisclosureResDto;
+import com.beyond.MKX.domain.disclosure.dto.DisclosureRevisionReqFormDto;
 import com.beyond.MKX.domain.disclosure.entity.Disclosure;
 import com.beyond.MKX.domain.disclosure.mapper.DisclosureMapper;
 import com.beyond.MKX.domain.disclosure.service.DisclosureService;
@@ -54,6 +55,17 @@ public class DisclosureController {
     ) {
         Disclosure updated = disclosureService.updateFile(id, request.getFile(), request.getSummary());
         return ApiResponse.ok(DisclosureMapper.toRes(updated), "공시 파일 수정 완료");
+    }
+
+    /** 승인된 공시에 대한 정정공시 등록 */
+    @CorporationOnly
+    @PostMapping(value = "/{id}/revise", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> revise(
+            @PathVariable UUID id,
+            @ModelAttribute DisclosureRevisionReqFormDto request
+    ) {
+        Disclosure created = disclosureService.revise(id, request);
+        return ApiResponse.created(DisclosureMapper.toRes(created), "정정공시 등록 완료");
     }
 
     /**

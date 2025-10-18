@@ -85,4 +85,7 @@ public interface DisclosureRepository extends JpaRepository<Disclosure, UUID> {
             @Param("toExclusive") LocalDateTime toExclusive,
             Pageable pageable
     );
+
+    @Query("select coalesce(max(d.revisionNo), 0) from Disclosure d where (d.originId = :rootId or d.id = :rootId)")
+    Integer findMaxRevisionInGroup(@Param("rootId") UUID rootId);
 }

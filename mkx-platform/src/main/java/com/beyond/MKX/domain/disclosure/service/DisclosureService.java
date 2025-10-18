@@ -7,6 +7,7 @@ import com.beyond.MKX.domain.admin.entity.Role;
 import com.beyond.MKX.domain.admin.repository.AdminRepository;
 import com.beyond.MKX.domain.disclosure.dto.DisclosureRegisterReqFormDto;
 import com.beyond.MKX.domain.disclosure.dto.DuplicateDisclosureInfo;
+import com.beyond.MKX.domain.disclosure.dto.DisclosureRevisionReqFormDto;
 import com.beyond.MKX.domain.disclosure.entity.Disclosure;
 import com.beyond.MKX.domain.disclosure.repository.DisclosureRepository;
 import com.beyond.MKX.domain.stock.entity.Stock;
@@ -95,6 +96,45 @@ public class DisclosureService {
             try { s3Manager.delete(oldUrl); } catch (Exception ignored) {}
         }
         return disclosure;
+    }
+
+    /** 승인된 공시 정정 등록 (새로운 row 생성) */
+    @Transactional
+    public Disclosure revise(UUID baseId, DisclosureRevisionReqFormDto request) {
+        Disclosure base = disclosureRepository.findById(baseId)
+                .orElseThrow(() -> new IllegalArgumentException("공시를 찾을 수 없습니다."));
+        if (base.getStatus() != com.beyond.MKX.domain.disclosure.entity.DisclosureStatus.APPROVED) {
+            throw new IllegalStateException("승인된 공시만 정정할 수 있습니다.");
+        }
+
+        // 소유/상장 검증
+        validateListedStockOwnership(base.getStockId());
+
+        // 그룹 루트 및 다음 회차 산정
+        UUID rootId = base.getOriginId() != null ? base.getOriginId() : base.getId();
+        Integer maxRev = disclosureRepository.findMaxRevisionInGroup(rootId);
+        int nextRev = (maxRev == null ? 0 : maxRev) + 1;
+
+        // 파일 업로드(pending)
+        String type = base.getDisclosureType().name().toLowerCase();
+        LocalDate today = LocalDate.now();
+        String prefix = String.format("disclosures/pending/%s/%04d/%02d/%s",
+                type, today.getYear(), today.getMonthValue(), base.getStockId());
+        String fileUrl = uploadOrThrow(request.getFile(), prefix);
+
+        Disclosure revision = Disclosure.builder()
+                .stockId(base.getStockId())
+                .disclosureType(base.getDisclosureType())
+                .title(request.getTitle())
+                .summary(request.getSummary())
+                .fileUrl(fileUrl)
+                .status(com.beyond.MKX.domain.disclosure.entity.DisclosureStatus.PENDING)
+                .stockNameSnapshot(base.getStockNameSnapshot())
+                .tickerSnapshot(base.getTickerSnapshot())
+                .originId(rootId)
+                .revisionNo(nextRev)
+                .build();
+        return disclosureRepository.save(revision);
     }
 
     private String uploadOrThrow(MultipartFile file, String prefix) {

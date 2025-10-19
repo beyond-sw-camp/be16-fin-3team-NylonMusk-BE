@@ -3,7 +3,6 @@ package com.beyond.MKX.domain.outbox.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.DynamicInsert;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -42,16 +41,18 @@ public class OrderOutbox {
     @Column(name = "payload", nullable = false, columnDefinition = "TEXT")
     private String payload;
 
-    // INSERT-only 가이드: 발행 여부 UPDATE는 더 이상 사용하지 않는 것을 권장
-    // 일부 레거시 경로를 위해 boolean 유지 (TINYINT(1))
-    @Column(name = "is_published", nullable = false)
-    @Builder.Default
-    private boolean isPublished = false;
-
     // TIMESTAMP(6) 생성 시각 (UTC 저장 권장)
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false, columnDefinition = "TIMESTAMP(6)")
     private LocalDateTime createdAt;
+
+    /*
+     * Polling 방식에서 CDC(Outbox + Debezium)로 전환하면서 outbox는 INSERT-only로 운영합니다.
+     * is_published 플래그와 관련 메서드는 더 이상 사용하지 않아 혼선을 막기 위해 비활성화했습니다.
+     * 이 필드는 스키마 마이그레이션 시 제거될 예정입니다.
+    @Column(name = "is_published", nullable = false)
+    @Builder.Default
+    private boolean isPublished = false;
 
     public void markAsPublished() {
         this.isPublished = true;
@@ -59,5 +60,5 @@ public class OrderOutbox {
     public void revertToUnpublished() {
         this.isPublished = false;
     }
-
+     */
 }

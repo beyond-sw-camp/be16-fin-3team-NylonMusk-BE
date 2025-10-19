@@ -70,6 +70,22 @@ public class ForumPostQueryServiceImpl implements ForumPostQueryService {
     }
 
     @Override
+    public Page<ForumPostResDto> listByStock(UUID stockId, PostStatus status, Pageable pageable, UUID viewerId) {
+        Page<ForumPost> page = (status == null)
+                ? postRepo.findByStockId(stockId, pageable)
+                : postRepo.findByStockIdAndStatus(stockId, status, pageable);
+
+        Set<UUID> likedPostIds = Collections.emptySet();
+        if (viewerId != null && !page.isEmpty()) {
+            List<UUID> ids = page.map(ForumPost::getId).toList();
+            likedPostIds = likeRepo.findLikedPostIdsByUser(viewerId, ids);
+        }
+
+        Set<UUID> finalLiked = likedPostIds;
+        return page.map(p -> map(p, finalLiked.contains(p.getId())));
+    }
+
+    @Override
     public ForumPostResDto get(UUID postId, UUID viewerId) {
         ForumPost post = postRepo.findById(postId)
                 .orElseThrow(() -> new EntityNotFoundException("ForumPost not found: " + postId));

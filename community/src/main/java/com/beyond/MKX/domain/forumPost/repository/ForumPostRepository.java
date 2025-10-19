@@ -29,6 +29,12 @@ public interface ForumPostRepository extends JpaRepository<ForumPost, UUID> {
     // 특정 사용자 + 상태
     Page<ForumPost> findByCreatedByAndStatus(UUID createdBy, PostStatus status, Pageable pageable);
 
+    // 특정 종목 글
+    Page<ForumPost> findByStockId(UUID stockId, Pageable pageable);
+
+    // 특정 종목 + 상태
+    Page<ForumPost> findByStockIdAndStatus(UUID stockId, PostStatus status, Pageable pageable);
+
     boolean existsByIdAndDeletedAtIsNull(UUID id);
 
     @Modifying

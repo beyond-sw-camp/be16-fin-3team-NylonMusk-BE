@@ -20,6 +20,7 @@ public final class DisclosureMapper {
                 e.getTickerSnapshot(),
                 e.getRejectCode(),
                 e.getRejectReason(),
+                e.getRelationType(),
                 e.getDisplayNo(),
                 e.getRevisionNo(),
                 e.getCreatedAt(),

@@ -23,7 +23,9 @@ import java.util.UUID;
         indexes = {
                 @Index(name = "ix_disclosure_stock_title_created", columnList = "stockId,title,createdAt"),
                 @Index(name = "ix_disclosure_origin", columnList = "originId"),
-                @Index(name = "ix_disclosure_display_latest", columnList = "displayNo,isLatest")
+                @Index(name = "ix_disclosure_display_latest", columnList = "displayNo,isLatest"),
+                @Index(name = "ix_disclosure_relation_type", columnList = "relationType"),
+                @Index(name = "ix_disclosure_previous", columnList = "previousId")
         })
 public class Disclosure extends BaseIdAndTimeEntity {
 
@@ -91,6 +93,16 @@ public class Disclosure extends BaseIdAndTimeEntity {
     @Comment("해당 displayNo 그룹의 최신 승인본 여부")
     @Column
     private Boolean isLatest;
+
+    @Comment("공시 간 관계 유형 (NONE/REVISION/ADDITIONAL)")
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private DisclosureRelationType relationType = DisclosureRelationType.NONE;
+
+    @Comment("관계 기준이 되는 직전 공시 ID (추가공시/정정 대상)")
+    @Column
+    private UUID previousId;
 
     // ===== 비즈니스 로직 =====
 

@@ -17,7 +17,7 @@ import java.util.UUID;
 
 /**
  * 회원 계좌 서비스
- *
+ * <p>
  * 책임
  * - 회원 계좌 생성/상태 변경/조회/입출금
  * - 생성 후 mkx-platform(account_list)에 MEMBER 유형으로 메타 등록 요청(Feign)
@@ -43,7 +43,9 @@ public class MemberAccountService {
         return acc;
     }
 
-    /** 계좌 상태 변경 */
+    /**
+     * 계좌 상태 변경
+     */
     public void updateStatus(UUID accountId, String action) {
         MemberAccount acc = repository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("계좌를 찾을 수 없습니다."));
@@ -102,18 +104,24 @@ public class MemberAccountService {
         return repository.findByMemberIdAndBrokerageId(memberId, brokerageId);
     }
 
-    /** 단건 조회 */
+    /**
+     * 단건 조회
+     */
     public MemberAccount getByAccountNumber(String accountNumber) {
         return repository.findByNumber(accountNumber)
                 .orElseThrow(() -> new IllegalArgumentException("개인 계좌를 찾을 수 없습니다."));
     }
 
-    /** 증권사 소속 개인 계좌 목록 */
+    /**
+     * 증권사 소속 개인 계좌 목록
+     */
     public List<MemberAccount> listByBrokerage(UUID brokerageId) {
         return repository.findAllByBrokerageId(brokerageId);
     }
 
-    /** 입금: 계좌 상태가 ACTIVE일 때만 허용 */
+    /**
+     * 입금: 계좌 상태가 ACTIVE일 때만 허용
+     */
     public Long deposit(String accountNumber, Long amount) {
         MemberAccount acc = getByAccountNumber(accountNumber);
         if (acc.getStatus() != AccountStatus.ACTIVE) {
@@ -123,7 +131,9 @@ public class MemberAccountService {
         return acc.getBalance();
     }
 
-    /** 출금: 계좌 상태가 ACTIVE일 때만 허용 */
+    /**
+     * 출금: 계좌 상태가 ACTIVE일 때만 허용
+     */
     public Long withdraw(String accountNumber, Long amount) {
         MemberAccount acc = getByAccountNumber(accountNumber);
         if (acc.getStatus() != AccountStatus.ACTIVE) {

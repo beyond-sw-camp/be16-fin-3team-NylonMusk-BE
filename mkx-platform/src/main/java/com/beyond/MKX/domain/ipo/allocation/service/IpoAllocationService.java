@@ -1,10 +1,9 @@
 package com.beyond.MKX.domain.ipo.allocation.service;
 
 import com.beyond.MKX.domain.ipo.allocation.dto.IpoAllocationSummaryResDTO;
+import com.beyond.MKX.domain.ipo.allocation.dto.StockUpdateDTO;
 import com.beyond.MKX.domain.ipo.allocation.entity.IpoAllocation;
-import com.beyond.MKX.domain.ipo.allocation.outbound.OrderingHoldingClient;
 import com.beyond.MKX.domain.ipo.allocation.repository.IpoAllocationRepository;
-import com.beyond.MKX.domain.ipo.ipo.entity.IpoStatus;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOffering;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOfferingStatus;
 import com.beyond.MKX.domain.ipo.offering.repository.IpoOfferingRepository;
@@ -29,9 +28,10 @@ public class IpoAllocationService {
     private final IpoAllocationRepository allocationRepository;
     private final IpoSubscriptionRepository subscriptionRepository;
     private final IpoOfferingRepository offeringRepository;
-    private final OrderingHoldingClient orderingHoldingClient;
     private final StockRepository stockRepository;
+    private final IpoAllocationFeign ipoAllocationFeign;
     private final Clock clock = Clock.systemDefaultZone();
+
     /**
      * 배정 확정 (배정만, 돈 처리/환불은 별도 단계)
      * - 전제: Offering은 PRICE_FIXED 상태, Subscriptions는 PAID만 대상
@@ -130,56 +130,47 @@ public class IpoAllocationService {
 
         subscriptionRepository.flush();
 
+        // 커밋 이후 전송
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                final String ticker = resolveTickerCodeOrThrow(ipoOffering);
+                final Long offerPrice = nvl(ipoOffering.getOfferPrice());
+
+                for (IpoAllocation a : toSave) {
+                    IpoSubscription s = a.getIpoSubscription();
+
+                    StockUpdateDTO dto = StockUpdateDTO.builder()
+                            .idempotencyKey(a.getId())                 // 멱등키 = allocationId 재사용
+                            .allocationId(a.getId())
+                            .offeringId(ipoOffering.getId())           // 선택
+                            .memberAccountId(s.getAccountId())   // 계좌 ID
+                            .ticker(ticker)
+                            .qtyDelta(a.getAllocatedQuantity())
+                            .unitPrice(offerPrice)
+                            .reason("IPO_ALLOCATION")
+                            .build();
+
+                    ipoAllocationFeign.applyStockUpdate(dto);
+                }
+            }
+        });
+
         // 7) 배정 총합으로 상태 전환 (0도 허용)
         long assignedFinal = toSave.stream().mapToLong(IpoAllocation::getAllocatedQuantity).sum();
         ipoOffering.allocated(assignedFinal);
 
-        // 8) 커밋 후 ordering 호출을 위해 payload 준비
-        if (!toSave.isEmpty()) {
-            var payload = buildAllocateBatchPayload(ipoOffering, toSave);
-            // afterCommit: DB 커밋 성공 후에만 외부 호출
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    // void 반환: 예외 없으면 200 OK로 간주
-                    orderingHoldingClient.allocateBatch(payload);
-                }
-            });
-        }
-
         return offeringId;
     }
-    private long nvl(Long v) {return v == null ? 0L : v;}
-    private int nvl(Integer v, int def) {return v == null ? def : v;}
 
-    /**
-     * ordering 배치 요청 생성
-     * - ticker(종목코드)는 Stock에서 조회 (symbol은 종목명)
-     */
-    private OrderingHoldingClient.AllocateHoldingsBatchReq buildAllocateBatchPayload(
-            IpoOffering offering,
-            List<IpoAllocation> allocations
-    ) {
-        String tickerCode = resolveTickerCodeOrThrow(offering);
-
-        List<OrderingHoldingClient.AllocateHoldingsBatchReq.Item> items = allocations.stream()
-                .map(a -> {
-                    var sub = a.getIpoSubscription();
-                    return OrderingHoldingClient.AllocateHoldingsBatchReq.Item.builder()
-                            .allocationEventId(a.getId())                // 멱등키(=배정ID)
-                            .memberAccountId(sub.getAccountId())
-                            .brokerageId(sub.getBrokerageId())
-                            .ticker(tickerCode)                           // 종목코드
-                            .quantity(a.getAllocatedQuantity())
-                            .pricePerShare(a.getAllocatedPrice())         // 공모가 스냅샷
-                            .build();
-                })
-                .toList();
-
-        return OrderingHoldingClient.AllocateHoldingsBatchReq.builder()
-                .items(items)
-                .build();
+    private long nvl(Long v) {
+        return v == null ? 0L : v;
     }
+
+    private int nvl(Integer v, int def) {
+        return v == null ? def : v;
+    }
+
 
     /**
      * 종목코드(ticker) 해석

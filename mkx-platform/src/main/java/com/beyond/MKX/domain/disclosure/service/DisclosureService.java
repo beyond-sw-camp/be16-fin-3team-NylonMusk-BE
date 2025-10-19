@@ -85,6 +85,11 @@ public class DisclosureService {
         // 해당 공시의 종목이 여전히 상장 상태이며, 요청자가 소유한 기업의 종목인지 확인
         validateListedStockOwnership(disclosure.getStockId());
 
+        // 승인 대기 상태에서만 파일 수정 허용 (승인/반려 등은 정정 또는 재등록 절차 사용)
+        if (disclosure.getStatus() != DisclosureStatus.PENDING) {
+            throw new IllegalStateException("승인 대기(PENDING) 상태에서만 파일 수정이 가능합니다. 승인된 공시는 정정공시를 등록하세요.");
+        }
+
         String oldUrl = disclosure.getFileUrl();
         // disclosures/pending/{type}/{yyyy}/{MM}/{stockId}
         String type = disclosure.getDisclosureType().name().toLowerCase();

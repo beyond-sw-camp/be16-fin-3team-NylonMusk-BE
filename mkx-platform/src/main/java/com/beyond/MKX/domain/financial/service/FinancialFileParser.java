@@ -57,17 +57,21 @@ public class FinancialFileParser {
 
     /**
      * 단일 시트 템플릿(Earnings_Validation) 구조 검사
+     * - 시트명이 다를 수 있어도 첫 시트 헤더가 요건을 만족하면 통과로 간주
      */
     public boolean validateEarningsStructure(MultipartFile file) {
         try (InputStream is = file.getInputStream(); Workbook wb = WorkbookFactory.create(is)) {
             Sheet sheet = wb.getSheet(SHEET_DISCLOSURE);
-            if (sheet == null) return false;
+            if (sheet == null) {
+                sheet = wb.getSheetAt(0);
+            }
             Row header = sheet.getRow(0);
             if (header == null) return false;
 
             Set<String> names = headerNames(header);
             List<String> required = List.of(
-                    "disclosure_number", "ticker", "fiscal_year", "fiscal_quarter",
+                    // 최소 요건: 기간 + 핵심 수치
+                    "fiscal_year", "fiscal_quarter",
                     "revenue", "operating_income", "net_income", "eps",
                     "total_assets", "total_liabilities"
             );
@@ -191,11 +195,14 @@ public class FinancialFileParser {
 
     /**
      * 단일 시트(Earnings_Validation) 파싱 → 간단 DTO 리스트
+     * - 시트명이 다르면 첫 시트를 사용 (헤더 기준 파싱)
      */
     public List<DisclosureEarningsValidationDto> parseEarningsValidation(MultipartFile file) {
         try (InputStream is = file.getInputStream(); Workbook wb = WorkbookFactory.create(is)) {
             Sheet sheet = wb.getSheet(SHEET_DISCLOSURE);
-            if (sheet == null) throw new IllegalArgumentException("시트가 없습니다: " + SHEET_DISCLOSURE);
+            if (sheet == null) {
+                sheet = wb.getSheetAt(0);
+            }
 
             Row header = sheet.getRow(0);
             Map<String, Integer> col = headerIndex(header);

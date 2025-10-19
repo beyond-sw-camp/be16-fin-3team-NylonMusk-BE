@@ -51,7 +51,16 @@ public class FinancialUploadService {
     /** 검증 통과 후 파싱/저장 */
     @Transactional
     public void uploadFromDisclosure(Disclosure disclosure) {
+        // 파일명/확장자로 엑셀 여부 판단(엑셀만 파싱, 그 외는 승인만 진행)
+        String fileName = extractFilename(disclosure.getFileUrl());
+        String lower = fileName == null ? "" : fileName.toLowerCase();
+        boolean isExcel = lower.endsWith(".xlsx") || lower.endsWith(".xls");
         MultipartFile file = downloadAsMultipart(disclosure);
+
+        if (!isExcel) {
+            log.info("[EARNINGS 파싱 스킵] 엑셀이 아님: disclosureId={} filename={}", disclosure.getId(), fileName);
+            return; // 소프트-패일: 데이터 저장 없이 승인만 진행
+        }
         // 1) Earnings_Validation 템플릿이면 검증만 수행하고 저장은 생략
         if (parser.validateEarningsStructure(file)) {
             try {
@@ -130,8 +139,37 @@ public class FinancialUploadService {
             // fall-through to error below
         }
 
-        // 두 템플릿 모두 불일치 시 방어
-        throw new InvalidDisclosureFileException("엑셀 템플릿을 인식할 수 없습니다.");
+        // 4) 단일 시트(Earnings_Validation) 파싱 시도(시트명 무시, 헤더 기준)
+        try {
+            List<DisclosureEarningsValidationDto> rows = parser.parseEarningsValidation(file);
+            if (rows != null && !rows.isEmpty()) {
+                List<CompanyFinancialsReqDto> cfList = rows.stream().map(r -> new CompanyFinancialsReqDto(
+                        null,
+                        r.getFiscalYear(),
+                        r.getFiscalQuarter(),
+                        r.getRevenue(),
+                        r.getOperatingIncome(),
+                        r.getNetIncome(),
+                        r.getEps(),
+                        r.getTotalAssets(),
+                        r.getTotalLiabilities(),
+                        null,
+                        r.getCurrentAssets(),
+                        r.getCurrentLiabilities(),
+                        r.getInterestExpense()
+                )).toList();
+                FinancialBundleReqDto bundle = new FinancialBundleReqDto(cfList, java.util.List.of(), null);
+                bundle = normalizeWithStockId(bundle, disclosure.getStockId());
+                aggregateService.saveBundle(bundle);
+                return;
+            }
+        } catch (IllegalArgumentException e) {
+            log.error("[EARNINGS_단일시트 파싱 실패] disclosureId={} error={}", disclosure.getId(), e.getMessage(), e);
+        }
+
+        // 엑셀 파일이지만 어떤 템플릿에도 맞지 않는 경우: 소프트-패일(승인만 진행)
+        log.warn("[EARNINGS 파싱 스킵] 템플릿 미일치: disclosureId={} filename={}", disclosure.getId(), fileName);
+        return;
     }
 
     private MultipartFile downloadAsMultipart(Disclosure disclosure) {
@@ -140,7 +178,26 @@ public class FinancialUploadService {
             throw new InvalidDisclosureFileException("첨부 파일 URL이 비어 있습니다.");
         }
         byte[] bytes = s3Manager.download(url);
-        return new SimpleBytesMultipartFile(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "financials.xlsx");
+        String filename = extractFilename(url);
+        String contentType = guessContentType(filename);
+        return new SimpleBytesMultipartFile(bytes, contentType, filename == null ? "file" : filename);
+    }
+
+    private String extractFilename(String url) {
+        if (url == null) return null;
+        int idx = url.lastIndexOf('/');
+        String raw = (idx >= 0 && idx + 1 < url.length()) ? url.substring(idx + 1) : url;
+        try { return java.net.URLDecoder.decode(raw, java.nio.charset.StandardCharsets.UTF_8); }
+        catch (Exception ignored) { return raw; }
+    }
+
+    private String guessContentType(String filename) {
+        if (filename == null) return "application/octet-stream";
+        String lower = filename.toLowerCase();
+        if (lower.endsWith(".xlsx")) return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+        if (lower.endsWith(".xls")) return "application/vnd.ms-excel";
+        if (lower.endsWith(".pdf")) return "application/pdf";
+        return "application/octet-stream";
     }
 
     private FinancialBundleReqDto normalizeWithStockId(FinancialBundleReqDto in, UUID stockId) {

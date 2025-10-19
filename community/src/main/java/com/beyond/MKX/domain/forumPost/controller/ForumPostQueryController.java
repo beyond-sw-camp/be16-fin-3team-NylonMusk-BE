@@ -27,4 +27,12 @@ public class ForumPostQueryController {
         Page<ForumPostResDto> page = forumPostQueryService.listMine(actorId, status, pageable);
         return ApiResponse.ok(page, "내 게시글 조회 성공");
     }
+
+    /** 게시글 상세 조회 (댓글, 투표 포함) */
+    @GetMapping("/{postId}/details")
+    public ResponseEntity<?> getWithDetails(@PathVariable UUID postId,
+                                           @RequestHeader(value = "X-User-Id", required = false) UUID viewerId) {
+        ForumPostResDto post = forumPostQueryService.getWithDetails(postId, viewerId);
+        return ApiResponse.ok(post, "게시글 상세 조회 성공");
+    }
 }

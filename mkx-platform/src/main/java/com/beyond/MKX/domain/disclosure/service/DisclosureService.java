@@ -8,7 +8,10 @@ import com.beyond.MKX.domain.admin.repository.AdminRepository;
 import com.beyond.MKX.domain.disclosure.dto.DisclosureRegisterReqFormDto;
 import com.beyond.MKX.domain.disclosure.dto.DuplicateDisclosureInfo;
 import com.beyond.MKX.domain.disclosure.dto.DisclosureRevisionReqFormDto;
+import com.beyond.MKX.domain.disclosure.dto.DisclosureAdditionalReqFormDto;
 import com.beyond.MKX.domain.disclosure.entity.Disclosure;
+import com.beyond.MKX.domain.disclosure.entity.DisclosureStatus;
+import com.beyond.MKX.domain.disclosure.entity.DisclosureRelationType;
 import com.beyond.MKX.domain.disclosure.repository.DisclosureRepository;
 import com.beyond.MKX.domain.stock.entity.Stock;
 import com.beyond.MKX.domain.stock.repository.StockRepository;
@@ -66,7 +69,7 @@ public class DisclosureService {
                 .title(request.getTitle())
                 .summary(request.getSummary())
                 .fileUrl(fileUrl)
-                .status(com.beyond.MKX.domain.disclosure.entity.DisclosureStatus.PENDING)
+                .status(DisclosureStatus.PENDING)
                 .stockNameSnapshot(request.getStockNameSnapshot())
                 .tickerSnapshot(request.getTickerSnapshot())
                 .build();
@@ -103,7 +106,7 @@ public class DisclosureService {
     public Disclosure revise(UUID baseId, DisclosureRevisionReqFormDto request) {
         Disclosure base = disclosureRepository.findById(baseId)
                 .orElseThrow(() -> new IllegalArgumentException("공시를 찾을 수 없습니다."));
-        if (base.getStatus() != com.beyond.MKX.domain.disclosure.entity.DisclosureStatus.APPROVED) {
+        if (base.getStatus() != DisclosureStatus.APPROVED) {
             throw new IllegalStateException("승인된 공시만 정정할 수 있습니다.");
         }
 
@@ -128,13 +131,52 @@ public class DisclosureService {
                 .title(request.getTitle())
                 .summary(request.getSummary())
                 .fileUrl(fileUrl)
-                .status(com.beyond.MKX.domain.disclosure.entity.DisclosureStatus.PENDING)
+                .status(DisclosureStatus.PENDING)
                 .stockNameSnapshot(base.getStockNameSnapshot())
                 .tickerSnapshot(base.getTickerSnapshot())
                 .originId(rootId)
                 .revisionNo(nextRev)
                 .build();
         return disclosureRepository.save(revision);
+    }
+
+    /** 추가공시 등록 (새로운 번호 체인 시작, previousId로 본공시 연결) */
+    @Transactional
+    public Disclosure additional(UUID baseId, DisclosureAdditionalReqFormDto request) {
+        Disclosure base = disclosureRepository.findById(baseId)
+                .orElseThrow(() -> new IllegalArgumentException("공시를 찾을 수 없습니다."));
+        if (base.getStatus() != DisclosureStatus.APPROVED) {
+            throw new IllegalStateException("승인된 공시만 추가공시를 등록할 수 있습니다.");
+        }
+        if (base.getRelationType() != DisclosureRelationType.NONE) {
+            throw new IllegalStateException("추가공시는 본공시에만 허용됩니다.");
+        }
+
+        // 소유/상장 검증
+        validateListedStockOwnership(base.getStockId());
+
+        // 파일 업로드(pending)
+        String type = base.getDisclosureType().name().toLowerCase();
+        LocalDate today = LocalDate.now();
+        String prefix = String.format("disclosures/pending/%s/%04d/%02d/%s",
+                type, today.getYear(), today.getMonthValue(), base.getStockId());
+        String fileUrl = uploadOrThrow(request.getFile(), prefix);
+
+        Disclosure additional = Disclosure.builder()
+                .stockId(base.getStockId())
+                .disclosureType(base.getDisclosureType())
+                .title(request.getTitle())
+                .summary(request.getSummary())
+                .fileUrl(fileUrl)
+                .status(DisclosureStatus.PENDING)
+                .stockNameSnapshot(base.getStockNameSnapshot())
+                .tickerSnapshot(base.getTickerSnapshot())
+                // originId는 새 체인 시작이므로 null 유지(승인 시 새 번호 부여)
+                .relationType(DisclosureRelationType.ADDITIONAL)
+                .previousId(base.getId())
+                // revisionNo 기본 0 (builder default)
+                .build();
+        return disclosureRepository.save(additional);
     }
 
     private String uploadOrThrow(MultipartFile file, String prefix) {

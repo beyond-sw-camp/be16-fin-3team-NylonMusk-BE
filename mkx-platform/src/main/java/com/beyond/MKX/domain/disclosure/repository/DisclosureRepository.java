@@ -1,21 +1,20 @@
 package com.beyond.MKX.domain.disclosure.repository;
 
 import com.beyond.MKX.domain.disclosure.entity.Disclosure;
+import com.beyond.MKX.domain.disclosure.entity.DisclosureStatus;
+import com.beyond.MKX.domain.disclosure.entity.DisclosureType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 import java.util.Optional;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.Modifying;
-import java.util.List;
-import com.beyond.MKX.domain.disclosure.entity.DisclosureType;
-import com.beyond.MKX.domain.disclosure.entity.DisclosureStatus;
+import java.util.UUID;
 
 @Repository
 public interface DisclosureRepository extends JpaRepository<Disclosure, UUID> {
@@ -35,7 +34,7 @@ public interface DisclosureRepository extends JpaRepository<Disclosure, UUID> {
     @Query("""
             select d
             from Disclosure d
-            where d.status = com.beyond.MKX.domain.disclosure.entity.DisclosureStatus.APPROVED
+            where d.status = :approved
               and d.publishedAt is not null
               and d.isLatest = true
               and (:type is null or d.disclosureType = :type)
@@ -44,6 +43,7 @@ public interface DisclosureRepository extends JpaRepository<Disclosure, UUID> {
             order by d.publishedAt desc
             """)
     Page<Disclosure> searchApproved(
+            @Param("approved") DisclosureStatus approved,
             @Param("type") DisclosureType type,
             @Param("stockId") UUID stockId,
             @Param("title") String title,
@@ -76,7 +76,7 @@ public interface DisclosureRepository extends JpaRepository<Disclosure, UUID> {
             select d
             from Disclosure d
             where d.stockId in (
-                select s.id from com.beyond.MKX.domain.stock.entity.Stock s where s.corporationId = :corpId
+                select s.id from Stock s where s.corporationId = :corpId
             )
               and (:status is null or d.status = :status)
               and (:type is null or d.disclosureType = :type)

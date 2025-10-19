@@ -5,6 +5,7 @@ import com.beyond.MKX.common.auth.security.CorporationOnly;
 import com.beyond.MKX.domain.disclosure.dto.DisclosureRegisterReqFormDto;
 import com.beyond.MKX.domain.disclosure.dto.DisclosureResDto;
 import com.beyond.MKX.domain.disclosure.dto.DisclosureRevisionReqFormDto;
+import com.beyond.MKX.domain.disclosure.dto.DisclosureAdditionalReqFormDto;
 import com.beyond.MKX.domain.disclosure.entity.Disclosure;
 import com.beyond.MKX.domain.disclosure.mapper.DisclosureMapper;
 import com.beyond.MKX.domain.disclosure.service.DisclosureService;
@@ -66,6 +67,17 @@ public class DisclosureController {
     ) {
         Disclosure created = disclosureService.revise(id, request);
         return ApiResponse.created(DisclosureMapper.toRes(created), "정정공시 등록 완료");
+    }
+
+    /** 추가공시 등록 (본공시의 확장 공시) */
+    @CorporationOnly
+    @PostMapping(value = "/{id}/additional", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> additional(
+            @PathVariable UUID id,
+            @ModelAttribute DisclosureAdditionalReqFormDto request
+    ) {
+        Disclosure created = disclosureService.additional(id, request);
+        return ApiResponse.created(DisclosureMapper.toRes(created), "추가공시 등록 완료");
     }
 
     /**

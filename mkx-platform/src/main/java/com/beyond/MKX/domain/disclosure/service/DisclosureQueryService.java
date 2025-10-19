@@ -1,6 +1,7 @@
 package com.beyond.MKX.domain.disclosure.service;
 
 import com.beyond.MKX.domain.disclosure.dto.DisclosureResDto;
+import com.beyond.MKX.domain.disclosure.entity.DisclosureStatus;
 import com.beyond.MKX.domain.disclosure.entity.DisclosureType;
 import com.beyond.MKX.domain.disclosure.mapper.DisclosureMapper;
 import com.beyond.MKX.domain.disclosure.repository.DisclosureRepository;
@@ -30,7 +31,7 @@ public class DisclosureQueryService {
             }
             stockId = stockOpt.get().getId();
         }
-        return disclosureRepository.searchApproved(type, stockId, title, pageable)
+        return disclosureRepository.searchApproved(DisclosureStatus.APPROVED, type, stockId, title, pageable)
                 .map(DisclosureMapper::toRes);
     }
 }

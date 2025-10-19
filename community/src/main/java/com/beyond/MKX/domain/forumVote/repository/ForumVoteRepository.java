@@ -1,5 +1,6 @@
 package com.beyond.MKX.domain.forumVote.repository;
 
+import com.beyond.MKX.domain.forumPost.entity.ForumPost;
 import com.beyond.MKX.domain.forumVote.entity.ForumVote;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -17,4 +18,7 @@ public interface ForumVoteRepository extends JpaRepository<ForumVote, UUID> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select v from ForumVote v where v.id = :id")
     Optional<ForumVote> findByIdForUpdate(@Param("id") UUID id);
+
+    @Query("SELECT p FROM ForumPost p LEFT JOIN FETCH p.vote WHERE p.id = :id")
+    Optional<ForumPost> findWithVoteById(@Param("id") UUID id);
 }

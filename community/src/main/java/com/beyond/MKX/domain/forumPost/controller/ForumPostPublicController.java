@@ -28,13 +28,21 @@ public class ForumPostPublicController {
         }
     }
 
-    /** 글 목록: status 필터(optional), pageable */
+    /** 글 목록: status 필터(optional), stockId 필터(optional), pageable */
     @GetMapping
     public ResponseEntity<?> list(@RequestParam(required = false) PostStatus status,
+                                  @RequestParam(required = false) UUID stockId,
                                   Pageable pageable,
                                   @RequestHeader(value = "X-User-Id", required = false) String userHeader) {
         UUID viewerId = parseViewer(userHeader);
-        Page<ForumPostResDto> page = forumPostQueryService.list(status, pageable, viewerId);
+        
+        Page<ForumPostResDto> page;
+        if (stockId != null) {
+            page = forumPostQueryService.listByStock(stockId, status, pageable, viewerId);
+        } else {
+            page = forumPostQueryService.list(status, pageable, viewerId);
+        }
+        
         return ApiResponse.ok(page, "게시글 목록 조회 성공");
     }
 

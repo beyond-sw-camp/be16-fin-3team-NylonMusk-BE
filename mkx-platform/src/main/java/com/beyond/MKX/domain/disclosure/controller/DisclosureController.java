@@ -11,6 +11,7 @@ import com.beyond.MKX.domain.disclosure.mapper.DisclosureMapper;
 import com.beyond.MKX.domain.disclosure.service.DisclosureService;
 import com.beyond.MKX.domain.disclosure.dto.DisclosureUpdateFileReqDto;
 import com.beyond.MKX.domain.disclosure.service.DisclosureCorpQueryService;
+import com.beyond.MKX.domain.disclosure.dto.DisclosureTreeResDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -98,5 +99,21 @@ public class DisclosureController {
     ) {
         Page<DisclosureResDto> page = disclosureCorpQueryService.listMine(status, type, title, fromDate, toDate, pageable);
         return ApiResponse.ok(page, "기업 공시 조회 완료");
+    }
+
+    /** 기업용 공시 상세 조회 (본인 기업 소유 + 상장 검증) */
+    @CorporationOnly
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getById(@PathVariable UUID id) {
+        Disclosure disclosure = disclosureService.getMine(id);
+        return ApiResponse.ok(DisclosureMapper.toRes(disclosure), "공시 상세 조회 완료");
+    }
+
+    /** 기업용: 본공시 번호 기준 관련 트리 조회 */
+    @CorporationOnly
+    @GetMapping("/my/{baseNo}/related")
+    public ResponseEntity<?> relatedMine(@PathVariable String baseNo) {
+        DisclosureTreeResDto tree = disclosureCorpQueryService.getRelatedTreeMineByBaseNo(baseNo);
+        return ApiResponse.ok(tree, "관련 공시 묶음(기업) 조회 완료");
     }
 }

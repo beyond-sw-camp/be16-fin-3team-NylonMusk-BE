@@ -193,6 +193,16 @@ public class DisclosureService {
         return s3Manager.upload(file, prefix);
     }
 
+    /** 기업용 공시 상세 조회 (소유/상장 검증) */
+    @Transactional(readOnly = true)
+    public Disclosure getMine(UUID id) {
+        Disclosure disclosure = disclosureRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("공시를 찾을 수 없습니다."));
+        // 접근 제어: 내 기업의 상장 종목 공시인지 확인
+        validateListedStockOwnership(disclosure.getStockId());
+        return disclosure;
+    }
+
     /**
      * 요청자의 기업 소속 + 종목 상장 여부 검증
      */

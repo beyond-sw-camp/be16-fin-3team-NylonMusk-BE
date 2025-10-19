@@ -10,6 +10,8 @@ import com.beyond.MKX.domain.admin.dto.AdminResDto;
 import com.beyond.MKX.domain.admin.entity.Admin;
 import com.beyond.MKX.domain.admin.entity.Role;
 import com.beyond.MKX.domain.admin.repository.AdminRepository;
+import com.beyond.MKX.domain.stock.entity.Stock;
+import com.beyond.MKX.domain.stock.repository.StockRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,6 +28,7 @@ public class AdminService {
     private final CorporationAccountRepository corporationAccountRepository;
     private final BrokerageDepositAccountRepository brokerageDepositAccountRepository;
     private final ExchangeAccountRepository exchangeAccountRepository;
+    private final StockRepository stockRepository;
 
     /**
      * 관리자 ID로 엔티티 조회
@@ -89,6 +92,33 @@ public class AdminService {
             });
         }
 
+        return dto;
+    }
+
+    /** 확장 프로필: 조직/상장 종목 정보까지 포함 */
+    public AdminResDto getMeWithOrgsAndStocks(UUID userId) {
+        AdminResDto dto = getProfileWithAccount(userId);
+        Admin admin = getMemberById(userId);
+
+        if (admin.getRole() == Role.CORPORATION && admin.getCorporation() != null) {
+            dto.setCorporation(AdminResDto.CorporationBrief.builder()
+                    .id(admin.getCorporation().getId())
+                    .name(admin.getCorporation().getNameKo())
+                    .build());
+            // 종목 목록
+            java.util.List<Stock> all = stockRepository.findAll().stream()
+                    .filter(s -> s.getCorporationId().equals(admin.getCorporation().getId()))
+                    .toList();
+            java.util.List<AdminResDto.StockBrief> stocks = all.stream().map(s -> AdminResDto.StockBrief.builder()
+                    .id(s.getId()).nameKo(s.getNameKo()).ticker(s.getTicker()).status(s.getStatus().name()).build()).toList();
+            dto.setStocks(stocks);
+            dto.setListedStocks(stocks.stream().filter(sb -> "LISTED".equals(sb.getStatus())).toList());
+        } else if (admin.getRole() == Role.BROKERAGE && admin.getSecuritiesFirm() != null) {
+            dto.setSecuritiesFirm(AdminResDto.SecuritiesFirmBrief.builder()
+                    .id(admin.getSecuritiesFirm().getId())
+                    .name(admin.getSecuritiesFirm().getNameKo())
+                    .build());
+        }
         return dto;
     }
 }

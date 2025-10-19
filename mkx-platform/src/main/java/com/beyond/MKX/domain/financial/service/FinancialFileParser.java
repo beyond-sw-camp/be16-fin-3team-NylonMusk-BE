@@ -250,7 +250,7 @@ public class FinancialFileParser {
         if (s == null || s.isBlank()) return null;
         try {
             // BigDecimal 사용으로 과학표기(예: 4.5E11)도 허용
-            java.math.BigDecimal bd = new java.math.BigDecimal(cleanNumber(s));
+            BigDecimal bd = new BigDecimal(cleanNumber(s));
             return bd.setScale(0, java.math.RoundingMode.HALF_UP).longValue();
         } catch (Exception e) {
             try { return Long.parseLong(cleanNumber(s)); } catch (Exception ignore) { return null; }

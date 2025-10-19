@@ -3,6 +3,7 @@ package com.beyond.MKX.domain.disclosure.controller;
 import com.beyond.MKX.common.apiResponse.ApiResponse;
 import com.beyond.MKX.common.auth.security.ExchangeOnly;
 import com.beyond.MKX.domain.disclosure.mapper.DisclosureMapper;
+import com.beyond.MKX.domain.disclosure.dto.DisclosureTreeResDto;
 import com.beyond.MKX.domain.disclosure.service.DisclosureAdminService;
 import com.beyond.MKX.domain.disclosure.service.DisclosureAdminQueryService;
 import com.beyond.MKX.domain.disclosure.entity.Disclosure;
@@ -83,5 +84,13 @@ public class DisclosureAdminController {
     public ResponseEntity<?> revisions(@PathVariable String displayNo) {
         List<DisclosureResDto> list = disclosureAdminQueryService.listRevisionsByDisplayNo(displayNo);
         return ApiResponse.ok(list, "정정 공시 이력 조회 완료");
+    }
+
+    /** 본공시 관련 묶음(본공시 체인 + 추가공시 체인) 조회 */
+    @ExchangeOnly
+    @GetMapping("/{baseNo}/related")
+    public ResponseEntity<?> related(@PathVariable String baseNo) {
+        DisclosureTreeResDto tree = disclosureAdminQueryService.getRelatedTreeByBaseNo(baseNo);
+        return ApiResponse.ok(tree, "관련 공시 묶음 조회 완료");
     }
 }

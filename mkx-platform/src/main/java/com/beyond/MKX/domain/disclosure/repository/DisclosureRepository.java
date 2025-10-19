@@ -3,6 +3,7 @@ package com.beyond.MKX.domain.disclosure.repository;
 import com.beyond.MKX.domain.disclosure.entity.Disclosure;
 import com.beyond.MKX.domain.disclosure.entity.DisclosureStatus;
 import com.beyond.MKX.domain.disclosure.entity.DisclosureType;
+import com.beyond.MKX.domain.disclosure.entity.DisclosureRelationType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -115,4 +116,15 @@ public interface DisclosureRepository extends JpaRepository<Disclosure, UUID> {
             order by d.revisionNo desc, d.createdAt desc
             """)
     List<Disclosure> findRevisionsByDisplayNo(@Param("displayNo") String displayNo);
+
+    // 추가공시 조회: previousId가 체인 내 ID에 속하는 ADDITIONAL 목록
+    @Query("""
+            select d
+            from Disclosure d
+            where d.relationType = :relationType
+              and d.previousId in :previousIds
+            order by d.createdAt asc
+            """)
+    List<Disclosure> findAdditionalsByPreviousIds(@Param("relationType") DisclosureRelationType relationType,
+                                                  @Param("previousIds") List<UUID> previousIds);
 }

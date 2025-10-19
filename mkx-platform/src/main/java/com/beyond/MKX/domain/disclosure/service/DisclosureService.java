@@ -135,7 +135,9 @@ public class DisclosureService {
                 .stockNameSnapshot(base.getStockNameSnapshot())
                 .tickerSnapshot(base.getTickerSnapshot())
                 .originId(rootId)
+                .previousId(base.getId())
                 .revisionNo(nextRev)
+                .relationType(DisclosureRelationType.REVISION)
                 .build();
         return disclosureRepository.save(revision);
     }

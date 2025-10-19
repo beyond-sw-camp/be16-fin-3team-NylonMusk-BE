@@ -111,15 +111,6 @@ public class Disclosure extends BaseIdAndTimeEntity {
         this.publishedAt = LocalDateTime.now();
     }
 
-    public void reject() {
-        this.status = DisclosureStatus.REJECTED;
-    }
-
-    public void reject(String reason) {
-        this.status = DisclosureStatus.REJECTED;
-        this.rejectReason = reason;
-    }
-
     public void reject(DisclosureRejectCode code, String reason) {
         this.status = DisclosureStatus.REJECTED;
         this.rejectCode = code;
@@ -132,6 +123,7 @@ public class Disclosure extends BaseIdAndTimeEntity {
         this.status = DisclosureStatus.PENDING; // 수정 시 재심사 대기
     }
 
+    // 승인, 반려시 s3 파일 경로 이동
     public void updateFileUrl(String newUrl) {
         if (newUrl != null && !newUrl.isBlank()) this.fileUrl = newUrl;
     }

@@ -31,6 +31,24 @@
       }
     },
     {
+      "name": "Create Simple Bots",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/test/api/trading-bot/test/simple-bot?ticker=MKX001",
+          "host": ["{{base_url}}"],
+          "path": ["test", "api", "trading-bot", "test", "simple-bot"],
+          "query": [
+            {
+              "key": "ticker",
+              "value": "MKX001"
+            }
+          ]
+        }
+      }
+    },
+    {
       "name": "Create Dynamic Bots - MKX001",
       "request": {
         "method": "POST",

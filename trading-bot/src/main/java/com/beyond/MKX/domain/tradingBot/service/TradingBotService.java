@@ -272,6 +272,51 @@ public class TradingBotService {
     }
 
     /**
+     * 간단한 매수/매도 봇 생성 (테스트용)
+     */
+    public void createSimpleBots(String ticker) {
+        log.info("🚀 Creating simple bots for ticker: {}", ticker);
+
+        // 기존 봇들 삭제
+        List<TradingBotConfig> existingBots = configRepository.findByTickerAndIsActiveTrue(ticker);
+        existingBots.forEach(bot -> {
+            bot.setIsActive(false);
+            configRepository.save(bot);
+        });
+
+        // 간단한 매수/매도 봇 생성
+        long basePrice = getBasePrice(ticker);
+        
+        // 매수 봇 (기본가 -10% ~ 기본가)
+        CreateTradingBotConfigRequest buyRequest = new CreateTradingBotConfigRequest();
+        buyRequest.setTicker(ticker);
+        buyRequest.setStatus("START");
+        buyRequest.setPriceLimitHigh(basePrice);
+        buyRequest.setPriceLimitLow((long)(basePrice * 0.9));
+        buyRequest.setQuantity(BigDecimal.valueOf(10));
+        buyRequest.setSide("BUY");
+        buyRequest.setOrderType("LIMIT");
+        buyRequest.setBrokerageId("SIMPLE_BROKER");
+        buyRequest.setDescription("간단 매수 봇");
+        createBotConfig(buyRequest);
+        
+        // 매도 봇 (기본가 ~ 기본가 +10%)
+        CreateTradingBotConfigRequest sellRequest = new CreateTradingBotConfigRequest();
+        sellRequest.setTicker(ticker);
+        sellRequest.setStatus("START");
+        sellRequest.setPriceLimitHigh((long)(basePrice * 1.1));
+        sellRequest.setPriceLimitLow(basePrice);
+        sellRequest.setQuantity(BigDecimal.valueOf(10));
+        sellRequest.setSide("SELL");
+        sellRequest.setOrderType("LIMIT");
+        sellRequest.setBrokerageId("SIMPLE_BROKER");
+        sellRequest.setDescription("간단 매도 봇");
+        createBotConfig(sellRequest);
+
+        log.info("✅ Simple bots created for ticker: {}", ticker);
+    }
+
+    /**
      * 매수 봇들 생성
      */
     private void createBuyBots(String ticker) {

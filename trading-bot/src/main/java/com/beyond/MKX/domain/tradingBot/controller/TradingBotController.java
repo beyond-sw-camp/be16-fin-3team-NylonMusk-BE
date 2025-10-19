@@ -105,55 +105,7 @@ public class TradingBotController {
     /** 테스트용 간단한 봇 생성 (인증 없이 접근 가능) */
     @PostMapping("/test/simple-bot")
     public ResponseEntity<?> createSimpleBot(@RequestParam String ticker) {
-        // 기존 봇들 삭제
-        List<TradingBotConfigDTO> activeBots = tradingBotService.getAllActiveBotConfigs();
-        activeBots.forEach(bot -> tradingBotService.deactivateBot(bot.getId()));
-        
-        // 간단한 매수/매도 봇 생성
-        long basePrice = getBasePrice(ticker);
-        
-        // 매수 봇 (기본가 -10% ~ 기본가)
-        CreateTradingBotConfigRequest buyRequest = new CreateTradingBotConfigRequest();
-        buyRequest.setTicker(ticker);
-        buyRequest.setStatus("START");
-        buyRequest.setPriceLimitHigh(basePrice);
-        buyRequest.setPriceLimitLow((long)(basePrice * 0.9));
-        buyRequest.setQuantity(BigDecimal.valueOf(10));
-        buyRequest.setSide("BUY");
-        buyRequest.setOrderType("LIMIT");
-        buyRequest.setBrokerageId("SIMPLE_BROKER");
-        buyRequest.setDescription("간단 매수 봇");
-        tradingBotService.createBotConfig(buyRequest);
-        
-        // 매도 봇 (기본가 ~ 기본가 +10%)
-        CreateTradingBotConfigRequest sellRequest = new CreateTradingBotConfigRequest();
-        sellRequest.setTicker(ticker);
-        sellRequest.setStatus("START");
-        sellRequest.setPriceLimitHigh((long)(basePrice * 1.1));
-        sellRequest.setPriceLimitLow(basePrice);
-        sellRequest.setQuantity(BigDecimal.valueOf(10));
-        sellRequest.setSide("SELL");
-        sellRequest.setOrderType("LIMIT");
-        sellRequest.setBrokerageId("SIMPLE_BROKER");
-        sellRequest.setDescription("간단 매도 봇");
-        tradingBotService.createBotConfig(sellRequest);
-        
+        tradingBotService.createSimpleBots(ticker);
         return ApiResponse.ok(null, ticker + " 종목의 간단한 매수/매도 봇이 생성되었습니다!");
-    }
-    
-    private long getBasePrice(String ticker) {
-        return switch (ticker) {
-            case "MKX001" -> 50000;
-            case "MKX002" -> 35000;
-            case "MKX003" -> 75000;
-            case "MKX004" -> 25000;
-            case "MKX005" -> 40000;
-            case "MKX006" -> 120000;
-            case "MKX007" -> 60000;
-            case "MKX008" -> 85000;
-            case "MKX009" -> 30000;
-            case "MKX010" -> 95000;
-            default -> 50000;
-        };
     }
 }

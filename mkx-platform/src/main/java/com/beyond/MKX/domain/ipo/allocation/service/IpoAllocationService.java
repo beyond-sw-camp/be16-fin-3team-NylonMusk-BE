@@ -2,6 +2,7 @@ package com.beyond.MKX.domain.ipo.allocation.service;
 
 import com.beyond.MKX.domain.ipo.allocation.dto.IpoAllocationSummaryResDTO;
 import com.beyond.MKX.domain.ipo.allocation.entity.IpoAllocation;
+import com.beyond.MKX.domain.ipo.allocation.outbound.OrderingHoldingClient;
 import com.beyond.MKX.domain.ipo.allocation.repository.IpoAllocationRepository;
 import com.beyond.MKX.domain.ipo.ipo.entity.IpoStatus;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOffering;
@@ -10,9 +11,13 @@ import com.beyond.MKX.domain.ipo.offering.repository.IpoOfferingRepository;
 import com.beyond.MKX.domain.ipo.subscription.entity.IpoSubscription;
 import com.beyond.MKX.domain.ipo.subscription.entity.SubscriptionStatus;
 import com.beyond.MKX.domain.ipo.subscription.repository.IpoSubscriptionRepository;
+import com.beyond.MKX.domain.stock.entity.Stock;
+import com.beyond.MKX.domain.stock.repository.StockRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -24,6 +29,8 @@ public class IpoAllocationService {
     private final IpoAllocationRepository allocationRepository;
     private final IpoSubscriptionRepository subscriptionRepository;
     private final IpoOfferingRepository offeringRepository;
+    private final OrderingHoldingClient orderingHoldingClient;
+    private final StockRepository stockRepository;
     private final Clock clock = Clock.systemDefaultZone();
     /**
      * 배정 확정 (배정만, 돈 처리/환불은 별도 단계)
@@ -33,7 +40,7 @@ public class IpoAllocationService {
     @Transactional
     public UUID ipoAllocated(UUID offeringId) {
         // 1) 오퍼링 잠금 조회 & 상태 가드
-        IpoOffering ipoOffering = offeringRepository.findById(offeringId)
+        IpoOffering ipoOffering = offeringRepository.findByIdForUpdate(offeringId)
                 .orElseThrow(() -> new IllegalArgumentException("공모를 찾을 수 없습니다."));
 
         if (ipoOffering.getIpoOfferingStatus() != IpoOfferingStatus.CLOSED) {
@@ -123,15 +130,70 @@ public class IpoAllocationService {
 
         subscriptionRepository.flush();
 
-
         // 7) 배정 총합으로 상태 전환 (0도 허용)
         long assignedFinal = toSave.stream().mapToLong(IpoAllocation::getAllocatedQuantity).sum();
         ipoOffering.allocated(assignedFinal);
+
+        // 8) 커밋 후 ordering 호출을 위해 payload 준비
+        if (!toSave.isEmpty()) {
+            var payload = buildAllocateBatchPayload(ipoOffering, toSave);
+            // afterCommit: DB 커밋 성공 후에만 외부 호출
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    // void 반환: 예외 없으면 200 OK로 간주
+                    orderingHoldingClient.allocateBatch(payload);
+                }
+            });
+        }
 
         return offeringId;
     }
     private long nvl(Long v) {return v == null ? 0L : v;}
     private int nvl(Integer v, int def) {return v == null ? def : v;}
+
+    /**
+     * ordering 배치 요청 생성
+     * - ticker(종목코드)는 Stock에서 조회 (symbol은 종목명)
+     */
+    private OrderingHoldingClient.AllocateHoldingsBatchReq buildAllocateBatchPayload(
+            IpoOffering offering,
+            List<IpoAllocation> allocations
+    ) {
+        String tickerCode = resolveTickerCodeOrThrow(offering);
+
+        List<OrderingHoldingClient.AllocateHoldingsBatchReq.Item> items = allocations.stream()
+                .map(a -> {
+                    var sub = a.getIpoSubscription();
+                    return OrderingHoldingClient.AllocateHoldingsBatchReq.Item.builder()
+                            .allocationEventId(a.getId())                // 멱등키(=배정ID)
+                            .memberAccountId(sub.getAccountId())
+                            .brokerageId(sub.getBrokerageId())
+                            .ticker(tickerCode)                           // 종목코드
+                            .quantity(a.getAllocatedQuantity())
+                            .pricePerShare(a.getAllocatedPrice())         // 공모가 스냅샷
+                            .build();
+                })
+                .toList();
+
+        return OrderingHoldingClient.AllocateHoldingsBatchReq.builder()
+                .items(items)
+                .build();
+    }
+
+    /**
+     * 종목코드(ticker) 해석
+     * - Ipo.symbol(종목명) 아님!
+     * - corporationId + LISTED로 현재 상장된 Stock의 ticker를 얻음
+     */
+    private String resolveTickerCodeOrThrow(IpoOffering offering) {
+        var ipo = Optional.ofNullable(offering.getIpo())
+                .orElseThrow(() -> new IllegalStateException("Offering에 Ipo가 없습니다."));
+        var corpId = ipo.getCorporation().getId();
+
+        return stockRepository.findListedTickerByCorporationId(corpId, Stock.Status.LISTED)
+                .orElseThrow(() -> new IllegalStateException("LISTED 상태 Stock의 종목코드가 없습니다. 상장/Stock 생성 확인 필요"));
+    }
 
     @Transactional
     public IpoAllocationSummaryResDTO allocateAndSummarize(UUID offeringId) {

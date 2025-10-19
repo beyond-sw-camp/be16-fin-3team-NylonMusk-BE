@@ -10,6 +10,9 @@ import com.beyond.MKX.domain.disclosure.entity.Disclosure;
 import com.beyond.MKX.domain.disclosure.dto.DisclosureRejectReqDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.MediaType;
+import com.beyond.MKX.domain.disclosure.service.DisclosureAdminService.FileDownload;
 import jakarta.validation.Valid;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,6 +35,7 @@ import com.beyond.MKX.domain.disclosure.dto.DisclosureResDto;
 import com.beyond.MKX.domain.disclosure.entity.DisclosureStatus;
 import com.beyond.MKX.domain.disclosure.entity.DisclosureType;
 import org.springframework.format.annotation.DateTimeFormat;
+ 
 
 @RestController
 @RequiredArgsConstructor
@@ -41,6 +45,7 @@ public class DisclosureAdminController {
 
     private final DisclosureAdminService disclosureAdminService;
     private final DisclosureAdminQueryService disclosureAdminQueryService;
+    
 
     /** 공시 승인 (거래소 관리자) */
     @ExchangeOnly
@@ -92,5 +97,18 @@ public class DisclosureAdminController {
     public ResponseEntity<?> related(@PathVariable String baseNo) {
         DisclosureTreeResDto tree = disclosureAdminQueryService.getRelatedTreeByBaseNo(baseNo);
         return ApiResponse.ok(tree, "관련 공시 묶음 조회 완료");
+    }
+
+    /** 관리자: 공시 첨부 파일 다운로드 */
+    @ExchangeOnly
+    @GetMapping("/{id}/file")
+    public ResponseEntity<ByteArrayResource> downloadFile(@PathVariable UUID id) {
+        FileDownload dl = disclosureAdminService.downloadFile(id);
+        ByteArrayResource resource = new ByteArrayResource(dl.bytes());
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=\"" + dl.filename() + "\"")
+                .contentType(MediaType.parseMediaType(dl.contentType()))
+                .contentLength(dl.bytes().length)
+                .body(resource);
     }
 }

@@ -30,6 +30,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web' // Web
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis' // Redis
 	implementation 'software.amazon.awssdk:s3:2.17.58' // S3
+    implementation 'org.apache.poi:poi-ooxml:5.2.5' // Excel parsing
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
 	annotationProcessor 'org.projectlombok:lombok'

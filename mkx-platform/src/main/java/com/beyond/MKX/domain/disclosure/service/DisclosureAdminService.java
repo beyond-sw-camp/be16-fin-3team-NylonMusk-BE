@@ -2,6 +2,7 @@ package com.beyond.MKX.domain.disclosure.service;
 
 import com.beyond.MKX.common.auth.security.CustomAdminPrincipal;
 import com.beyond.MKX.common.s3.S3Manager;
+import com.beyond.MKX.domain.financial.service.FinancialUploadService;
 import com.beyond.MKX.domain.disclosure.entity.*;
 import com.beyond.MKX.domain.disclosure.repository.DisclosureDecisionRepository;
 import com.beyond.MKX.domain.disclosure.repository.DisclosureRepository;
@@ -23,6 +24,7 @@ public class DisclosureAdminService {
     private final DisclosureDecisionRepository decisionRepository;
     private final S3Manager s3Manager;
     private final DisclosureNumberService numberService;
+    private final FinancialUploadService financialUploadService;
 
     @Transactional
     public Disclosure approve(UUID id) {
@@ -31,6 +33,12 @@ public class DisclosureAdminService {
         if (disclosure.getStatus() != DisclosureStatus.PENDING) {
             throw new IllegalStateException("대기(PENDING) 상태의 공시만 승인할 수 있습니다.");
         }
+
+        // EARNINGS 공시는 파일 이동 전에 파싱/저장 우선 수행
+        if (disclosure.getDisclosureType() == DisclosureType.EARNINGS) {
+            financialUploadService.uploadFromDisclosure(disclosure);
+        }
+
         // 상태 승인 + 공개 시각 세팅
         disclosure.approve();
 
@@ -77,6 +85,33 @@ public class DisclosureAdminService {
         decisionRepository.save(decision);
         return disclosure;
     }
+
+    public FileDownload downloadFile(UUID id) {
+        Disclosure disclosure = disclosureRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("공시를 찾을 수 없습니다."));
+        String url = disclosure.getFileUrl();
+        byte[] bytes = s3Manager.download(url);
+        String filename = extractFilename(url);
+        String contentType = guessContentType(filename);
+        return new FileDownload(bytes, filename, contentType);
+    }
+
+    private String extractFilename(String url) {
+        if (url == null) return "disclosure-file";
+        int idx = url.lastIndexOf('/');
+        return (idx >= 0 && idx + 1 < url.length()) ? url.substring(idx + 1) : url;
+    }
+
+    private String guessContentType(String filename) {
+        if (filename == null) return "application/octet-stream";
+        String lower = filename.toLowerCase();
+        if (lower.endsWith(".xlsx")) return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+        if (lower.endsWith(".xls")) return "application/vnd.ms-excel";
+        if (lower.endsWith(".pdf")) return "application/pdf";
+        return "application/octet-stream";
+    }
+
+    public record FileDownload(byte[] bytes, String filename, String contentType) {}
 
     @Transactional
     public Disclosure reject(UUID id, DisclosureRejectCode code, String reason) {

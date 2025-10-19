@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -42,9 +43,11 @@ public class DisclosureAdminService {
                 disclosure.setDisplayNo(disp);
             }
         } else {
-            // 정정 승인 → 그룹 번호 상속
-            disclosureRepository.findGroupDisplayNo(rootId)
-                    .ifPresent(disclosure::setDisplayNo);
+            // 정정 승인 → 그룹 번호 상속 (여러 값이 있을 수 있어 첫 값 사용)
+            List<String> numbers = disclosureRepository.findGroupDisplayNo(rootId);
+            if (!numbers.isEmpty()) {
+                disclosure.setDisplayNo(numbers.get(0));
+            }
         }
         // 최신 플래그 갱신
         disclosureRepository.clearLatestByGroup(rootId);

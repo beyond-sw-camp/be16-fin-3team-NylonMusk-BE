@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -72,5 +73,15 @@ public class DisclosureAdminController {
         LocalDateTime toExclusive = (toDate != null) ? toDate.plusDays(1).atStartOfDay() : null;
         Page<DisclosureResDto> page = disclosureAdminQueryService.search(status, type, stockId, title, from, toExclusive, pageable);
         return ApiResponse.ok(page, "관리자 공시 조회 완료");
+    }
+
+    /**
+     * displayNo 기준 전체 리비전 이력 조회
+     */
+    @ExchangeOnly
+    @GetMapping("/{displayNo}/revisions")
+    public ResponseEntity<?> revisions(@PathVariable String displayNo) {
+        List<DisclosureResDto> list = disclosureAdminQueryService.listRevisionsByDisplayNo(displayNo);
+        return ApiResponse.ok(list, "정정 공시 이력 조회 완료");
     }
 }

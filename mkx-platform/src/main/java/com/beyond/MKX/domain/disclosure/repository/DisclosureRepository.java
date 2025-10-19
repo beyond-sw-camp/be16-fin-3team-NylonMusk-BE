@@ -7,15 +7,19 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.Modifying;
+import java.util.List;
 import com.beyond.MKX.domain.disclosure.entity.DisclosureType;
 import com.beyond.MKX.domain.disclosure.entity.DisclosureStatus;
 
 @Repository
 public interface DisclosureRepository extends JpaRepository<Disclosure, UUID> {
+    // 등록 가드: DisclosureService.register()에서 최근 제목 중복 여부 확인
     @Query("select d from Disclosure d " +
            "where d.stockId = :stockId " +
            "  and lower(trim(d.title)) = lower(trim(:title)) " +
@@ -27,11 +31,13 @@ public interface DisclosureRepository extends JpaRepository<Disclosure, UUID> {
             @Param("threshold") LocalDateTime threshold
     );
 
+    // 공개 조회: DisclosureQueryService.listApproved() (/public/disclosures)
     @Query("""
             select d
             from Disclosure d
             where d.status = com.beyond.MKX.domain.disclosure.entity.DisclosureStatus.APPROVED
               and d.publishedAt is not null
+              and d.isLatest = true
               and (:type is null or d.disclosureType = :type)
               and (:stockId is null or d.stockId = :stockId)
               and (:title is null or lower(d.title) like lower(concat('%', :title, '%')))
@@ -44,6 +50,7 @@ public interface DisclosureRepository extends JpaRepository<Disclosure, UUID> {
             Pageable pageable
     );
 
+    // 관리자 목록 조회: DisclosureAdminQueryService.search() (/admin/disclosures)
     @Query("""
             select d
             from Disclosure d
@@ -64,6 +71,7 @@ public interface DisclosureRepository extends JpaRepository<Disclosure, UUID> {
             Pageable pageable
     );
 
+    // 기업(소속) 목록 조회: DisclosureCorpQueryService.listMine() (/disclosures/my)
     @Query("""
             select d
             from Disclosure d
@@ -86,13 +94,25 @@ public interface DisclosureRepository extends JpaRepository<Disclosure, UUID> {
             Pageable pageable
     );
 
+    // 리비전 회차 조회: DisclosureService.revise() (정정 등록 시 next 회차 계산)
     @Query("select coalesce(max(d.revisionNo), 0) from Disclosure d where (d.originId = :rootId or d.id = :rootId)")
     Integer findMaxRevisionInGroup(@Param("rootId") UUID rootId);
 
-    @Query("select d.displayNo from Disclosure d where (d.originId = :rootId or d.id = :rootId) and d.displayNo is not null order by d.createdAt asc")
-    Optional<String> findGroupDisplayNo(@Param("rootId") UUID rootId);
+    // 그룹 공시번호 조회: DisclosureAdminService.approve() (정정 승인 시 displayNo 상속)
+    @Query("select distinct d.displayNo from Disclosure d where (d.originId = :rootId or d.id = :rootId) and d.displayNo is not null")
+    List<String> findGroupDisplayNo(@Param("rootId") UUID rootId);
 
-    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true)
+    // 최신본 토글: DisclosureAdminService.approve() (isLatest 갱신)
+    @Modifying(clearAutomatically = true)
     @Query("update Disclosure d set d.isLatest = false where (d.originId = :rootId or d.id = :rootId) and d.isLatest = true")
     int clearLatestByGroup(@Param("rootId") UUID rootId);
+
+    // 리비전 이력 조회: DisclosureAdminQueryService.listRevisionsByDisplayNo() (/admin/disclosures/{displayNo}/revisions)
+    @Query("""
+            select d
+            from Disclosure d
+            where d.displayNo = :displayNo
+            order by d.revisionNo desc, d.createdAt desc
+            """)
+    List<Disclosure> findRevisionsByDisplayNo(@Param("displayNo") String displayNo);
 }

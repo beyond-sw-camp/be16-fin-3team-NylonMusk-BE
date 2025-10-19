@@ -11,6 +11,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -30,5 +31,12 @@ public class DisclosureAdminQueryService {
     ) {
         return disclosureRepository.searchAdmin(status, type, stockId, title, from, toExclusive, pageable)
                 .map(DisclosureMapper::toRes);
+    }
+
+    public List<DisclosureResDto> listRevisionsByDisplayNo(String displayNo) {
+        return disclosureRepository.findRevisionsByDisplayNo(displayNo)
+                .stream()
+                .map(DisclosureMapper::toRes)
+                .toList();
     }
 }

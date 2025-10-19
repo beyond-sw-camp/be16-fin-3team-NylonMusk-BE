@@ -23,7 +23,7 @@ import java.util.List;
 )
 public class ForumVote extends BaseIdAndTimeEntity {
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @OneToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "forum_post_id", nullable = false,
             foreignKey = @ForeignKey(name = "fk_forum_vote_post"))
     private ForumPost forumPost;

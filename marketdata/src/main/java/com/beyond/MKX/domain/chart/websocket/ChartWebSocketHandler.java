@@ -21,6 +21,8 @@ import java.util.concurrent.CopyOnWriteArraySet;
 
 /**
  * 차트 데이터 WebSocket Handler (Redis Streams 기반)
+ * 
+ * ✅ 수정사항: Candle 객체를 JSON 문자열로 변환 후 Redis Streams에 발행
  */
 @Slf4j
 @Component
@@ -117,13 +119,20 @@ public class ChartWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
+    /**
+     * ✅ 수정사항: Candle 객체를 JSON 문자열로 변환 후 발행
+     */
     public void broadcastCandle(String ticker, Candle candle) {
         try {
-            Map<String, Object> message = Map.of(
+            // ✅ Candle 객체를 JSON 문자열로 변환
+            String candleJson = objectMapper.writeValueAsString(candle);
+            
+            // 메시지 구성 (모두 String 타입)
+            Map<String, String> message = Map.of(
                     "type", "candle",
                     "ticker", ticker,
-                    "data", candle,
-                    "timestamp", System.currentTimeMillis()
+                    "data", candleJson,  // ✅ JSON 문자열로 전달
+                    "timestamp", String.valueOf(System.currentTimeMillis())
             );
             
             redisTemplate.opsForStream().add(STREAM_KEY, message);

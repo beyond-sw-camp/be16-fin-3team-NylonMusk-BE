@@ -7,6 +7,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -23,6 +24,8 @@ import java.util.concurrent.CopyOnWriteArraySet;
  * 
  * 실시간 체결 내역을 클라이언트에게 전송
  * WebSocket 엔드포인트: /ws/execution/{ticker}
+ * 
+ * ✅ 수정사항: ExecutionEventDTO를 JSON 문자열로 변환 후 Redis Streams에 발행
  */
 @Slf4j
 @Component
@@ -89,22 +92,66 @@ public class ExecutionWebSocketHandler extends TextWebSocketHandler {
     }
 
     /**
+     * ✅ 하트비트: 30초마다 모든 연결된 세션에 ping 전송
+     */
+    @Scheduled(fixedRate = 30000)
+    public void sendHeartbeat() {
+        int totalSent = 0;
+        int totalSessions = 0;
+        
+        for (Map.Entry<String, CopyOnWriteArraySet<WebSocketSession>> entry : localSessions.entrySet()) {
+            String ticker = entry.getKey();
+            CopyOnWriteArraySet<WebSocketSession> sessions = entry.getValue();
+            totalSessions += sessions.size();
+            
+            for (WebSocketSession session : sessions) {
+                if (session.isOpen()) {
+                    try {
+                        Map<String, Object> ping = Map.of(
+                                "type", "ping",
+                                "timestamp", System.currentTimeMillis()
+                        );
+                        session.sendMessage(new TextMessage(objectMapper.writeValueAsString(ping)));
+                        totalSent++;
+                    } catch (Exception e) {
+                        log.warn("[EXECUTION-WS] Failed to send heartbeat: ticker={}, sessionId={}", 
+                                ticker, session.getId());
+                    }
+                } else {
+                    sessions.remove(session);
+                }
+            }
+        }
+        
+        if (totalSessions > 0) {
+            log.debug("[EXECUTION-WS] 💓 Heartbeat sent to {}/{} sessions", totalSent, totalSessions);
+        }
+    }
+
+    /**
      * 실시간 체결 데이터를 Redis Streams로 발행
+     * 
+     * ✅ 수정사항: 체결 데이터를 JSON 문자열로 변환
      */
     public void broadcastExecution(ExecutionEventDTO execution) {
         try {
-            Map<String, Object> message = Map.of(
+            // ✅ 체결 데이터를 JSON 문자열로 변환
+            Map<String, Object> executionData = Map.of(
+                    "execId", execution.getExecId(),
+                    "ticker", execution.getTicker(),
+                    "side", execution.getSide(),
+                    "price", execution.getPrice(),
+                    "quantity", execution.getQuantity(),
+                    "timestamp", execution.getTimestamp()
+            );
+            String executionJson = objectMapper.writeValueAsString(executionData);
+            
+            // 메시지 구성 (모두 String 타입)
+            Map<String, String> message = Map.of(
                     "type", "execution",
                     "ticker", execution.getTicker(),
-                    "data", Map.of(
-                            "execId", execution.getExecId(),
-                            "ticker", execution.getTicker(),
-                            "side", execution.getSide(),
-                            "price", execution.getPrice(),
-                            "quantity", execution.getQuantity(),
-                            "timestamp", execution.getTimestamp()
-                    ),
-                    "timestamp", System.currentTimeMillis()
+                    "data", executionJson,  // ✅ JSON 문자열로 전달
+                    "timestamp", String.valueOf(System.currentTimeMillis())
             );
             
             redisTemplate.opsForStream().add(STREAM_KEY, message);

@@ -126,9 +126,8 @@ public class ChartService {
     }
 
     /**
-     * 특정 종목의 캔들 데이터 조회 (하이브리드 방식)
-     * 1. Redis에서 확정된 캔들 조회 (7일 이내)
-     * 2. 부족한 부분은 InfluxDB에서 조회
+     * 특정 종목의 캔들 데이터 조회
+     * InfluxDB를 우선 조회하고, 현재 진행중인 캔들은 Redis에서 추가
      */
     public List<Candle> getCandles(String ticker, String interval, Instant start, Instant end) {
         try {
@@ -137,28 +136,32 @@ public class ChartService {
             
             List<Candle> allCandles = new ArrayList<>();
             
-            // 1. Redis에서 확정된 캔들 조회 (최근 7일)
-            Instant sevenDaysAgo = Instant.now().minus(7, ChronoUnit.DAYS);
-            Instant redisStart = start.isAfter(sevenDaysAgo) ? start : sevenDaysAgo;
+            // 1. ✅ InfluxDB에서 전체 데이터 조회 (확정된 캔들)
+            List<Candle> influxCandles = candleInfluxRepository.findCandles(ticker, interval, start, end);
+            allCandles.addAll(influxCandles);
+            log.info("[CHART/QUERY] Retrieved {} candles from InfluxDB", influxCandles.size());
             
-            if (redisStart.isBefore(end)) {
-                List<Candle> redisCandles = getCandlesFromRedis(ticker, interval, redisStart, end);
-                allCandles.addAll(redisCandles);
-                log.info("[CHART/QUERY] Retrieved {} candles from Redis", redisCandles.size());
+            // 2. ✅ Redis에서 현재 진행중인 캔들 추가
+            String currentCandleKey = buildCurrentCandleKey(ticker, interval);
+            Candle currentCandle = getCandleFromRedis(currentCandleKey);
+            
+            if (currentCandle != null && currentCandle.getTime() != null) {
+                // 시간 범위 내에 있으면 추가
+                if (!currentCandle.getTime().isBefore(start) && currentCandle.getTime().isBefore(end)) {
+                    // 중복 제거: InfluxDB에 이미 있는지 확인
+                    boolean exists = allCandles.stream()
+                            .anyMatch(c -> c.getTime().equals(currentCandle.getTime()));
+                    
+                    if (!exists) {
+                        allCandles.add(currentCandle);
+                        log.info("[CHART/QUERY] Added current candle from Redis: time={}", currentCandle.getTime());
+                    }
+                }
             }
             
-            // 2. Redis에서 커버하지 못한 과거 데이터는 InfluxDB에서 조회
-            if (start.isBefore(sevenDaysAgo)) {
-                Instant influxEnd = end.isBefore(sevenDaysAgo) ? end : sevenDaysAgo;
-                List<Candle> influxCandles = candleInfluxRepository.findCandles(ticker, interval, start, influxEnd);
-                allCandles.addAll(influxCandles);
-                log.info("[CHART/QUERY] Retrieved {} candles from InfluxDB", influxCandles.size());
-            }
-            
-            // 3. 시간순 정렬 및 중복 제거
+            // 3. 시간순 정렬
             allCandles = allCandles.stream()
                     .sorted(Comparator.comparing(Candle::getTime))
-                    .distinct()
                     .collect(Collectors.toList());
             
             log.info("[CHART/QUERY] Total {} candles retrieved", allCandles.size());
@@ -172,7 +175,9 @@ public class ChartService {
 
     /**
      * Redis에서 확정된 캔들 조회
+     * @deprecated InfluxDB 우선 조회 방식으로 변경됨
      */
+    @Deprecated
     private List<Candle> getCandlesFromRedis(String ticker, String interval, Instant start, Instant end) {
         try {
             // Redis에서 해당 ticker와 interval의 확정된 캔들 패턴 조회

@@ -11,11 +11,12 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 캔들 확정 및 생성 스케줄러
@@ -23,6 +24,10 @@ import java.util.*;
  * 매 interval마다 실제 시간 기준으로 캔들 생성
  * - 체결이 있으면: Redis의 캔들을 InfluxDB로 저장
  * - 체결이 없으면: 이전 캔들과 동일한 OHLC로 빈 캔들 생성 (거래량 0)
+ * 
+ * ✅ 방안 1 + 방안 2 적용:
+ * 1. 확정된 캔들을 Redis에도 저장
+ * 2. 다음 interval의 빈 캔들을 미리 생성하여 Redis에 저장
  */
 @Slf4j
 @Component
@@ -31,10 +36,21 @@ public class CandleConfirmationScheduler {
 
     private final RedisTemplate<String, Object> redisTemplate;
     private final CandleInfluxRepository candleInfluxRepository;
-    private final ChartWebSocketHandler chartWebSocketHandler;  // ✅ WebSocket 추가
+    private final ChartWebSocketHandler chartWebSocketHandler;
     private final ObjectMapper objectMapper;
 
     private static final String CURRENT_CANDLE_PREFIX = "candle:";
+    
+    // 지원하는 캔들 간격 (분 단위)
+    private static final Map<String, Long> INTERVAL_MINUTES = Map.of(
+            "1m", 1L,
+            "5m", 5L,
+            "15m", 15L,
+            "30m", 30L,
+            "1h", 60L,
+            "4h", 240L,
+            "1d", 1440L
+    );
     
     // 추적할 종목 리스트
     private final Set<String> trackedTickers = new HashSet<>();
@@ -97,6 +113,10 @@ public class CandleConfirmationScheduler {
 
     /**
      * 캔들 처리 - 실제 시간 기준
+     * 
+     * ✅ 개선사항:
+     * 1. 확정된 캔들을 InfluxDB와 Redis 모두에 저장
+     * 2. 다음 interval의 빈 캔들을 미리 Redis에 생성
      */
     private void processCandles(String interval, long intervalMinutes) {
         try {
@@ -105,8 +125,10 @@ public class CandleConfirmationScheduler {
             // 현재 시각 기준으로 직전 interval의 시작 시각 계산
             Instant now = Instant.now();
             Instant candleTime = calculateCandleTime(now, intervalMinutes);
+            Instant nextCandleTime = calculateNextCandleTime(candleTime, intervalMinutes);
             
-            log.info("[CANDLE/SCHEDULER] Candle time: {}, interval: {}", candleTime, interval);
+            log.info("[CANDLE/SCHEDULER] Candle time: {}, Next candle time: {}, interval: {}", 
+                    candleTime, nextCandleTime, interval);
             
             // 활성 종목 수집
             updateTrackedTickers();
@@ -119,6 +141,7 @@ public class CandleConfirmationScheduler {
             log.info("[CANDLE/SCHEDULER] Processing {} tickers", trackedTickers.size());
             
             List<Candle> candlesToSave = new ArrayList<>();
+            List<Candle> nextCandles = new ArrayList<>();
             int confirmedCount = 0;
             int generatedCount = 0;
             int skippedCount = 0;
@@ -126,6 +149,7 @@ public class CandleConfirmationScheduler {
             // 각 종목별 캔들 생성
             for (String ticker : trackedTickers) {
                 try {
+                    // 1. 현재 interval의 캔들 생성 (확정)
                     Candle candle = createOrGetCandle(ticker, interval, candleTime);
                     
                     if (candle != null) {
@@ -140,6 +164,20 @@ public class CandleConfirmationScheduler {
                             log.debug("[CANDLE/SCHEDULER] 📊 Generated: ticker={}, time={}, close={} (no volume)",
                                     ticker, candle.getTime(), candle.getClose());
                         }
+                        
+                        // 2. ✅ 방안 2: 다음 interval의 빈 캔들을 미리 생성
+                        Candle nextCandle = Candle.builder()
+                                .ticker(ticker)
+                                .interval(interval)
+                                .time(nextCandleTime)
+                                .open(candle.getClose())
+                                .high(candle.getClose())
+                                .low(candle.getClose())
+                                .close(candle.getClose())
+                                .volume(BigDecimal.ZERO)
+                                .build();
+                        nextCandles.add(nextCandle);
+                        
                     } else {
                         skippedCount++;
                         log.debug("[CANDLE/SCHEDULER] ⏭️ Skipped: ticker={} (no previous candle)", ticker);
@@ -150,13 +188,27 @@ public class CandleConfirmationScheduler {
                 }
             }
             
-            // InfluxDB에 배치 저장
+            // 3. ✅ 방안 1: 확정된 캔들을 InfluxDB와 Redis 모두에 저장
             if (!candlesToSave.isEmpty()) {
+                // InfluxDB에 배치 저장
                 candleInfluxRepository.saveAll(candlesToSave);
-                log.info("[CANDLE/SCHEDULER] ✅ Saved {} candles (confirmed={}, generated={}, skipped={})", 
+                log.info("[CANDLE/SCHEDULER] ✅ Saved to InfluxDB: {} candles (confirmed={}, generated={}, skipped={})", 
                         candlesToSave.size(), confirmedCount, generatedCount, skippedCount);
                 
-                // ✅ 모든 캔들을 WebSocket으로 브로드캠스트
+                // Redis에도 저장 (이미 확정된 캔들이지만, 조회 성능을 위해 Redis에도 유지)
+                for (Candle candle : candlesToSave) {
+                    try {
+                        String redisKey = CURRENT_CANDLE_PREFIX + candle.getTicker() + ":" + candle.getInterval();
+                        long ttlMinutes = intervalMinutes * 100; // TTL 설정
+                        redisTemplate.opsForValue().set(redisKey, candle, ttlMinutes, TimeUnit.MINUTES);
+                        log.debug("[CANDLE/SCHEDULER] ✅ Saved to Redis: ticker={}, interval={}, time={}", 
+                                candle.getTicker(), candle.getInterval(), candle.getTime());
+                    } catch (Exception e) {
+                        log.error("[CANDLE/SCHEDULER] Failed to save to Redis: ticker={}", candle.getTicker(), e);
+                    }
+                }
+                
+                // WebSocket으로 브로드캐스트
                 for (Candle candle : candlesToSave) {
                     try {
                         chartWebSocketHandler.broadcastCandle(candle.getTicker(), candle);
@@ -168,6 +220,23 @@ public class CandleConfirmationScheduler {
                 }
             } else {
                 log.warn("[CANDLE/SCHEDULER] ⚠️ No candles to save (skipped={})", skippedCount);
+            }
+            
+            // 4. ✅ 방안 2: 다음 interval의 빈 캔들을 Redis에 저장
+            if (!nextCandles.isEmpty()) {
+                for (Candle nextCandle : nextCandles) {
+                    try {
+                        String redisKey = CURRENT_CANDLE_PREFIX + nextCandle.getTicker() + ":" + nextCandle.getInterval();
+                        long ttlMinutes = intervalMinutes * 100; // TTL 설정
+                        redisTemplate.opsForValue().set(redisKey, nextCandle, ttlMinutes, TimeUnit.MINUTES);
+                        log.debug("[CANDLE/SCHEDULER] ✅ Pre-created next candle in Redis: ticker={}, interval={}, time={}",
+                                nextCandle.getTicker(), nextCandle.getInterval(), nextCandle.getTime());
+                    } catch (Exception e) {
+                        log.error("[CANDLE/SCHEDULER] Failed to pre-create next candle: ticker={}", 
+                                nextCandle.getTicker(), e);
+                    }
+                }
+                log.info("[CANDLE/SCHEDULER] ✅ Pre-created {} next candles in Redis", nextCandles.size());
             }
             
             log.info("[CANDLE/SCHEDULER] ========== Completed: interval={} ==========", interval);
@@ -254,6 +323,19 @@ public class CandleConfirmationScheduler {
         long previousIntervalStart = currentIntervalStart - intervalMinutes;
         
         return Instant.ofEpochSecond(previousIntervalStart * 60);
+    }
+
+    /**
+     * ✅ 다음 캔들 시작 시각 계산
+     */
+    private Instant calculateNextCandleTime(Instant currentCandleTime, long intervalMinutes) {
+        if (intervalMinutes == 1440) {
+            // 1일 캔들: 다음 날 자정
+            return currentCandleTime.plus(Duration.ofDays(1));
+        }
+        
+        // 분 단위 캔들: interval만큼 더한 시각
+        return currentCandleTime.plus(Duration.ofMinutes(intervalMinutes));
     }
 
     /**

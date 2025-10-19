@@ -3,6 +3,7 @@ package com.beyond.MKX.domain.forumPost.entity;
 import com.beyond.MKX.common.domain.BaseIdAndTimeEntity;
 import com.beyond.MKX.domain.forumCategory.entity.ForumCategory;
 import com.beyond.MKX.domain.common.entity.WriterRole;
+import com.beyond.MKX.domain.forumVote.entity.ForumVote;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Size;
 import lombok.*;
@@ -75,6 +76,9 @@ public class ForumPost extends BaseIdAndTimeEntity {
     @Size(max = 512)
     @Column(name = "image_url", length = 512)
     private String imageUrl;
+
+    @OneToOne(mappedBy = "forumPost", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    private ForumVote vote;
 
     @Version
     @Column(name = "version", nullable = false)

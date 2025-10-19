@@ -7,6 +7,8 @@ import com.beyond.MKX.domain.forumPost.entity.ForumPostCategory;
 import com.beyond.MKX.domain.forumPost.entity.PostStatus;
 import com.beyond.MKX.domain.forumPost.repository.ForumPostRepository;
 import com.beyond.MKX.domain.forumPostLike.repository.ForumPostLikeRepository;
+import com.beyond.MKX.domain.forumPostComment.service.ForumPostCommentQueryService;
+import com.beyond.MKX.domain.forumVote.service.query.ForumVoteQueryService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -24,6 +26,8 @@ public class ForumPostQueryServiceImpl implements ForumPostQueryService {
 
     private final ForumPostRepository postRepo;
     private final ForumPostLikeRepository likeRepo;
+    private final ForumPostCommentQueryService commentQueryService;
+    private final ForumVoteQueryService voteQueryService;
 
     @Override
     public Page<ForumPostResDto> list(PostStatus status, Pageable pageable, UUID viewerId) {
@@ -66,11 +70,35 @@ public class ForumPostQueryServiceImpl implements ForumPostQueryService {
     }
 
     @Override
+    public Page<ForumPostResDto> listByStock(UUID stockId, PostStatus status, Pageable pageable, UUID viewerId) {
+        Page<ForumPost> page = (status == null)
+                ? postRepo.findByStockId(stockId, pageable)
+                : postRepo.findByStockIdAndStatus(stockId, status, pageable);
+
+        Set<UUID> likedPostIds = Collections.emptySet();
+        if (viewerId != null && !page.isEmpty()) {
+            List<UUID> ids = page.map(ForumPost::getId).toList();
+            likedPostIds = likeRepo.findLikedPostIdsByUser(viewerId, ids);
+        }
+
+        Set<UUID> finalLiked = likedPostIds;
+        return page.map(p -> map(p, finalLiked.contains(p.getId())));
+    }
+
+    @Override
     public ForumPostResDto get(UUID postId, UUID viewerId) {
         ForumPost post = postRepo.findById(postId)
                 .orElseThrow(() -> new EntityNotFoundException("ForumPost not found: " + postId));
         boolean liked = viewerId != null && likeRepo.existsByPostIdAndUserId(postId, viewerId);
         return map(post, liked);
+    }
+
+    @Override
+    public ForumPostResDto getWithDetails(UUID postId, UUID viewerId) {
+        ForumPost post = postRepo.findById(postId)
+                .orElseThrow(() -> new EntityNotFoundException("ForumPost not found: " + postId));
+        boolean liked = viewerId != null && likeRepo.existsByPostIdAndUserId(postId, viewerId);
+        return mapWithDetails(post, liked);
     }
 
     private ForumPostResDto map(ForumPost p, boolean likedByMe) {
@@ -82,6 +110,13 @@ public class ForumPostQueryServiceImpl implements ForumPostQueryService {
                         .description(c.getDescription())
                         .build())
                 .collect(Collectors.toList());
+
+        // 댓글 목록 가져오기 (최대 10개)
+        Pageable commentPageable = Pageable.ofSize(10);
+        var comments = commentQueryService.listByPost(p.getId(), commentPageable, null).getContent();
+
+        // 투표 정보 가져오기
+        var vote = voteQueryService.getByPost(p.getId(), null);
 
         return ForumPostResDto.builder()
                 .id(p.getId())
@@ -100,6 +135,47 @@ public class ForumPostQueryServiceImpl implements ForumPostQueryService {
                 .categories(catDtos)
                 .writerRole(p.getWriterRole())
                 .likedByMe(likedByMe)
+                .comments(comments)
+                .vote(vote)
+                .build();
+    }
+
+    private ForumPostResDto mapWithDetails(ForumPost p, boolean likedByMe) {
+        List<ForumCategoryResDto> catDtos = p.getCategories().stream()
+                .map(ForumPostCategory::getCategory)
+                .map(c -> ForumCategoryResDto.builder()
+                        .id(c.getId())
+                        .name(c.getName())
+                        .description(c.getDescription())
+                        .build())
+                .collect(Collectors.toList());
+
+        // 댓글 목록 가져오기 (최대 10개)
+        Pageable commentPageable = Pageable.ofSize(10);
+        var comments = commentQueryService.listByPost(p.getId(), commentPageable, null).getContent();
+
+        // 투표 정보 가져오기
+        var vote = voteQueryService.getByPost(p.getId(), null);
+
+        return ForumPostResDto.builder()
+                .id(p.getId())
+                .stockId(p.getStockId())
+                .createdBy(p.getCreatedBy())
+                .title(p.getTitle())
+                .contents(p.getContents())
+                .imageUrl(p.getImageUrl())
+                .status(p.getStatus())
+                .likesCount(p.getLikesCount())
+                .commentCount(p.getCommentCount())
+                .createdAt(p.getCreatedAt())
+                .updatedAt(p.getUpdatedAt())
+                .deletedAt(p.getDeletedAt())
+                .version(p.getVersion())
+                .categories(catDtos)
+                .writerRole(p.getWriterRole())
+                .likedByMe(likedByMe)
+                .comments(comments)
+                .vote(vote)
                 .build();
     }
 }

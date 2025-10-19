@@ -12,12 +12,11 @@ import org.springframework.web.multipart.MultipartFile;
 @NoArgsConstructor
 public class DisclosureAdditionalReqFormDto {
 
-    @NotBlank
+    @NotBlank(message = "제목은 필수입니다.")
     private String title;
 
     private String summary;
 
-    @NotNull
+    @NotNull(message = "추가공시 파일은 필수입니다.")
     private MultipartFile file;
 }
-

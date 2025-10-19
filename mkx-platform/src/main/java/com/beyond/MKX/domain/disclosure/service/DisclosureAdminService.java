@@ -65,6 +65,9 @@ public class DisclosureAdminService {
         disclosure.updateFileUrl(newUrl);
         try { s3Manager.delete(oldUrl); } catch (Exception ignored) {}
 
+        // 반드시 저장/플러시해서 isLatest, displayNo, fileUrl 반영 보장
+        disclosureRepository.saveAndFlush(disclosure);
+
         UUID adminId = currentAdminId();
         DisclosureDecision decision = DisclosureDecision.builder()
                 .disclosureId(disclosure.getId())
@@ -101,6 +104,9 @@ public class DisclosureAdminService {
         String newUrl = s3Manager.copy(oldUrl, destPrefix);
         disclosure.updateFileUrl(newUrl);
         try { s3Manager.delete(oldUrl); } catch (Exception ignored) {}
+
+        // 반려 후 경로 변경도 즉시 반영
+        disclosureRepository.saveAndFlush(disclosure);
 
         UUID adminId = currentAdminId();
         DisclosureDecision decision = DisclosureDecision.builder()

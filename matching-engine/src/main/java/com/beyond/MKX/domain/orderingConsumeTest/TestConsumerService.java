@@ -26,7 +26,7 @@ public class TestConsumerService {
      * @param message 문자열 페이로드(프로듀서에서 JSON 문자열 등)
      */
     @KafkaListener(
-            topics = "place-order",
+            topics = "ORDER_PLACED",
             groupId = "${spring.kafka.consumer.test-group-id1}",
             containerFactory = "kafkaListener"
     )
@@ -34,7 +34,7 @@ public class TestConsumerService {
             @Header(KafkaHeaders.RECEIVED_KEY) String key,
             String message
     ) {
-        System.out.println("주문 카프카 메시지 수신 : " + message + "key 값 : " + key);
+        System.out.println("TestConsService-주문 카프카 메시지 수신 : " + message + "\nkey 값 : " + key);
     }
 
     /**
@@ -51,7 +51,7 @@ public class TestConsumerService {
     public void consumer2(
             String message
     ) {
-        System.out.println("주문 카프카 메시지 수신 : " + message);
+        System.out.println("TestConsService-주문 카프카 메시지 수신 : " + message);
     }
 
 

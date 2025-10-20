@@ -37,7 +37,11 @@ public class ForumPostCommentCommandServiceImpl implements ForumPostCommentComma
                 .likes(0)
                 .build();
 
-        return ForumPostCommentMapper.toRes(commentRepo.save(entity));
+        ForumPostComment saved = commentRepo.save(entity);
+
+        postRepo.incrementCommentCount(post.getId());
+
+        return ForumPostCommentMapper.toRes(saved);
     }
 
     @Override
@@ -60,6 +64,8 @@ public class ForumPostCommentCommandServiceImpl implements ForumPostCommentComma
         }
         int updated = commentRepo.softDelete(commentId, LocalDateTime.now());
         if (updated == 0) throw new IllegalStateException("Already deleted or cannot delete: " + commentId);
+
+        postRepo.decrementCommentCount(c.getPost().getId());
     }
 
     @Override

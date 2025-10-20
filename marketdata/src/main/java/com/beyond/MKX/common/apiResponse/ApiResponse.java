@@ -2,7 +2,6 @@ package com.beyond.MKX.common.apiResponse;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-
 public class ApiResponse {
 
     public static ResponseEntity<?> ok(Object data) {
@@ -53,8 +52,3 @@ public class ApiResponse {
         ), HttpStatus.NO_CONTENT);
     }
 }
-
-
-
-
-

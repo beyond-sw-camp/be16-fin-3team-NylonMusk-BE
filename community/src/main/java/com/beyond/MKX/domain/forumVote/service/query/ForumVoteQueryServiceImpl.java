@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -39,8 +40,14 @@ public class ForumVoteQueryServiceImpl implements ForumVoteQueryService {
 
     @Override
     public ForumVoteResDto getByPost(UUID postId, UUID viewerId) {
-        ForumVote v = voteRepo.findByForumPost_Id(postId)
-                .orElseThrow(() -> new EntityNotFoundException("해당 게시글에는 투표가 존재하지 않습니다."));
+        Optional<ForumVote> voteOpt = voteRepo.findByForumPost_Id(postId);
+
+        if (voteOpt.isEmpty()) {
+            return null;
+        }
+
+        ForumVote v = voteOpt.get();
+
         List<ForumVoteSelection> sels = selectionRepo.findByVote_IdOrderBySortOrderAsc(v.getId());
         boolean votedByMe = (viewerId != null) && logRepo.existsByVote_IdAndVotedBy(v.getId(), viewerId);
         return toResDto(v, sels, votedByMe);

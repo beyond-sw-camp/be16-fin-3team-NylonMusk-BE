@@ -6,7 +6,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
@@ -33,7 +34,10 @@ import java.util.concurrent.CopyOnWriteArraySet;
 public class OrderBookWebSocketHandler extends TextWebSocketHandler {
 
     private final ObjectMapper objectMapper;
-    private final RedisTemplate<String, Object> redisTemplate;
+    
+    @Qualifier("webSocketRedisTemplate")  // ✅ WebSocket 전용 StringRedisTemplate 사용
+    private final StringRedisTemplate redisTemplate;
+    
     private final RedisStreamsMessageListener streamsListener;
 
     // Redis Stream key
@@ -61,13 +65,16 @@ public class OrderBookWebSocketHandler extends TextWebSocketHandler {
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
         String ticker = extractTickerFromSession(session);
         
+        log.info("[ORDERBOOK-WS] 🔌 Connection attempt: sessionId={}, uri={}, remoteAddr={}", 
+                session.getId(), session.getUri(), session.getRemoteAddress());
+        
         if (ticker != null) {
             localSessions.computeIfAbsent(ticker, k -> new CopyOnWriteArraySet<>()).add(session);
             
             int sessionCount = localSessions.get(ticker).size();
             
-            log.info("[ORDERBOOK-WS] ✅ Connected: ticker={}, sessionId={}, localSessionCount={}", 
-                    ticker, session.getId(), sessionCount);
+            log.info("[ORDERBOOK-WS] ✅ Connected: ticker={}, sessionId={}, localSessionCount={}, remoteAddr={}", 
+                    ticker, session.getId(), sessionCount, session.getRemoteAddress());
             
             // 연결 성공 메시지 전송
             Map<String, Object> response = Map.of(
@@ -181,9 +188,17 @@ public class OrderBookWebSocketHandler extends TextWebSocketHandler {
             URI uri = session.getUri();
             if (uri != null) {
                 String path = uri.getPath();
+                log.debug("[ORDERBOOK-WS] Extracting ticker from path: {}", path);
+                
                 String[] parts = path.split("/");
+                log.debug("[ORDERBOOK-WS] Path parts: {}", String.join(", ", parts));
+                
                 if (parts.length >= 4) {
-                    return parts[parts.length - 1];
+                    String ticker = parts[parts.length - 1];
+                    log.info("[ORDERBOOK-WS] ✅ Extracted ticker: '{}' from path: {}", ticker, path);
+                    return ticker;
+                } else {
+                    log.warn("[ORDERBOOK-WS] ⚠️ Invalid path structure: {}, parts count: {}", path, parts.length);
                 }
             }
         } catch (Exception e) {

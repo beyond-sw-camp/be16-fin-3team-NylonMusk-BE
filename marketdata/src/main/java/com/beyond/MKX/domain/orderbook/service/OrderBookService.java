@@ -387,4 +387,14 @@ public class OrderBookService {
                     orderStatus.getOrderId(), e);
         }
     }
+    
+    /**
+     * WebSocket 세션 수 조회 (디버깅용)
+     * 
+     * @param ticker 종목코드
+     * @return 해당 ticker를 구독하는 WebSocket 세션 수
+     */
+    public int getWebSocketSessionCount(String ticker) {
+        return orderBookWebSocketHandler.getLocalSessionCount(ticker);
+    }
 }

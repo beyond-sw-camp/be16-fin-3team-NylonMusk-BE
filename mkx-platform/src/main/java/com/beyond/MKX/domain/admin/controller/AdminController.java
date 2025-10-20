@@ -3,7 +3,6 @@ package com.beyond.MKX.domain.admin.controller;
 import com.beyond.MKX.common.apiResponse.ApiResponse;
 import com.beyond.MKX.common.auth.security.CustomAdminPrincipal;
 import com.beyond.MKX.domain.admin.dto.AdminResDto;
-import com.beyond.MKX.domain.admin.entity.Admin;
 import com.beyond.MKX.domain.admin.service.AdminService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -20,7 +19,7 @@ public class AdminController  {
 
     @GetMapping("/me")
     public ResponseEntity<?> getMyInfo(@AuthenticationPrincipal CustomAdminPrincipal principal) {
-        AdminResDto dto = adminService.getProfileWithAccount(principal.id());
+        AdminResDto dto = adminService.getMeWithOrgsAndStocks(principal.id());
         return ApiResponse.ok(dto, "내 정보 조회 성공");
     }
 }

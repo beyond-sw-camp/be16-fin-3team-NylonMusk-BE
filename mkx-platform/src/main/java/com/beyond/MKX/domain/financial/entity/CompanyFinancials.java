@@ -36,6 +36,15 @@ public class CompanyFinancials extends BaseIdAndTimeEntity {
     @Column(name = "total_liabilities") private Long totalLiabilities;
     @Column(name = "total_equity")      private Long totalEquity;
 
+    @Column(name = "current_assets")
+    private Long currentAssets; // 유동자산
+
+    @Column(name = "current_liabilities")
+    private Long currentLiabilities; // 유동부채
+
+    @Column(name = "interest_expense")
+    private Long interestExpense; // 이자비용
+
     public void updateFrom(CompanyFinancials u) {
         this.revenue = u.revenue;
         this.operatingIncome = u.operatingIncome;
@@ -44,5 +53,8 @@ public class CompanyFinancials extends BaseIdAndTimeEntity {
         this.totalAssets = u.totalAssets;
         this.totalLiabilities = u.totalLiabilities;
         this.totalEquity = u.totalEquity;
+        this.currentAssets = u.currentAssets;
+        this.currentLiabilities = u.currentLiabilities;
+        this.interestExpense = u.interestExpense;
     }
 }

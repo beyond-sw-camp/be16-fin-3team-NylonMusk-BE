@@ -16,6 +16,9 @@ public record CompanyFinancialsResDto(
         Long totalAssets,
         Long totalLiabilities,
         Long totalEquity,
+        Long currentAssets,
+        Long currentLiabilities,
+        Long interestExpense,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {}

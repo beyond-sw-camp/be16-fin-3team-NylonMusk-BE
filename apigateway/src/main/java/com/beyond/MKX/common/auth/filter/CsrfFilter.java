@@ -59,7 +59,8 @@ public class CsrfFilter implements GlobalFilter, Ordered {
             "/ordering-service",
             "/matching-engine-service",
             "/market-data-service",
-            "/community-service"
+            "/community-service",
+            "/trading-bot-service"
     );
 
     private final AntPathMatcher matcher = new AntPathMatcher();

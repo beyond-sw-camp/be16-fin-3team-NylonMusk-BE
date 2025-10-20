@@ -1,4 +1,4 @@
-package com.beyond.MKX.domain.controller;
+package com.beyond.MKX.common.test.controller;
 
 import com.beyond.MKX.common.apiResponse.ApiResponse;
 import org.springframework.http.ResponseEntity;
@@ -10,7 +10,7 @@ public class HealthCheckController {
 
     @GetMapping("/health")
     public ResponseEntity<?> healthCheck() {
-        String response = "market-data-service: OK";
+        String response = "trading-bot-service: OK";
         return ApiResponse.ok(response);
     }
 }

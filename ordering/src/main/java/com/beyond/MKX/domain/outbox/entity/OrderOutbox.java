@@ -13,9 +13,10 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Entity
-@Table(name = "order_outbox", indexes = {
-        @Index(name = "idx_is_published_created_at", columnList = "is_published, created_at")
-})
+@Table(name = "order_outbox"
+//        ,indexes = {
+//        @Index(name = "idx_is_published_created_at", columnList = "is_published, created_at")}
+)
 @Builder
 public class OrderOutbox {
     @Id

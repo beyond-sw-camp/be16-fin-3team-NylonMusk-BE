@@ -84,10 +84,26 @@ public class DisclosureAdminQueryService {
 
     /**
      * 본공시 체인(displayNo=baseNo) + 추가공시 체인들을 트리구조로 반환
+     * baseNo가 UUID인 경우 해당 공시부터 역추적하여 원본 공시를 찾음
      */
     public DisclosureTreeResDto getRelatedTreeByBaseNo(String baseNo) {
+        // baseNo가 UUID인지 확인
+        Disclosure startDisclosure = null;
+        String originalDisplayNo = baseNo;
+        
+        // baseNo가 UUID 형식인지 확인 (8-4-4-4-12 패턴)
+        if (baseNo.matches("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")) {
+            // UUID인 경우 - 해당 공시부터 역추적하여 원본 공시 찾기
+            startDisclosure = disclosureRepository.findById(UUID.fromString(baseNo))
+                .orElseThrow(() -> new IllegalArgumentException("공시를 찾을 수 없습니다."));
+            originalDisplayNo = findOriginalDisclosure(startDisclosure).getDisplayNo();
+        } else {
+            // displayNo인 경우 - 그대로 사용
+            originalDisplayNo = baseNo;
+        }
+        
         // 본공시 체인(원본 + 정정 포함)
-        List<Disclosure> baseChain = disclosureRepository.findRevisionsByDisplayNo(baseNo);
+        List<Disclosure> baseChain = disclosureRepository.findRevisionsByDisplayNo(originalDisplayNo);
         
         // 원본 공시가 체인에 포함되지 않은 경우 추가
         boolean hasOriginal = baseChain.stream().anyMatch(d -> d.getOriginId() == null);
@@ -153,6 +169,40 @@ public class DisclosureAdminQueryService {
         }
 
         // 루트 노드: relationType NONE, previousId null
-        return new DisclosureTreeResDto(baseNo, DisclosureRelationType.NONE, null, baseChainDto, children);
+        return new DisclosureTreeResDto(originalDisplayNo, DisclosureRelationType.NONE, null, baseChainDto, children);
+    }
+    
+    /**
+     * 주어진 공시부터 previousId와 originId를 역추적하여 원본 공시를 찾음
+     */
+    private Disclosure findOriginalDisclosure(Disclosure disclosure) {
+        Disclosure current = disclosure;
+        
+        // originId가 null이 될 때까지 역추적 (정정공시 체인만)
+        while (current.getOriginId() != null) {
+            current = disclosureRepository.findById(current.getOriginId())
+                .orElse(current);
+        }
+        
+        // 이제 current는 원본 공시이거나 추가공시
+        // 추가공시인 경우 previousId로 이동하여 정정공시 체인으로 돌아가기
+        while (current.getPreviousId() != null) {
+            Disclosure previous = disclosureRepository.findById(current.getPreviousId())
+                .orElse(current);
+            
+            // previous가 정정공시인 경우, 그 정정공시의 원본을 찾기
+            if (previous.getOriginId() != null) {
+                Disclosure original = previous;
+                while (original.getOriginId() != null) {
+                    original = disclosureRepository.findById(original.getOriginId())
+                        .orElse(original);
+                }
+                return original;
+            }
+            
+            current = previous;
+        }
+        
+        return current;
     }
 }

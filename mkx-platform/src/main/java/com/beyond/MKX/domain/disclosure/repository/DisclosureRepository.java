@@ -129,6 +129,14 @@ public interface DisclosureRepository extends JpaRepository<Disclosure, UUID> {
               and d.originId is null
             """)
     List<Disclosure> findByDisplayNoAndOriginIdIsNull(@Param("displayNo") String displayNo);
+    
+    // displayNo로 공시 조회: DisclosureAdminQueryService.getRelatedTreeByBaseNo() (역추적용)
+    @Query("""
+            select d
+            from Disclosure d
+            where d.displayNo = :displayNo
+            """)
+    List<Disclosure> findByDisplayNo(@Param("displayNo") String displayNo);
 
     // 추가공시 조회: previousId가 체인 내 ID에 속하는 ADDITIONAL 목록
     @Query("""

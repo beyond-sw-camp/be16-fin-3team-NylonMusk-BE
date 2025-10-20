@@ -1,0 +1,218 @@
+{
+  "info": {
+    "_postman_id": "trading-bot-collection",
+    "name": "Trading Bot Service API",
+    "description": "MKX 플랫폼 트레이딩 봇 서비스 API 테스트",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        }
+      }
+    },
+    {
+      "name": "Test Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/test/api/trading-bot/test/health",
+          "host": ["{{base_url}}"],
+          "path": ["test", "api", "trading-bot", "test", "health"]
+        }
+      }
+    },
+    {
+      "name": "Create Simple Bots",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/test/api/trading-bot/test/simple-bot?ticker=MKX001",
+          "host": ["{{base_url}}"],
+          "path": ["test", "api", "trading-bot", "test", "simple-bot"],
+          "query": [
+            {
+              "key": "ticker",
+              "value": "MKX001"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Create Dynamic Bots - MKX001",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/test/api/trading-bot/test/dynamic/MKX001",
+          "host": ["{{base_url}}"],
+          "path": ["test", "api", "trading-bot", "test", "dynamic", "MKX001"]
+        }
+      }
+    },
+    {
+      "name": "Create Dynamic Bots - MKX002",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/test/api/trading-bot/test/dynamic/MKX002",
+          "host": ["{{base_url}}"],
+          "path": ["test", "api", "trading-bot", "test", "dynamic", "MKX002"]
+        }
+      }
+    },
+    {
+      "name": "Create Dynamic Bots - MKX006",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/test/api/trading-bot/test/dynamic/MKX006",
+          "host": ["{{base_url}}"],
+          "path": ["test", "api", "trading-bot", "test", "dynamic", "MKX006"]
+        }
+      }
+    },
+    {
+      "name": "Get Active Bots",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/test/api/trading-bot/test/configs/active",
+          "host": ["{{base_url}}"],
+          "path": ["test", "api", "trading-bot", "test", "configs", "active"]
+        }
+      }
+    },
+    {
+      "name": "Deactivate All Bots",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/test/api/trading-bot/configs/all",
+          "host": ["{{base_url}}"],
+          "path": ["test", "api", "trading-bot", "configs", "all"]
+        }
+      }
+    },
+    {
+      "name": "Create Single Bot",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"ticker\": \"MKX001\",\n  \"status\": \"START\",\n  \"priceLimitHigh\": 55000,\n  \"priceLimitLow\": 45000,\n  \"quantity\": 10,\n  \"side\": \"BUY\",\n  \"orderType\": \"LIMIT\",\n  \"brokerageId\": \"TEST_BROKER\",\n  \"description\": \"테스트 매수 봇\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/test/api/trading-bot/config",
+          "host": ["{{base_url}}"],
+          "path": ["test", "api", "trading-bot", "config"]
+        }
+      }
+    },
+    {
+      "name": "Update Bot Status",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"END\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/test/api/trading-bot/config/{{bot_id}}/status",
+          "host": ["{{base_url}}"],
+          "path": [
+            "test",
+            "api",
+            "trading-bot",
+            "config",
+            "{{bot_id}}",
+            "status"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Deactivate Single Bot",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/test/api/trading-bot/config/{{bot_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["test", "api", "trading-bot", "config", "{{bot_id}}"]
+        }
+      }
+    },
+    {
+      "name": "Get Bots by Status",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/test/api/trading-bot/configs/status/START",
+          "host": ["{{base_url}}"],
+          "path": ["test", "api", "trading-bot", "configs", "status", "START"]
+        }
+      }
+    },
+    {
+      "name": "Test Matching Engine",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"brokerageId\": \"TEST_BROKER\",\n  \"orderId\": \"test-order-123\",\n  \"ticker\": \"MKX001\",\n  \"side\": \"BUY\",\n  \"orderType\": \"LIMIT\",\n  \"price\": 50000,\n  \"quantity\": 10,\n  \"createdAt\": \"2025-10-19T17:30:00\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/matching-engine-service/test/order",
+          "host": ["{{base_url}}"],
+          "path": ["matching-engine-service", "test", "order"]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080/trading-bot-service",
+      "type": "string"
+    },
+    {
+      "key": "bot_id",
+      "value": "your-bot-id-here",
+      "type": "string"
+    }
+  ]
+}

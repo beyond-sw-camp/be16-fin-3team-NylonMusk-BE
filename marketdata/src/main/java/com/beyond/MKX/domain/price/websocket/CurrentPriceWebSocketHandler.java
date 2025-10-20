@@ -6,7 +6,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
@@ -30,7 +31,10 @@ import java.util.concurrent.CopyOnWriteArraySet;
 public class CurrentPriceWebSocketHandler extends TextWebSocketHandler {
 
     private final ObjectMapper objectMapper;
-    private final RedisTemplate<String, Object> redisTemplate;
+    
+    @Qualifier("webSocketRedisTemplate")
+    private final StringRedisTemplate redisTemplate;
+    
     private final RedisStreamsMessageListener streamsListener;
 
     private static final String STREAM_KEY = "websocket:price:stream";
@@ -137,7 +141,7 @@ public class CurrentPriceWebSocketHandler extends TextWebSocketHandler {
             
             redisTemplate.opsForStream().add(STREAM_KEY, message);
             log.debug("[PRICE-WS] 📤 Published to Redis Streams: ticker={}, price={}", 
-                    ticker, currentPrice.getCurrentPrice());
+                    ticker, currentPrice.getPrice());
             
         } catch (Exception e) {
             log.error("[PRICE-WS] ❌ Failed to publish: ticker={}", ticker, e);

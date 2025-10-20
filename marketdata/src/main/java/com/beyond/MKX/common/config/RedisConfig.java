@@ -27,13 +27,13 @@ import java.time.Duration;
 @Configuration
 public class RedisConfig {
 
-    @Value("${spring.data.redis.host}")
+    @Value("${spring.data.redis.host:localhost}")
     private String host;
 
-    @Value("${spring.data.redis.port}")
+    @Value("${spring.data.redis.port:6379}")
     private int port;
 
-    @Value("${spring.data.redis.database:3}")
+    @Value("${spring.data.redis.database:0}")
     private int database;
 
     @Bean

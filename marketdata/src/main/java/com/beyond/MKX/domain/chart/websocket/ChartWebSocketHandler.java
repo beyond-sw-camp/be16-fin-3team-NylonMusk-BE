@@ -6,7 +6,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
@@ -30,7 +31,10 @@ import java.util.concurrent.CopyOnWriteArraySet;
 public class ChartWebSocketHandler extends TextWebSocketHandler {
 
     private final ObjectMapper objectMapper;
-    private final RedisTemplate<String, Object> redisTemplate;
+    
+    @Qualifier("webSocketRedisTemplate")
+    private final StringRedisTemplate redisTemplate;
+    
     private final RedisStreamsMessageListener streamsListener;
 
     private static final String STREAM_KEY = "websocket:chart:stream";

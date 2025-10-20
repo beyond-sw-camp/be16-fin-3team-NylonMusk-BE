@@ -17,15 +17,19 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 
 /**
  * Redis Streams 메시지 리스너 (MapRecord 방식)
+ * 
+ * ✅ 수정사항: 
+ * - Consumer Group 방식에서 각 인스턴스가 독립적으로 구독하는 방식으로 변경
+ * - 모든 인스턴스가 모든 메시지를 받아서 로컬 세션에 브로드캐스트
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class RedisStreamsMessageListener {
 
     private final StreamMessageListenerContainer<String, MapRecord<String, String, String>> container;
@@ -37,12 +41,30 @@ public class RedisStreamsMessageListener {
     
     private final Map<String, Subscription> subscriptions = new ConcurrentHashMap<>();
     
-    private static final String CONSUMER_GROUP = "market-data-websocket";
-    private String consumerName;
+    // ✅ 각 애플리케이션 인스턴스마다 고유한 Consumer Group 사용
+    private final String CONSUMER_GROUP;
+    private final String consumerName;
+
+    // ✅ Spring이 자동으로 의존성 주입할 수 있도록 생성자 만들기
+    public RedisStreamsMessageListener(
+            StreamMessageListenerContainer<String, MapRecord<String, String, String>> container,
+            RedisConnectionFactory connectionFactory,
+            ObjectMapper objectMapper) {
+        this.container = container;
+        this.connectionFactory = connectionFactory;
+        this.objectMapper = objectMapper;
+        
+        // ✅ 애플리케이션 인스턴스마다 고유한 Consumer Group 생성
+        String instanceId = UUID.randomUUID().toString();
+        this.CONSUMER_GROUP = "market-data-websocket-" + instanceId;
+        this.consumerName = "consumer-" + instanceId;
+        
+        log.info("[REDIS-STREAMS] 🆔 Instance ID: {}, Consumer Group: {}, Consumer: {}", 
+                instanceId, CONSUMER_GROUP, consumerName);
+    }
 
     @PostConstruct
     public void init() {
-        consumerName = "consumer-" + System.currentTimeMillis();
         container.start();
         log.info("[REDIS-STREAMS] ✅ Initialized with consumer: {}", consumerName);
     }
@@ -58,20 +80,23 @@ public class RedisStreamsMessageListener {
 
     /**
      * Stream 구독 시작
+     * 
+     * ✅ 각 애플리케이션 인스턴스가 독립적인 Consumer Group을 사용하여
+     *    모든 메시지를 받을 수 있도록 구현
      */
     public void subscribeToStream(String streamKey, String type) {
         try {
-            // Consumer Group 생성
+            // ✅ Consumer Group 생성 (인스턴스별 고유)
             try {
                 connectionFactory.getConnection()
                         .streamCommands()
                         .xGroupCreate(streamKey.getBytes(), CONSUMER_GROUP, ReadOffset.latest(), true);
                 log.info("[REDIS-STREAMS] Created consumer group: stream={}, group={}", streamKey, CONSUMER_GROUP);
             } catch (Exception e) {
-                log.debug("[REDIS-STREAMS] Consumer group already exists: stream={}", streamKey);
+                log.debug("[REDIS-STREAMS] Consumer group already exists: stream={}, group={}", streamKey, CONSUMER_GROUP);
             }
             
-            // Subscription 생성
+            // ✅ Subscription 생성 - 각 인스턴스가 모든 메시지를 받음
             Subscription subscription = container.receive(
                     Consumer.from(CONSUMER_GROUP, consumerName),
                     StreamOffset.create(streamKey, ReadOffset.lastConsumed()),
@@ -80,8 +105,8 @@ public class RedisStreamsMessageListener {
             
             subscriptions.put(streamKey, subscription);
             
-            log.info("[REDIS-STREAMS] ✅ Subscribed: stream={}, type={}, consumer={}", 
-                    streamKey, type, consumerName);
+            log.info("[REDIS-STREAMS] ✅ Subscribed: stream={}, type={}, consumer={}, group={}", 
+                    streamKey, type, consumerName, CONSUMER_GROUP);
             
         } catch (Exception e) {
             log.error("[REDIS-STREAMS] ❌ Failed to subscribe: stream={}", streamKey, e);
@@ -90,6 +115,9 @@ public class RedisStreamsMessageListener {
 
     /**
      * Redis Streams 메시지 처리 (MapRecord)
+     * 
+     * ✅ 이 메서드는 각 애플리케이션 인스턴스에서 실행되며,
+     *    로컬에 연결된 WebSocket 세션들에게만 메시지를 전송
      */
     @SuppressWarnings("unchecked")
     private void handleMessage(MapRecord<String, String, String> message, String type) {
@@ -110,8 +138,15 @@ public class RedisStreamsMessageListener {
                 return;
             }
             
-            log.debug("[REDIS-STREAMS] 📨 Received: stream={}, type={}, ticker={}, fields={}", 
-                    message.getStream(), type, ticker, data.keySet());
+            // ⚠️ ticker에 인용부호가 포함되어 있는지 확인
+            if (ticker.startsWith("\"") && ticker.endsWith("\"")) {
+                String cleanedTicker = ticker.substring(1, ticker.length() - 1);
+                log.warn("[REDIS-STREAMS] ⚠️ Ticker has quotes! Original: '{}', Cleaned: '{}'", ticker, cleanedTicker);
+                ticker = cleanedTicker;
+            }
+            
+            log.info("[REDIS-STREAMS] 📨 Received: stream={}, type={}, ticker='{}', messageId={}, consumerGroup={}, fields={}", 
+                    message.getStream(), type, ticker, message.getId(), CONSUMER_GROUP, data.keySet());
             
             // JSON 문자열을 Map으로 변환
             Map<String, Object> jsonData = objectMapper.readValue(
@@ -119,16 +154,28 @@ public class RedisStreamsMessageListener {
                     Map.class
             );
             
-            // 타입별 세션 저장소에서 세션 가져오기
+            // ✅ 타입별 세션 저장소에서 로컬 세션 가져오기
             Map<String, CopyOnWriteArraySet<WebSocketSession>> sessions = sessionStores.get(type);
+            
+            log.debug("[REDIS-STREAMS] Session store lookup: type={}, hasStore={}, ticker={}", 
+                    type, sessions != null, ticker);
             
             if (sessions != null && ticker != null) {
                 CopyOnWriteArraySet<WebSocketSession> tickerSessions = sessions.get(ticker);
+                
+                log.info("[REDIS-STREAMS] Ticker sessions lookup: ticker='{}', found={}, count={}", 
+                        ticker, tickerSessions != null, tickerSessions != null ? tickerSessions.size() : 0);
+                
+                // ✅ 모든 ticker 키 출력
+                log.info("[REDIS-STREAMS] Available tickers in session store: {}", sessions.keySet());
+                
                 if (tickerSessions != null && !tickerSessions.isEmpty()) {
                     int broadcasted = broadcastToSessions(tickerSessions, jsonData);
-                    log.debug("[REDIS-STREAMS] ✅ Broadcasted to {} sessions for ticker={}", broadcasted, ticker);
+                    log.info("[REDIS-STREAMS] ✅ Broadcasted to {} LOCAL sessions for ticker={}, type={}, consumerGroup={}", 
+                            broadcasted, ticker, type, CONSUMER_GROUP);
                 } else {
-                    log.debug("[REDIS-STREAMS] No active sessions for ticker={}", ticker);
+                    log.info("[REDIS-STREAMS] ⚠️ No active LOCAL sessions for ticker={}, type={}, consumerGroup={}", 
+                            ticker, type, CONSUMER_GROUP);
                 }
             } else {
                 log.debug("[REDIS-STREAMS] No session store found: type={}", type);
@@ -152,14 +199,17 @@ public class RedisStreamsMessageListener {
             connectionFactory.getConnection()
                     .streamCommands()
                     .xAck(message.getStream().getBytes(), CONSUMER_GROUP, message.getId());
-            log.trace("[REDIS-STREAMS] ACK: messageId={}", message.getId());
+            log.trace("[REDIS-STREAMS] ACK: messageId={}, group={}", message.getId(), CONSUMER_GROUP);
         } catch (Exception e) {
-            log.error("[REDIS-STREAMS] Failed to ACK message: messageId={}", message.getId(), e);
+            log.error("[REDIS-STREAMS] Failed to ACK message: messageId={}, group={}", 
+                    message.getId(), CONSUMER_GROUP, e);
         }
     }
 
     /**
      * 로컬 세션들에게 메시지 브로드캐스트
+     * 
+     * ✅ 이 인스턴스에 연결된 WebSocket 세션들에게만 전송
      */
     private int broadcastToSessions(CopyOnWriteArraySet<WebSocketSession> sessions, 
                                      Map<String, Object> data) {
@@ -178,6 +228,8 @@ public class RedisStreamsMessageListener {
                     try {
                         session.sendMessage(textMessage);
                         sentCount++;
+                        log.debug("[REDIS-STREAMS] 📤 Sent to session: sessionId={}, remoteAddr={}", 
+                                session.getId(), session.getRemoteAddress());
                     } catch (Exception e) {
                         log.error("[REDIS-STREAMS] Failed to send to session: sessionId={}", 
                                 session.getId(), e);
@@ -199,6 +251,6 @@ public class RedisStreamsMessageListener {
     public void registerSessionStore(String type, 
                                      Map<String, CopyOnWriteArraySet<WebSocketSession>> sessionStore) {
         sessionStores.put(type, sessionStore);
-        log.info("[REDIS-STREAMS] ✅ Registered session store: type={}", type);
+        log.info("[REDIS-STREAMS] ✅ Registered session store: type={}, consumerGroup={}", type, CONSUMER_GROUP);
     }
 }

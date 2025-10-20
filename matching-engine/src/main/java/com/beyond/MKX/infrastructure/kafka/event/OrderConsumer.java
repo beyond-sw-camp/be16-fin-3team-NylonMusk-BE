@@ -33,7 +33,7 @@ public class OrderConsumer {
      * - 헤더(topic/key) 로깅으로 트레이싱 용이
      */
     @KafkaListener(
-            topics = "place-order",
+            topics = "ORDER_PLACED",
             groupId = "matching-engine-inbound",
             containerFactory = "kafkaStringListenerFactory"
     )

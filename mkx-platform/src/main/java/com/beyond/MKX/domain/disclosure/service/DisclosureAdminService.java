@@ -26,6 +26,14 @@ public class DisclosureAdminService {
     private final DisclosureNumberService numberService;
     private final FinancialUploadService financialUploadService;
 
+    /**
+     * 공시 상세 조회 (관리자용)
+     */
+    public Disclosure getById(UUID id) {
+        return disclosureRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("공시를 찾을 수 없습니다."));
+    }
+
     @Transactional
     public Disclosure approve(UUID id) {
         Disclosure disclosure = disclosureRepository.findById(id)

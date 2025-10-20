@@ -26,6 +26,8 @@ public record DisclosureResDto(
         DisclosureRelationType relationType,
         String displayNo,
         Integer revisionNo,
+        UUID originId,
+        UUID previousId,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {}

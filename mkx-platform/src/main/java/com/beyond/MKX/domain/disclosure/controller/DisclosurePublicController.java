@@ -38,9 +38,10 @@ public class DisclosurePublicController {
             @RequestParam(required = false) DisclosureType type,
             @RequestParam(required = false) String ticker,
             @RequestParam(required = false, name = "title") String title,
+            @RequestParam(required = false, name = "displayNo") String displayNo,
             @PageableDefault(size = 20, sort = "publishedAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        Page<DisclosureResDto> page = disclosureQueryService.listApproved(type, ticker, title, pageable);
+        Page<DisclosureResDto> page = disclosureQueryService.listApproved(type, ticker, title, displayNo, pageable);
         return ApiResponse.ok(page, "승인 공시 조회 완료");
     }
 

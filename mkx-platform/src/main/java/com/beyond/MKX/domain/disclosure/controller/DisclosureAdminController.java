@@ -71,13 +71,14 @@ public class DisclosureAdminController {
             @RequestParam(required = false) DisclosureType type,
             @RequestParam(required = false) UUID stockId,
             @RequestParam(required = false) String title,
+            @RequestParam(required = false, name = "displayNo") String displayNo,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         LocalDateTime from = (fromDate != null) ? fromDate.atStartOfDay() : null;
         LocalDateTime toExclusive = (toDate != null) ? toDate.plusDays(1).atStartOfDay() : null;
-        Page<DisclosureResDto> page = disclosureAdminQueryService.search(status, type, stockId, title, from, toExclusive, pageable);
+        Page<DisclosureResDto> page = disclosureAdminQueryService.search(status, type, stockId, title, displayNo, from, toExclusive, pageable);
         return ApiResponse.ok(page, "관리자 공시 조회 완료");
     }
 
@@ -97,6 +98,14 @@ public class DisclosureAdminController {
     public ResponseEntity<?> related(@PathVariable String baseNo) {
         DisclosureTreeResDto tree = disclosureAdminQueryService.getRelatedTreeByBaseNo(baseNo);
         return ApiResponse.ok(tree, "관련 공시 묶음 조회 완료");
+    }
+
+    /** 관리자: 공시 상세 조회 */
+    @ExchangeOnly
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getById(@PathVariable UUID id) {
+        Disclosure disclosure = disclosureAdminService.getById(id);
+        return ApiResponse.ok(DisclosureMapper.toRes(disclosure), "공시 상세 조회 완료");
     }
 
     /** 관리자: 공시 첨부 파일 다운로드 */

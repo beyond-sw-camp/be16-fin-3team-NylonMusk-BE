@@ -41,6 +41,7 @@ public interface DisclosureRepository extends JpaRepository<Disclosure, UUID> {
               and (:type is null or d.disclosureType = :type)
               and (:stockId is null or d.stockId = :stockId)
               and (:title is null or lower(d.title) like lower(concat('%', :title, '%')))
+              and (:displayNo is null or d.displayNo = :displayNo)
             order by d.publishedAt desc
             """)
     Page<Disclosure> searchApproved(
@@ -48,6 +49,7 @@ public interface DisclosureRepository extends JpaRepository<Disclosure, UUID> {
             @Param("type") DisclosureType type,
             @Param("stockId") UUID stockId,
             @Param("title") String title,
+            @Param("displayNo") String displayNo,
             Pageable pageable
     );
 
@@ -59,6 +61,7 @@ public interface DisclosureRepository extends JpaRepository<Disclosure, UUID> {
               and (:type is null or d.disclosureType = :type)
               and (:stockId is null or d.stockId = :stockId)
               and (:title is null or lower(d.title) like lower(concat('%', :title, '%')))
+              and (:displayNo is null or d.displayNo = :displayNo)
               and (:from is null or d.createdAt >= :from)
               and (:toExclusive is null or d.createdAt < :toExclusive)
             """)
@@ -67,6 +70,7 @@ public interface DisclosureRepository extends JpaRepository<Disclosure, UUID> {
             @Param("type") DisclosureType type,
             @Param("stockId") UUID stockId,
             @Param("title") String title,
+            @Param("displayNo") String displayNo,
             @Param("from") LocalDateTime from,
             @Param("toExclusive") LocalDateTime toExclusive,
             Pageable pageable
@@ -116,6 +120,15 @@ public interface DisclosureRepository extends JpaRepository<Disclosure, UUID> {
             order by d.revisionNo desc, d.createdAt desc
             """)
     List<Disclosure> findRevisionsByDisplayNo(@Param("displayNo") String displayNo);
+
+    // 원본 공시 조회: DisclosureAdminQueryService.getRelatedTreeByBaseNo() (관련 공시 트리에서 원본 포함)
+    @Query("""
+            select d
+            from Disclosure d
+            where d.displayNo = :displayNo
+              and d.originId is null
+            """)
+    List<Disclosure> findByDisplayNoAndOriginIdIsNull(@Param("displayNo") String displayNo);
 
     // 추가공시 조회: previousId가 체인 내 ID에 속하는 ADDITIONAL 목록
     @Query("""

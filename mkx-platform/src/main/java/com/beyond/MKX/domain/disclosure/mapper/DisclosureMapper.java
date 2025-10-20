@@ -23,6 +23,8 @@ public final class DisclosureMapper {
                 e.getRelationType(),
                 e.getDisplayNo(),
                 e.getRevisionNo(),
+                e.getOriginId(),
+                e.getPreviousId(),
                 e.getCreatedAt(),
                 e.getUpdatedAt()
         );

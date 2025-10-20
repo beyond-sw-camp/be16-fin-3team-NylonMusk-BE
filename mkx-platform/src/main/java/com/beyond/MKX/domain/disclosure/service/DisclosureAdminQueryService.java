@@ -33,11 +33,12 @@ public class DisclosureAdminQueryService {
             DisclosureType type,
             UUID stockId,
             String title,
+            String displayNo,
             LocalDateTime from,
             LocalDateTime toExclusive,
             Pageable pageable
     ) {
-        return disclosureRepository.searchAdmin(status, type, stockId, title, from, toExclusive, pageable)
+        return disclosureRepository.searchAdmin(status, type, stockId, title, displayNo, from, toExclusive, pageable)
                 .map(DisclosureMapper::toRes);
     }
 
@@ -85,8 +86,24 @@ public class DisclosureAdminQueryService {
      * 본공시 체인(displayNo=baseNo) + 추가공시 체인들을 트리구조로 반환
      */
     public DisclosureTreeResDto getRelatedTreeByBaseNo(String baseNo) {
-        // 본공시 체인(정정 포함)
+        // 본공시 체인(원본 + 정정 포함)
         List<Disclosure> baseChain = disclosureRepository.findRevisionsByDisplayNo(baseNo);
+        
+        // 원본 공시가 체인에 포함되지 않은 경우 추가
+        boolean hasOriginal = baseChain.stream().anyMatch(d -> d.getOriginId() == null);
+        if (!hasOriginal) {
+            // displayNo가 baseNo인 원본 공시 찾기 (originId가 null인 것)
+            List<Disclosure> originalDisclosures = disclosureRepository.findByDisplayNoAndOriginIdIsNull(baseNo);
+            baseChain.addAll(originalDisclosures);
+        }
+        
+        // revisionNo 기준으로 정렬 (원본이 먼저, 그 다음 정정 순서대로)
+        baseChain.sort((a, b) -> {
+            Integer revA = a.getRevisionNo() != null ? a.getRevisionNo() : 0;
+            Integer revB = b.getRevisionNo() != null ? b.getRevisionNo() : 0;
+            return revA.compareTo(revB);
+        });
+        
         List<DisclosureResDto> baseChainDto = baseChain.stream().map(DisclosureMapper::toRes).toList();
 
         // 체인 내 ID 목록 → 추가공시 찾기
@@ -96,13 +113,13 @@ public class DisclosureAdminQueryService {
             List<Disclosure> additionals = disclosureRepository
                     .findAdditionalsByPreviousIds(DisclosureRelationType.ADDITIONAL, baseIds);
 
-            // displayNo 기준 그룹핑
+            // displayNo 기준 그룹핑 (null 키 처리를 위해 빈 문자열로 대체)
             Map<String, List<Disclosure>> byDisplayNo = additionals.stream()
-                    .collect(Collectors.groupingBy(Disclosure::getDisplayNo));
+                    .collect(Collectors.groupingBy(d -> d.getDisplayNo() != null ? d.getDisplayNo() : ""));
 
-            // displayNo 정렬(null last)
+            // displayNo 정렬(빈 문자열 last)
             List<String> keys = new ArrayList<>(byDisplayNo.keySet());
-            keys.sort(Comparator.nullsLast(String::compareTo));
+            keys.sort(Comparator.comparing(s -> s.isEmpty() ? "zzz" : s));
 
             for (String addNo : keys) {
                 List<Disclosure> group = byDisplayNo.get(addNo);

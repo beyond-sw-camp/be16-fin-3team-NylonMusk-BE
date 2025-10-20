@@ -22,7 +22,7 @@ public class DisclosureQueryService {
     private final DisclosureRepository disclosureRepository;
     private final StockRepository stockRepository;
 
-    public Page<DisclosureResDto> listApproved(DisclosureType type, String ticker, String title, Pageable pageable) {
+    public Page<DisclosureResDto> listApproved(DisclosureType type, String ticker, String title, String displayNo, Pageable pageable) {
         UUID stockId = null;
         if (ticker != null && !ticker.isBlank()) {
             Optional<Stock> stockOpt = stockRepository.findByTicker(ticker);
@@ -31,7 +31,7 @@ public class DisclosureQueryService {
             }
             stockId = stockOpt.get().getId();
         }
-        return disclosureRepository.searchApproved(DisclosureStatus.APPROVED, type, stockId, title, pageable)
+        return disclosureRepository.searchApproved(DisclosureStatus.APPROVED, type, stockId, title, displayNo, pageable)
                 .map(DisclosureMapper::toRes);
     }
 }

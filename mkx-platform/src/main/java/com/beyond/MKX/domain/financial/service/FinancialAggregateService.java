@@ -4,10 +4,12 @@ import com.beyond.MKX.domain.financial.dto.*;
 import com.beyond.MKX.domain.financial.entity.*;
 import com.beyond.MKX.domain.financial.mapper.FinancialMapper;
 import com.beyond.MKX.domain.financial.repository.*;
+import com.beyond.MKX.domain.financial.util.FinancialRatiosAutoCalculator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -18,6 +20,7 @@ public class FinancialAggregateService {
     private final CompanyFinancialsRepository companyFinancialsRepository;
     private final CashFlowStatementRepository cashFlowStatementRepository;
     private final FinancialRatiosRepository financialRatiosRepository;
+    private final FinancialRatiosAutoCalculator calculator;
 
     /**
      * 1. companyFinancials, cashFlowStatements, financialRatios 각각 null 체크
@@ -30,7 +33,12 @@ public class FinancialAggregateService {
         if (requestDto.companyFinancials() != null) {
             requestDto.companyFinancials().stream()
                     .map(FinancialMapper::toEntity)
-                    .forEach(this::upsertCompanyFinancials);
+                    .forEach(cf -> {
+                        // totalEquity 자동 보정
+                        autofillEquity(cf);
+                        upsertCompanyFinancials(cf);
+                        upsertComputedRatiosFromFinancials(cf);
+                    });
         }
 
         if (requestDto.cashFlowStatements() != null) {
@@ -44,6 +52,12 @@ public class FinancialAggregateService {
                     .map(FinancialMapper::toEntity)
                     .forEach(this::upsertFinancialRatios);
         }
+    }
+
+    // Alias for new naming in upload service
+    @Transactional
+    public void saveBundle(FinancialBundleReqDto dto) {
+        saveFinancialBundle(dto);
     }
 
     //손익계산서(CompanyFinancials) 업서트 처리
@@ -96,6 +110,41 @@ public class FinancialAggregateService {
             existing.updateFrom(newRecord);
         } else {
             financialRatiosRepository.save(newRecord);
+        }
+    }
+
+    private void upsertComputedRatiosFromFinancials(CompanyFinancials cf) {
+        BigDecimal roe = calculator.calculateROE(cf);
+        BigDecimal roa = calculator.calculateROA(cf);
+        BigDecimal debt = calculator.calculateDebtRatio(cf);
+
+        Optional<FinancialRatios> existingRecord =
+                financialRatiosRepository.findByStockIdAndFiscalYearAndFiscalQuarter(
+                        cf.getStockId(), cf.getFiscalYear(), cf.getFiscalQuarter()
+                );
+
+        if (existingRecord.isPresent()) {
+            FinancialRatios existing = existingRecord.get();
+            existing.setRoe(roe);
+            existing.setRoa(roa);
+            existing.setDebtRatio(debt);
+        } else {
+            FinancialRatios created = FinancialRatios.builder()
+                    .stockId(cf.getStockId())
+                    .fiscalYear(cf.getFiscalYear())
+                    .fiscalQuarter(cf.getFiscalQuarter())
+                    .roe(roe)
+                    .roa(roa)
+                    .debtRatio(debt)
+                    .build();
+            financialRatiosRepository.save(created);
+        }
+    }
+
+    private void autofillEquity(CompanyFinancials cf) {
+        if (cf.getTotalEquity() == null && cf.getTotalAssets() != null && cf.getTotalLiabilities() != null) {
+            long equity = cf.getTotalAssets() - cf.getTotalLiabilities();
+            cf.setTotalEquity(equity);
         }
     }
 

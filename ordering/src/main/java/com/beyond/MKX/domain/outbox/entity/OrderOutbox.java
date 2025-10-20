@@ -3,6 +3,7 @@ package com.beyond.MKX.domain.outbox.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.DynamicInsert;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -10,20 +11,22 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Getter
-@Entity
-@Table(name = "order_outbox", indexes = {
-        @Index(name = "idx_order_outbox_is_published", columnList = "is_published, created_at")
-})
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
+@Entity
+@Table(name = "order_outbox", indexes = {
+        @Index(name = "idx_is_published_created_at", columnList = "is_published, created_at")
+})
 @Builder
 public class OrderOutbox {
     @Id
     @GeneratedValue
-    @Column(name = "id", nullable = false, updatable = false)
+    @JdbcTypeCode(SqlTypes.BINARY)
+    @Column(name = "id", nullable = false, updatable = false, columnDefinition = "BINARY(16)")
     private UUID id;
 
-    @Column(name = "order_log_id", nullable = false)
+    @JdbcTypeCode(SqlTypes.BINARY)
+    @Column(name = "order_log_id", nullable = false, columnDefinition = "BINARY(16)")
     private UUID orderLogId;
 
     // ORDER_PLACED (주문 접수)
@@ -33,20 +36,21 @@ public class OrderOutbox {
     @Column(nullable = false)
     private String kafkaKey;
 
-    /**
-     * @JdbcTypeCode(SqlTypes.JSON)이란?
-     * Hibernate에게 이 필드가 SQL의 JSON 계열 타입과 매핑이 된다고 알려주는 역할을 함.
-     */
-    @JdbcTypeCode(SqlTypes.JSON) // Hibernate 6+ 방식, JSON 타입 매핑
-    @Column(name = "payload", nullable = false, columnDefinition = "JSON")
+    // JSON -> TEXT로 변경 (Debezium 파서 호환)
+    // 문자열 그대로 저장. 필요 시 앱 레이어에서 직렬화/역직렬화
+    @Lob // TEXT 매핑. (또는 @Column(columnDefinition = "TEXT"))
+    @Column(name = "payload", nullable = false, columnDefinition = "TEXT")
     private String payload;
 
+    // INSERT-only 가이드: 발행 여부 UPDATE는 더 이상 사용하지 않는 것을 권장
+    // 일부 레거시 경로를 위해 boolean 유지 (TINYINT(1))
     @Column(name = "is_published", nullable = false)
     @Builder.Default
-    private boolean isPublished = false; // 기본값 false 설정
+    private boolean isPublished = false;
 
-    @CreationTimestamp // 엔티티 생성 시 자동으로 현재 시간 저장
-    @Column(name = "created_at", nullable = false, updatable = false)
+    // TIMESTAMP(6) 생성 시각 (UTC 저장 권장)
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false, columnDefinition = "TIMESTAMP(6)")
     private LocalDateTime createdAt;
 
     public void markAsPublished() {

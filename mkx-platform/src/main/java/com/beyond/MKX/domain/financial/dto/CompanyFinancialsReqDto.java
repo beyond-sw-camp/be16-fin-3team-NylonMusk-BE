@@ -13,5 +13,8 @@ public record CompanyFinancialsReqDto(
         BigDecimal eps,
         Long totalAssets,
         Long totalLiabilities,
-        Long totalEquity
+        Long totalEquity,
+        Long currentAssets,
+        Long currentLiabilities,
+        Long interestExpense
 ) {}

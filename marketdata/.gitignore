@@ -39,3 +39,8 @@ out/
 ### yml설정 ###
 application-local.yml
 application-prod.yml
+
+# macOS system files
+.DS_Store
+*/.DS_Store
+**/.DS_Store

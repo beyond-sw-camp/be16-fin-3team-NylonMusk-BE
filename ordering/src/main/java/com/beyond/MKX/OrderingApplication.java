@@ -5,7 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.cloud.openfeign.EnableFeignClients;
 
-@EnableScheduling
+//@EnableScheduling - 카프카 소스커넥트 사용으로 인한 '비활성화'
 @SpringBootApplication
 @EnableFeignClients
 public class OrderingApplication {

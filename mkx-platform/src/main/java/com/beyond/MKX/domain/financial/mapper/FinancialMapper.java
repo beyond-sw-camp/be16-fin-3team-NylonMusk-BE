@@ -12,6 +12,7 @@ public final class FinancialMapper {
                 e.getId(), e.getStockId(), e.getFiscalYear(), e.getFiscalQuarter(),
                 e.getRevenue(), e.getOperatingIncome(), e.getNetIncome(),
                 e.getEps(), e.getTotalAssets(), e.getTotalLiabilities(), e.getTotalEquity(),
+                e.getCurrentAssets(), e.getCurrentLiabilities(), e.getInterestExpense(),
                 e.getCreatedAt(), e.getUpdatedAt()
         );
     }
@@ -46,6 +47,9 @@ public final class FinancialMapper {
                 .totalAssets(d.totalAssets())
                 .totalLiabilities(d.totalLiabilities())
                 .totalEquity(d.totalEquity())
+                .currentAssets(d.currentAssets())
+                .currentLiabilities(d.currentLiabilities())
+                .interestExpense(d.interestExpense())
                 .build();
     }
     public static CashFlowStatement toEntity(CashFlowStatementReqDto d){

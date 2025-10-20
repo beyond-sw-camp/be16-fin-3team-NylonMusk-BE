@@ -1,8 +1,7 @@
-package com.beyond.MKX.domain.ipo.allocation.service;
+package com.beyond.MKX.domain.ipo.ipo.service;
 
-import com.beyond.MKX.domain.ipo.allocation.dto.StockUpdateDTO;
+import com.beyond.MKX.domain.ipo.ipo.dto.StockUpdateDTO;
 import org.springframework.cloud.openfeign.FeignClient;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
@@ -10,6 +9,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 public interface IpoAllocationFeign {
 
 
-    @PutMapping("/stock/update")
+    @PutMapping("/my-stocks/stock/update")
     void applyStockUpdate(@RequestBody StockUpdateDTO dto);
 }

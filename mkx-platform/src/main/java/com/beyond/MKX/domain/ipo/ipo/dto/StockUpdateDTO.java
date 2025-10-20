@@ -1,6 +1,5 @@
-package com.beyond.MKX.domain.ipo.allocation.dto;
+package com.beyond.MKX.domain.ipo.ipo.dto;
 
-import com.beyond.MKX.domain.ipo.allocation.entity.IpoAllocation;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -27,6 +26,7 @@ public class StockUpdateDTO {
     // 대상
     @NotNull
     private UUID memberAccountId;
+    private UUID brokerageId;
     @NotNull
     private String ticker;       // 6자리 등
 

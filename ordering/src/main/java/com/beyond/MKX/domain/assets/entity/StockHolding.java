@@ -21,9 +21,7 @@ import java.util.UUID;
         name = "stock_holding",
         indexes = {
                 @Index(name = "ix_stock_holding_account_id", columnList = "member_account_id"),
-                @Index(name = "ix_stock_holding_brokerage_id", columnList = "brokerage_id"),
-                @Index(name = "ix_stock_holding_owner", columnList = "owner_type, owner_id")
-        },
+                @Index(name = "ix_stock_holding_brokerage_id", columnList = "brokerage_id")},
         uniqueConstraints = {
                 @UniqueConstraint(
                         name = "uk_stock_holding_account_ticker",
@@ -39,10 +37,6 @@ public class StockHolding extends BaseIdAndTimeEntity {
 
     @Column(nullable = false)
     private UUID brokerageId;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "owner_type", nullable = false, length = 20)
-    private OwnerType ownerType;
 
     @Column(nullable = false, columnDefinition = "VARCHAR(6)")
     private String ticker;

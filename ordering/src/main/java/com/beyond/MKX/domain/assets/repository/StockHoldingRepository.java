@@ -9,5 +9,5 @@ public interface StockHoldingRepository extends JpaRepository<StockHolding, UUID
 
     Optional<StockHolding> findByMemberAccountIdAndTicker(UUID memberAccountId, String ticker);
 
-    List<StockHolding> findByAllMemberAccount(UUID memberAccountId);
+    List<StockHolding> findAllByMemberAccountId(UUID memberAccountId);
 }

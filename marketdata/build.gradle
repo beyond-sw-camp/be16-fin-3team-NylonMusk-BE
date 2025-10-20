@@ -50,6 +50,32 @@ dependencies {
 
 	// msa간에 통신을 위한 openfeign의존성 추가
 	implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+
+	// InfluxDB 클라이언트
+	implementation 'com.influxdb:influxdb-client-java:6.9.0'
+	
+	// Kafka Streams
+	implementation 'org.apache.kafka:kafka-streams:3.6.1'
+	
+	// Redis reactive support for streams
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis-reactive'
+	
+	// Apache Commons Pool2 for Redis connection pooling
+	implementation 'org.apache.commons:commons-pool2:2.12.0'
+	
+	// Lettuce for Redis client
+	implementation 'io.lettuce:lettuce-core:6.3.0.RELEASE'
+	
+	implementation 'org.webjars:sockjs-client:1.5.1'
+	implementation 'org.webjars:stomp-websocket:2.3.4'
+	
+	// Resilience4j for Circuit Breaker
+	implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-resilience4j'
+	
+	// Actuator for monitoring
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'io.micrometer:micrometer-registry-prometheus'
+
 }
 
 dependencyManagement {

@@ -20,21 +20,21 @@ public interface OrderOutboxRepository extends JpaRepository<OrderOutbox, UUID> 
      * @param pageable 조회할 개수(N)를 담은 Pageable 객체
      * @return 조회된 OrderOutbox 리스트
      */
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT o FROM OrderOutbox o WHERE o.isPublished = false ORDER BY o.createdAt ASC")
-    List<OrderOutbox> findUnpublishedBatch(Pageable pageable);
+//    @Lock(LockModeType.PESSIMISTIC_WRITE)
+//    @Query("SELECT o FROM OrderOutbox o WHERE o.isPublished = false ORDER BY o.createdAt ASC")
+//    List<OrderOutbox> findUnpublishedBatch(Pageable pageable);
 
-    @Query(
-            value = """
-        SELECT *
-        FROM order_outbox
-        WHERE is_published = false
-        ORDER BY created_at ASC
-        LIMIT :#{#pageable.pageSize}
-        OFFSET :#{#pageable.offset}
-        FOR UPDATE SKIP LOCKED
-        """,
-            nativeQuery = true
-    )
-    List<OrderOutbox> findUnpublishedBatchSkipLocked(Pageable pageable);
+//    @Query(
+//            value = """
+//        SELECT *
+//        FROM order_outbox
+//        WHERE is_published = false
+//        ORDER BY created_at ASC
+//        LIMIT :#{#pageable.pageSize}
+//        OFFSET :#{#pageable.offset}
+//        FOR UPDATE SKIP LOCKED
+//        """,
+//            nativeQuery = true
+//    )
+//    List<OrderOutbox> findUnpublishedBatchSkipLocked(Pageable pageable);
 }

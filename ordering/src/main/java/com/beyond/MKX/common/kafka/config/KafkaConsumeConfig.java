@@ -111,6 +111,7 @@ public class KafkaConsumeConfig {
         return factory;
     }
 
+    /// **-------------- 에러 핸들러 설정 --------------**
 
     private DefaultErrorHandler commonErrorHandler() {
         // 초기 100ms, 배수 2.0, 최대 5회 재시도 후 레코드 스킵

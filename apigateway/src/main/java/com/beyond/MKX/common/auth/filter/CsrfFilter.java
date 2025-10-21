@@ -50,7 +50,8 @@ public class CsrfFilter implements GlobalFilter, Ordered {
             "/public/**",
             "/api/stocks/**",
             "/api/public/**",
-            "/ipo/**"
+            "/ipo/**",
+            "/my-stocks"
     );
 
     /** Gateway에서 경로 정규화 시 제거할 서비스 접두사 */

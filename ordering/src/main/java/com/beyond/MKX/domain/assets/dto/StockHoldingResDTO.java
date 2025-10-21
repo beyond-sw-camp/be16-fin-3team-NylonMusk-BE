@@ -18,6 +18,7 @@ public class StockHoldingResDTO {
     private UUID brokerageId;
     private String ticker;
     private Long totalQuantity;
+    private Long availableQuantity;
     private Long totalPurchasePrice;
 
     public static StockHoldingResDTO from(StockHolding e) {
@@ -26,6 +27,7 @@ public class StockHoldingResDTO {
                 .brokerageId(e.getBrokerageId())
                 .ticker(e.getTicker())
                 .totalQuantity(e.getTotalQuantity())
+                .availableQuantity(e.getAvailableQuantity())
                 .totalPurchasePrice(e.getTotalPurchasePrice())
                 .build();
     }

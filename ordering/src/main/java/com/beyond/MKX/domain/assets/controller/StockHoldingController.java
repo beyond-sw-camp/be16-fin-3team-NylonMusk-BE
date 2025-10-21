@@ -1,6 +1,7 @@
 package com.beyond.MKX.domain.assets.controller;
 
 import com.beyond.MKX.common.apiResponse.ApiResponse;
+import com.beyond.MKX.domain.assets.dto.AccountIdResDTO;
 import com.beyond.MKX.domain.assets.dto.StockHoldingResDTO;
 import com.beyond.MKX.domain.assets.dto.StockUpdateDTO;
 import com.beyond.MKX.domain.assets.service.StockHoldingService;
@@ -38,5 +39,11 @@ public class StockHoldingController {
         System.out.println("heeer");
         applyService.apply(dto);
         return ApiResponse.ok(null, "보유주식이 갱신되었습니다.");
+    }
+
+    @GetMapping("/{corpId}/account-brief")
+    public ResponseEntity<?> getMyAccountId(@PathVariable UUID corpId) {
+        AccountIdResDTO dto = stockHoldingService.getCorporationAccountId(corpId);
+        return ApiResponse.ok(dto, "조회 완료");
     }
 }

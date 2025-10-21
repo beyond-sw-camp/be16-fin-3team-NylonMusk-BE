@@ -9,7 +9,6 @@ import com.beyond.MKX.domain.ipo.allocation.entity.IpoAllocation;
 import com.beyond.MKX.domain.ipo.allocation.repository.IpoAllocationRepository;
 import com.beyond.MKX.domain.ipo.ipo.entity.Ipo;
 import com.beyond.MKX.domain.ipo.ipo.entity.IpoStatus;
-import com.beyond.MKX.domain.ipo.ipo.service.IpoAllocationFeign;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOffering;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOfferingStatus;
 import com.beyond.MKX.domain.ipo.offering.repository.IpoOfferingRepository;

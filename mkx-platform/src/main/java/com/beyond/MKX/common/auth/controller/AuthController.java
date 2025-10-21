@@ -108,6 +108,7 @@ public class  AuthController {
                 .email(admin.getEmail())
                 .role(role)
                 .status(admin.getStatus().name())
+                .corporationId(admin.getCorporation() != null ? admin.getCorporation().getId() : null)
                 .build();
         return ApiResponse.ok(loginResponseDto, "로그인 완료");
     }

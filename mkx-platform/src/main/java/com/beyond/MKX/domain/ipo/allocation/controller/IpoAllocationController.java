@@ -31,7 +31,7 @@ public class IpoAllocationController {
     /* 1) 배정 실행 (PRICE_FIXED 상태에서만) */
     @PostMapping("/{offeringId}/allocate")
     public ResponseEntity<?> allocate(@PathVariable @NotNull UUID offeringId) {
-        IpoAllocationSummaryResDTO dto = allocationService.allocateAndSummarize(offeringId);
+        IpoAllocationSummaryResDTO dto = allocationService.ipoAllocated(offeringId);
         return ApiResponse.ok(dto, "배정을 완료했습니다.");
     }
 

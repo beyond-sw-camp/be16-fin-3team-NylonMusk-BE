@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Getter
@@ -17,6 +18,11 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Ipo extends BaseIdAndTimeEntity {
+    @Column(name = "stock_id")
+    private UUID stockId;
+
+    @Column(name = "stock_ticker", length = 6, unique = true)
+    private String stockTicker;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "corporation_id")
@@ -141,6 +147,12 @@ public class Ipo extends BaseIdAndTimeEntity {
 
     public void updateOutstandingSharesAtListing(Long total) {
         this.outstandingSharesAtListing = total;
+    }
+
+
+    public void linkStock(UUID stockId, String ticker) {
+        this.stockId = stockId;
+        this.stockTicker = ticker;
     }
 
 

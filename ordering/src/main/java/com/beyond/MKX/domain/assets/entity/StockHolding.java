@@ -21,8 +21,7 @@ import java.util.UUID;
         name = "stock_holding",
         indexes = {
                 @Index(name = "ix_stock_holding_account_id", columnList = "member_account_id"),
-                @Index(name = "ix_stock_holding_brokerage_id", columnList = "brokerage_id")
-        },
+                @Index(name = "ix_stock_holding_brokerage_id", columnList = "brokerage_id")},
         uniqueConstraints = {
                 @UniqueConstraint(
                         name = "uk_stock_holding_account_ticker",

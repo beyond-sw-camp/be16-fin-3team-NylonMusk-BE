@@ -42,7 +42,7 @@ public class ForumPostQueryServiceImpl implements ForumPostQueryService {
         }
 
         Set<UUID> finalLiked = likedPostIds;
-        return page.map(p -> map(p, finalLiked.contains(p.getId())));
+        return page.map(p -> map(p, finalLiked.contains(p.getId()), viewerId));
     }
 
     @Override
@@ -50,7 +50,7 @@ public class ForumPostQueryServiceImpl implements ForumPostQueryService {
         Page<ForumPost> page = (status == null)
                 ? postRepo.findByCreatedBy(me, pageable)
                 : postRepo.findByCreatedByAndStatus(me, status, pageable);
-        return page.map(p -> map(p, false));
+        return page.map(p -> map(p, false, null));
     }
 
     @Override
@@ -66,7 +66,7 @@ public class ForumPostQueryServiceImpl implements ForumPostQueryService {
         }
 
         Set<UUID> finalLiked = likedPostIds;
-        return page.map(p -> map(p, finalLiked.contains(p.getId())));
+        return page.map(p -> map(p, finalLiked.contains(p.getId()), viewerId));
     }
 
     @Override
@@ -82,7 +82,7 @@ public class ForumPostQueryServiceImpl implements ForumPostQueryService {
         }
 
         Set<UUID> finalLiked = likedPostIds;
-        return page.map(p -> map(p, finalLiked.contains(p.getId())));
+        return page.map(p -> map(p, finalLiked.contains(p.getId()), viewerId));
     }
 
     @Override
@@ -90,7 +90,7 @@ public class ForumPostQueryServiceImpl implements ForumPostQueryService {
         ForumPost post = postRepo.findById(postId)
                 .orElseThrow(() -> new EntityNotFoundException("ForumPost not found: " + postId));
         boolean liked = viewerId != null && likeRepo.existsByPostIdAndUserId(postId, viewerId);
-        return map(post, liked);
+        return map(post, liked, viewerId);
     }
 
     @Override
@@ -98,10 +98,10 @@ public class ForumPostQueryServiceImpl implements ForumPostQueryService {
         ForumPost post = postRepo.findById(postId)
                 .orElseThrow(() -> new EntityNotFoundException("ForumPost not found: " + postId));
         boolean liked = viewerId != null && likeRepo.existsByPostIdAndUserId(postId, viewerId);
-        return mapWithDetails(post, liked);
+        return mapWithDetails(post, liked, viewerId);
     }
 
-    private ForumPostResDto map(ForumPost p, boolean likedByMe) {
+    private ForumPostResDto map(ForumPost p, boolean likedByMe, UUID viewerId) {
         List<ForumCategoryResDto> catDtos = p.getCategories().stream()
                 .map(ForumPostCategory::getCategory)
                 .map(c -> ForumCategoryResDto.builder()
@@ -113,7 +113,7 @@ public class ForumPostQueryServiceImpl implements ForumPostQueryService {
 
         // 댓글 목록 가져오기 (최대 10개)
         Pageable commentPageable = Pageable.ofSize(10);
-        var comments = commentQueryService.listByPost(p.getId(), commentPageable, null).getContent();
+        var comments = commentQueryService.listByPost(p.getId(), commentPageable, viewerId).getContent();
 
         // 투표 정보 가져오기
         var vote = voteQueryService.getByPost(p.getId(), null);
@@ -140,7 +140,7 @@ public class ForumPostQueryServiceImpl implements ForumPostQueryService {
                 .build();
     }
 
-    private ForumPostResDto mapWithDetails(ForumPost p, boolean likedByMe) {
+    private ForumPostResDto mapWithDetails(ForumPost p, boolean likedByMe, UUID viewerId) {
         List<ForumCategoryResDto> catDtos = p.getCategories().stream()
                 .map(ForumPostCategory::getCategory)
                 .map(c -> ForumCategoryResDto.builder()
@@ -152,7 +152,7 @@ public class ForumPostQueryServiceImpl implements ForumPostQueryService {
 
         // 댓글 목록 가져오기 (최대 10개)
         Pageable commentPageable = Pageable.ofSize(10);
-        var comments = commentQueryService.listByPost(p.getId(), commentPageable, null).getContent();
+        var comments = commentQueryService.listByPost(p.getId(), commentPageable, viewerId).getContent();
 
         // 투표 정보 가져오기
         var vote = voteQueryService.getByPost(p.getId(), null);

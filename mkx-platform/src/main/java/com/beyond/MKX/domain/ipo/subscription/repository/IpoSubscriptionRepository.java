@@ -32,4 +32,13 @@ public interface IpoSubscriptionRepository extends JpaRepository<IpoSubscription
     List<IpoSubscription> findAllByOfferingIdAndStatusOrderByPaid(
             @Param("offeringId") UUID offeringId,
             @Param("status") SubscriptionStatus status);
+
+    @Query("""
+               select s from IpoSubscription s
+               where s.ipoOffering.id = :offeringId
+                 and s.status = :status
+            """)
+    List<IpoSubscription> findAllByOfferingIdAndStatus(
+            @Param("offeringId") UUID offeringId,
+            @Param("status") SubscriptionStatus status);
 }

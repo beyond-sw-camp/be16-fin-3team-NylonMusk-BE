@@ -25,9 +25,6 @@ public class StockHoldingService {
     //    보유 주식 전체 조회
     public List<StockHoldingResDTO> getMyStocks(UUID memberAccountId) {
         List<StockHolding> stockHoldingList = stockHoldingRepository.findAllByMemberAccountId(memberAccountId);
-        if (stockHoldingList.isEmpty()) {
-            throw new IllegalArgumentException("해당 계좌의 보유주식이 없습니다.");
-        }
         return stockHoldingList.stream().map(StockHoldingResDTO::from).toList();
     }
 

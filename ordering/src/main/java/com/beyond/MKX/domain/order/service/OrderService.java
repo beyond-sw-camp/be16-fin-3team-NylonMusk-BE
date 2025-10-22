@@ -5,10 +5,12 @@ import com.beyond.MKX.domain.assets.entity.StockHolding;
 import com.beyond.MKX.domain.assets.repository.MemberAccountRepository;
 import com.beyond.MKX.domain.assets.repository.StockHoldingRepository;
 import com.beyond.MKX.domain.order.dto.CommissionAndTaxData;
+import com.beyond.MKX.domain.order.dto.OrderCancelRequestDTO;
 import com.beyond.MKX.domain.order.dto.OrderRequestDTO;
 import com.beyond.MKX.domain.order.dto.OrderResponseDTO;
 import com.beyond.MKX.domain.order.entity.OrderKind;
 import com.beyond.MKX.domain.order.entity.OrderLog;
+import com.beyond.MKX.domain.order.entity.OrderStatus;
 import com.beyond.MKX.domain.order.entity.Side;
 import com.beyond.MKX.domain.order.repository.OrderLogRepository;
 import com.beyond.MKX.domain.outbox.entity.OrderOutbox;
@@ -18,14 +20,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.NoSuchElementException;
-import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -44,6 +44,7 @@ public class OrderService {
 
     private static final BigDecimal PROTECTIVE_CAP_RATIO = new BigDecimal("0.05"); // 시장가 보호한도
 
+    // 주문 접수 서비스 로직
     public OrderResponseDTO placeOrder(OrderRequestDTO dto) {
         UUID accountId = dto.accountId();
         String ticker = dto.ticker();
@@ -64,14 +65,14 @@ public class OrderService {
             if (dto.side() == Side.BUY) {
                 // 오더북 레디스에서 최저가 조회
                 askingPrice = orderBookService.getLowestAsk(ticker)
-                        .orElseThrow(()-> new NoSuchElementException("매도 호가가 존재하지 않아 시장가 매수를 할 수 없습니다."));
+                        .orElseThrow(() -> new NoSuchElementException("매도 호가가 존재하지 않아 시장가 매수를 할 수 없습니다."));
 
                 // 보호한도(CAP) 적용
                 askingPrice = calculateAdjustedPrice(dto.side(), askingPrice);
             } else if (dto.side() == Side.SELL) {
                 // 오더북 레디스에서 최고가 조회
                 askingPrice = orderBookService.getHighestBid(ticker)
-                        .orElseThrow(()-> new NoSuchElementException("매수 호가가 존재하지 않아 시장가 매도를 할 수 없습니다."));
+                        .orElseThrow(() -> new NoSuchElementException("매수 호가가 존재하지 않아 시장가 매도를 할 수 없습니다."));
 
                 // 보호한도(CAP) 적용
                 askingPrice = calculateAdjustedPrice(dto.side(), askingPrice);
@@ -133,34 +134,55 @@ public class OrderService {
         orderLogRepository.save(order);
 
         // 5. 아웃 박스 기록
-        recordOrderOutbox(order);
+        insertOrderOutbox(
+                OrderPayload.builder()
+                        .brokerageId(order.getBrokerageId())
+                        .orderId(order.getId())
+                        .ticker(order.getTicker())
+                        .side(order.getSide())
+                        .orderKind(order.getOrderKind())
+                        .price(order.getPrice())
+                        .quantity(order.getQuantity())
+                        .createdAt(LocalDateTime.now())
+                        .build()
+        );
 
         // 6. Ack 생성
         return OrderResponseDTO.from(order);
     }
 
-    private void recordOrderOutbox(OrderLog order) {
-        try {
-            // Kafka 메시지 DTO 생성
-            OrderPayload orderPayload = OrderPayload.builder()
-                    .brokerageId(order.getBrokerageId())
-                    .orderId(order.getId())
-                    .ticker(order.getTicker())
-                    .side(order.getSide())
-                    .orderKind(order.getOrderKind())
-                    .price(order.getPrice())
-                    .quantity(order.getQuantity())
-                    .createdAt(LocalDateTime.now())
-                    .build();
+    // 주문 취소 서비스 로직
+    public OrderResponseDTO cancelOrder(OrderCancelRequestDTO dto, UUID memberId) {
+        MemberAccount memberAccount = memberAccountRepository.findByMemberId(memberId)
+                .orElseThrow(() -> new EntityNotFoundException("해당 계좌를 찾을 수 없습니다."));
 
+        OrderLog orderLog = orderLogRepository.findByIdAndAccount_Id(dto.orderLogId(), memberAccount.getId())
+                .orElseThrow(() -> new EntityNotFoundException("해당 주문기록을 찾을 수 없습니다."));
+
+        insertOrderOutbox(
+                OrderPayload.builder()
+                        .orderId(orderLog.getId())
+                        .ticker(orderLog.getTicker())
+                        .side(orderLog.getSide())
+                        .orderKind(OrderKind.CANCEL)
+                        .build()
+        );
+        return OrderResponseDTO.from(orderLog);
+    }
+
+
+    /// **-------------- 내부 메서드들 --------------**
+    // outbox 생성 및 기록 메서드
+    private void insertOrderOutbox(OrderPayload orderPayload) {
+        try {
             // DTO 직렬화
             String payloadJson = objectMapper.writeValueAsString(orderPayload);
-            
+
             // Outbox 엔티티 생성 및 저장
             OrderOutbox orderOutbox = OrderOutbox.builder()
-                    .orderLogId(order.getId())
+                    .orderLogId(orderPayload.getOrderId())
                     .eventType("ORDER_PLACED")
-                    .kafkaKey(order.getTicker())
+                    .kafkaKey(orderPayload.getTicker())
                     .payload(payloadJson)
                     .build();
             outboxRepository.save(orderOutbox);

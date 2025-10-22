@@ -107,6 +107,7 @@ public class KafkaOrderStatusConsumer {
 
     // 주문 취소 후처리
     private String handleCanceledOrder() {
+        System.out.println("KafkaOrderStatusConsumer.handleCanceledOrder");
         return null;
     }
 

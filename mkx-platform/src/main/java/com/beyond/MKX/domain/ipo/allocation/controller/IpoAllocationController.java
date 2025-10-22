@@ -35,6 +35,13 @@ public class IpoAllocationController {
         return ApiResponse.ok(dto, "배정을 완료했습니다.");
     }
 
+    /* 1-1) 공모 전체 정산*/
+    @PostMapping("{offeringId}/allocate-all")
+    private ResponseEntity<?> settleAllByOffering(@PathVariable UUID offeringId) {
+        List<IpoSettlementResDTO> dto = settlementService.settleAllPaymentsByOffering(offeringId);
+        return ApiResponse.ok(dto, "해당 공모의 모든 청약을 정산(SETTLED) 처리했습니다.");
+    }
+
     /* 2) 구독 단건 정산 (추가납입/환불)  */
     @PostMapping("/{subscriptionId}/settle")
     public ResponseEntity<?> settleBySubscription(@PathVariable @NotNull UUID subscriptionId) {
@@ -42,21 +49,28 @@ public class IpoAllocationController {
         return ApiResponse.ok(dto, "해당 청약 건의 추가납입/환불 정산을 완료했습니다.");
     }
 
-    /* 3) 발행사로 공모 대금 송금 (ALLOCATED/PRICE_FIXED 허용, 내부 검증 포함) */
+    /* 3) 구독 단건 배정 완료 */
+    @PostMapping("/subscriptions/{subscriptionId}/complete")
+    public ResponseEntity<?> completeAllocation(@PathVariable @NotNull UUID subscriptionId) {
+        allocationService.completeAllocationBySubscription(subscriptionId);
+        return ApiResponse.ok(null, "해당 청약 건의 배정을 완료했습니다.");
+    }
+
+    /* 4) 발행사로 공모 대금 송금 (ALLOCATED/PRICE_FIXED 허용, 내부 검증 포함) */
     @PostMapping("/{offeringId}/payout")
     public ResponseEntity<?> payoutToIssuer(@PathVariable @NotNull UUID offeringId) {
         IpoPayoutResDTO dto = settlementService.payoutOfferingToIssuer(offeringId);
         return ApiResponse.ok(dto, "발행사 송금을 완료하고 공모를 정산(SETTLED) 처리했습니다.");
     }
 
-    /* 4) (옵션) 특정 공모의 배정 목록 조회 — 운영 점검/관리자용 */
+    /* 5) (옵션) 특정 공모의 배정 목록 조회 — 운영 점검/관리자용 */
     @GetMapping("/{offeringId}/allocation")
     public ResponseEntity<?> findAllocationsOfOffering(@PathVariable @NotNull UUID offeringId) {
         IpoAllocationSummaryResDTO dto = allocationService.summarize(offeringId);
         return ApiResponse.ok(dto, "해당 공모의 배정 목록입니다.");
     }
 
-    /* 5) (옵션) 특정 구독의 최신 배정 조회 — 클라이언트 확인용 */
+    /* 6) (옵션) 특정 구독의 최신 배정 조회 — 클라이언트 확인용 */
     @GetMapping("/subscriptions/{subscriptionId}/allocation/latest")
     public ResponseEntity<?> findLatestAllocationOfSubscription(@PathVariable @NotNull UUID subscriptionId) {
         var latest = allocationRepository.findTopByIpoSubscription_IdOrderByRoundNoDesc(subscriptionId)

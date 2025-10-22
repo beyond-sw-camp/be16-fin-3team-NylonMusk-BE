@@ -5,6 +5,7 @@ import com.beyond.MKX.domain.ipo.IpoAllocationOutbox.entity.IpoAllocationOutbox;
 import com.beyond.MKX.domain.ipo.IpoAllocationOutbox.entity.OutboxStatus;
 import com.beyond.MKX.domain.ipo.IpoAllocationOutbox.repository.IpoAllocationOutboxRepository;
 import com.beyond.MKX.domain.ipo.allocation.dto.IpoAllocationSummaryResDTO;
+import com.beyond.MKX.domain.ipo.allocation.entity.AllocationStatus;
 import com.beyond.MKX.domain.ipo.allocation.entity.IpoAllocation;
 import com.beyond.MKX.domain.ipo.allocation.repository.IpoAllocationRepository;
 import com.beyond.MKX.domain.ipo.ipo.entity.Ipo;
@@ -157,6 +158,11 @@ public class IpoAllocationService {
             toSave.add(IpoAllocation.of(s, qty, offerPrice, roundNo, now));
         }
         allocationRepository.saveAll(toSave);
+        
+        // 배정 완료 상태로 변경
+        toSave.forEach(IpoAllocation::markCompleted);
+        allocationRepository.saveAll(toSave);
+        
         List<IpoAllocationOutbox> events = toSave.stream().map(a ->
                 IpoAllocationOutbox.builder()
                         .idempotencyKey(a.getId())                           // = allocationId
@@ -224,6 +230,30 @@ public class IpoAllocationService {
                 .sum();
 
         return IpoAllocationSummaryResDTO.of(o, list, allocatedTotalQuantity);
+    }
+
+    /**
+     * 구독 단건 배정 완료
+     * @param subscriptionId 구독 ID
+     */
+    @Transactional
+    public void completeAllocationBySubscription(UUID subscriptionId) {
+        log.info("[IPO][START] completeAllocationBySubscription(subscriptionId={})", subscriptionId);
+        
+        // 해당 구독의 최신 배정 조회
+        IpoAllocation allocation = allocationRepository.findTopByIpoSubscription_IdOrderByRoundNoDesc(subscriptionId)
+                .orElseThrow(() -> new IllegalArgumentException("해당 구독의 배정을 찾을 수 없습니다."));
+        
+        // 이미 완료된 배정인지 확인
+        if (allocation.getStatus() == AllocationStatus.COMPLETED) {
+            throw new IllegalArgumentException("이미 완료된 배정입니다.");
+        }
+        
+        // 배정 완료 상태로 변경
+        allocation.markCompleted();
+        allocationRepository.save(allocation);
+        
+        log.info("[IPO][COMPLETE] completeAllocationBySubscription completed. allocationId={}", allocation.getId());
     }
 
 }

@@ -116,7 +116,7 @@ public class ForumPostQueryServiceImpl implements ForumPostQueryService {
         var comments = commentQueryService.listByPost(p.getId(), commentPageable, viewerId).getContent();
 
         // 투표 정보 가져오기
-        var vote = voteQueryService.getByPost(p.getId(), null);
+        var vote = voteQueryService.getByPost(p.getId(), viewerId);
 
         return ForumPostResDto.builder()
                 .id(p.getId())
@@ -155,7 +155,7 @@ public class ForumPostQueryServiceImpl implements ForumPostQueryService {
         var comments = commentQueryService.listByPost(p.getId(), commentPageable, viewerId).getContent();
 
         // 투표 정보 가져오기
-        var vote = voteQueryService.getByPost(p.getId(), null);
+        var vote = voteQueryService.getByPost(p.getId(), viewerId);
 
         return ForumPostResDto.builder()
                 .id(p.getId())

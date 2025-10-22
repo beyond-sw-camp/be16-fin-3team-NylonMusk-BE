@@ -35,4 +35,20 @@ public class ForumPostQueryController {
         ForumPostResDto post = forumPostQueryService.getWithDetails(postId, viewerId);
         return ApiResponse.ok(post, "게시글 상세 조회 성공");
     }
+
+    /** 인증된 사용자용 게시글 목록 조회 */
+    @GetMapping("/authenticated")
+    public ResponseEntity<?> listAuthenticated(@RequestHeader("X-User-Id") UUID userId,
+                                               @RequestParam(required = false) PostStatus status,
+                                               @RequestParam(required = false) UUID stockId,
+                                               Pageable pageable) {
+        Page<ForumPostResDto> page;
+        if (stockId != null) {
+            page = forumPostQueryService.listByStock(stockId, status, pageable, userId);
+        } else {
+            page = forumPostQueryService.list(status, pageable, userId);
+        }
+        
+        return ApiResponse.ok(page, "인증된 사용자 게시글 목록 조회 성공");
+    }
 }

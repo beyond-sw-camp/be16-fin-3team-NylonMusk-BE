@@ -100,11 +100,11 @@ public class AskExecutionService {
 
         // 계좌 입금
         memberAccount.deposit(total_filled_amount);
-        log.info("전체 잔고 {}원 증감", total_filled_amount);
+        log.info("전체 잔고 {}원 증가", total_filled_amount);
 
         /// 5. 주문 상태 변경
         orderLog.updateOrderStatus(OrderStatus.PARTIALLY_FILLED);
-        orderLog.updateFilledAt();
+        orderLog.recordFilledAt();
         // 잔여 수량 감소
         long remainQuantity = orderLog.decRemainQuantity(executionEvent.getQuantity());
         if (remainQuantity == 0L) {
@@ -136,11 +136,5 @@ public class AskExecutionService {
         return true;
     }
 
-    public void refundAvaQuantity(UUID memberAccountId, String ticker, Long remainQty) {
-        StockHolding stockHolding = stockHoldingRepository
-                .findByMemberAccountIdAndTicker(memberAccountId, ticker)
-                .orElseThrow(() -> new EntityNotFoundException("해당 보유 주식이 존재하지 않습니다."));
-        stockHolding.increaseAvaQuantity(remainQty);
-    }
 
 }

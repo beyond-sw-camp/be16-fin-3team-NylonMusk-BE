@@ -51,9 +51,8 @@ public class KafkaOrderStatusConsumer {
             Acknowledgment ack
     ) {
         try {
-            System.out.println("=========== OrderStatus 이벤트 컨슘 시작 ===========");
+            System.out.println("=== partition = " + partition + "  offset = " + offset + " OrderStatus 이벤트 컨슘 시작 ===");
             System.out.println("orderStatusEvent = " + orderStatusEvent);
-            System.out.println("partition = " + partition + "  offset = " + offset);
 
             OrderLog orderLog = orderLogRepository.findById(UUID.fromString(orderStatusEvent.getOrderId()))
                     .orElseThrow(() -> new EntityNotFoundException("해당 주문기록을 찾을 수 없습니다."));

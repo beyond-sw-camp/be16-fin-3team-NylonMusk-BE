@@ -130,6 +130,7 @@ public class BidExecutionService {
             orderLog.updateOrderStatus(OrderStatus.FILLED);
 
             // 5-2. 환불 처리 (계좌 가용 금액 증가)
+            System.out.println("bidExecuteProcess: 환불 로직 시작");
             memberAccount.increaseAvailableBalance(orderLog.getFreezeAmount());
             log.info("{}원 환불 처리", orderLog.getFreezeAmount());
         } else if (orderLog.getOrderKind() == OrderKind.MARKET) {

@@ -5,6 +5,7 @@ import com.beyond.MKX.domain.assets.entity.StockHolding;
 import com.beyond.MKX.domain.assets.repository.StockHoldingRepository;
 import com.beyond.MKX.domain.order.entity.OrderKind;
 import com.beyond.MKX.domain.order.entity.OrderLog;
+import com.beyond.MKX.domain.order.entity.OrderStatus;
 import com.beyond.MKX.domain.order.entity.Side;
 import com.beyond.MKX.domain.order.repository.OrderLogRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -63,7 +64,16 @@ public class RefundOrderService {
         return "시장가 환불로직이 아닙니다.";
     }
 
-    public String handleCanceledOrder() {
+    public String handleCanceledOrder(UUID orderLogId) {
+        OrderLog orderLog = orderLogRepository.findById(orderLogId)
+                .orElseThrow(() -> new EntityNotFoundException("해당 주문기록을 찾을 수 없습니다."));
+        orderLog.updateOrderStatus(OrderStatus.CANCELED);
+        orderLog.recordCanceledAt();
+        if (orderLog.getSide() == Side.BUY) {
+            refundFreezeAmount(orderLog);
+        } else if (orderLog.getSide() == Side.SELL) {
+            refundAvaQuantity(orderLog.getAccount().getId(), orderLog.getTicker(), orderLog.getRemainQuantity());
+        }
 
         return "handleCanceledOrder.ok";
     }

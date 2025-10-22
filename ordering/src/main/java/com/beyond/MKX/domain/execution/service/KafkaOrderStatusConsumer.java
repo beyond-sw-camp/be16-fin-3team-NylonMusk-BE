@@ -50,7 +50,7 @@ public class KafkaOrderStatusConsumer {
                             0L : orderStatusEvent.getRemaining().longValueExact();
                     yield refundOrderService.handleMarketOrderRefund(remainQty, orderStatusEvent);
                 }
-                case "CANCEL_OK" -> refundOrderService.handleCanceledOrder();
+                case "CANCEL_OK" -> refundOrderService.handleCanceledOrder(UUID.fromString(orderStatusEvent.getOrderId()));
                 default -> null;
             };
             if (response != null) {

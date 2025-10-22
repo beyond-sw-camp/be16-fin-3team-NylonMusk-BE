@@ -92,9 +92,6 @@ public class AskExecutionService {
         long notionalValue = Math.multiplyExact(executionEvent.getPrice(), executionEvent.getQuantity());
         CommissionAndTaxData commissionAndTaxData = feePolicyService
                 .estimateAckFee(notionalValue, memberAccount.getBrokerageId());
-        System.out.println("AskExecutionService.askExecuteProcess");
-        System.out.println("======== 체결 후 commission: " + commissionAndTaxData.getCommission() + " // from: AskExecutionService.askExecuteProcess");
-        System.out.println("======== 체결 후 tax: " + commissionAndTaxData.getTax() + " // from: AskExecutionService.askExecuteProcess");
         long fee = Math.addExact(commissionAndTaxData.getCommission(), commissionAndTaxData.getTax());
         Long total_filled_amount = Math.subtractExact(notionalValue, fee);
 

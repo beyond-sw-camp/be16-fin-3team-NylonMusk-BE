@@ -46,6 +46,12 @@ public class IpoBookBuildingService {
             throw new IllegalArgumentException("희망수량은 공모물량을 초과할 수 없습니다.");
         }
 
+        boolean alreadyParticipated = bookBuildingRepository.existsByIpoOffering_IdAndParticipantId(
+                createDTO.getIpoOfferingId(), createDTO.getParticipantId());
+        if (alreadyParticipated) {
+            throw new IllegalArgumentException("이미 해당 공모에 수요예측 참여하셨습니다.");
+        }
+
         Long bidPrice = createDTO.getBidPrice();
         if (bidPrice != null) {
             long min = ipoOffering.getPriceBandMin();

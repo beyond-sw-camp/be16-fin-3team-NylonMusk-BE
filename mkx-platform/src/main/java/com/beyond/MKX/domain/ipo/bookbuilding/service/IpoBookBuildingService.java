@@ -33,6 +33,12 @@ public class IpoBookBuildingService {
             throw new IllegalArgumentException("SCHEDULED 상태에서만 수요예측 등록이 가능합니다.");
         }
 
+        UUID issuerCorpId = ipoOffering.getIpo().getId();
+        if (createDTO.getParticipantType().equals("CORPORATION")
+                && createDTO.getParticipantId().equals(issuerCorpId)) {
+            throw new IllegalArgumentException("발행사는 자기 공모의 수요예측에 참여할 수 없습니다.");
+        }
+
         IpoBookBuilding ipoBookBuilding = IpoBookBuilding.builder()
                 .ipoOffering(ipoOffering)
                 .participantType(createDTO.getParticipantType())

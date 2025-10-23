@@ -15,4 +15,7 @@ public interface CompanyFinancialsRepository extends JpaRepository<CompanyFinanc
             "WHERE s.ticker = :ticker ORDER BY f.fiscalYear DESC, f.fiscalQuarter DESC")
     List<CompanyFinancials> findAllByTickerOrderByDesc(@Param("ticker") String ticker);
 
+    @Query("SELECT f FROM CompanyFinancials f WHERE f.stockId = :stockId ORDER BY f.fiscalYear DESC, f.fiscalQuarter DESC")
+    List<CompanyFinancials> findByStockIdOrderByFiscalYearDescFiscalQuarterDesc(@Param("stockId") UUID stockId);
+
 }

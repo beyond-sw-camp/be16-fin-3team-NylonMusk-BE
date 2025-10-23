@@ -34,4 +34,10 @@ public class IpoBookBuildingController {
         var fixOfferPrice = bookBuildingService.finalizeOfferPriceByBookBuilding(offeringId);
         return ApiResponse.ok(fixOfferPrice, "수요예측 결과를 기반으로 확정공모가가 산정되었습니다.");
     }
+
+    @GetMapping("/book-building/available")
+    public ResponseEntity<?> bookBuildingAvailable() {
+        List<IpoBookBuildingResDTO> result = bookBuildingService.findAllSchduledOfferings();
+        return ApiResponse.ok(result, "수요예측 가능한 공모 리스트입니다.");
+    }
 }

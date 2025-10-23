@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -25,6 +26,17 @@ public class IpoBookBuildingResDTO {
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    
+    // 공모 정보 (수요예측 가능한 공모 목록 조회용)
+    private UUID ipoId;
+    private String ipoSymbol;
+    private String ipoNameKo;
+    private Long offerQuantity;
+    private Integer lotSize;
+    private Long priceBandMin;
+    private Long priceBandMax;
+    private BigDecimal depositRate;
+    private String status;
 
     public static IpoBookBuildingResDTO from(IpoBookBuilding ipoBookBuilding) {
         return IpoBookBuildingResDTO.builder()

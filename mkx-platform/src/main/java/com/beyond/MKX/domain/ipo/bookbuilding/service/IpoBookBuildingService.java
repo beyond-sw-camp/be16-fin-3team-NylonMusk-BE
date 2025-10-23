@@ -39,6 +39,24 @@ public class IpoBookBuildingService {
             throw new IllegalArgumentException("발행사는 자기 공모의 수요예측에 참여할 수 없습니다.");
         }
 
+        if (createDTO.getBidQuantity() <= 0) {
+            throw new IllegalArgumentException("희망수량은 0보다 커야 합니다.");
+        }
+        if (createDTO.getBidQuantity() > ipoOffering.getOfferQuantity()) {
+            throw new IllegalArgumentException("희망수량은 공모물량을 초과할 수 없습니다.");
+        }
+
+        Long bidPrice = createDTO.getBidPrice();
+        if (bidPrice != null) {
+            long min = ipoOffering.getPriceBandMin();
+            long max = ipoOffering.getPriceBandMax();
+            if (bidPrice > max || bidPrice < min) {
+                throw new IllegalArgumentException(
+                        String.format("희망가격은 공모가 밴드(%d~%d) 범위를 벗어날 수 없습니다.", min, max)
+                );
+            }
+        }
+
         IpoBookBuilding ipoBookBuilding = IpoBookBuilding.builder()
                 .ipoOffering(ipoOffering)
                 .participantType(createDTO.getParticipantType())
@@ -52,7 +70,7 @@ public class IpoBookBuildingService {
         return IpoBookBuildingResDTO.from(saved);
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public List<IpoBookBuildingResDTO> findAllByOfferingId(UUID offeringId) {
         List<IpoBookBuilding> bookBuildings = bookBuildingRepository.findAllByIpoOffering_Id(offeringId);
         if (bookBuildings.isEmpty()) {
@@ -91,7 +109,7 @@ public class IpoBookBuildingService {
                 for (long price : demandMap.keySet()) {
                     demandMap.put(price, demandMap.get(price) + bookBuilding.getBidQuantity());
                 }
-            }  else {
+            } else {
                 long bidPrice = Math.max(min, Math.min(max, bookBuilding.getBidPrice())); // 범위 보정
                 demandMap.put(bidPrice, demandMap.getOrDefault(bidPrice, 0L) + bookBuilding.getBidQuantity());
             }
@@ -129,4 +147,33 @@ public class IpoBookBuildingService {
         return offeringRepository.save(offering);
     }
 
+    @Transactional(readOnly = true)
+    public List<IpoBookBuildingResDTO> findAllSchduledOfferings() {
+        // SCHEDULED 상태인 공모 목록 조회 (IpoOffering에서 조회)
+        List<IpoOffering> scheduledOfferings = 
+                offeringRepository.findAllByIpoOfferingStatus(IpoOfferingStatus.SCHEDULED);
+
+        if (scheduledOfferings.isEmpty()) {
+            throw new IllegalArgumentException("현재 수요예측 가능한(SCHEDULED) 공모가 없습니다.");
+        }
+
+        // IpoOffering을 IpoBookBuildingResDTO로 변환
+        return scheduledOfferings.stream()
+                .map(offering -> {
+                    // IpoBookBuildingResDTO 생성 (공모 정보만 포함)
+                    return IpoBookBuildingResDTO.builder()
+                            .ipoOfferingId(offering.getId())
+                            .ipoId(offering.getIpo().getId())
+                            .ipoSymbol(offering.getIpo().getSymbol())
+                            .ipoNameKo(offering.getIpo().getCorporation().getNameKo())
+                            .offerQuantity(offering.getOfferQuantity())
+                            .lotSize(offering.getLotSize())
+                            .priceBandMin(offering.getPriceBandMin())
+                            .priceBandMax(offering.getPriceBandMax())
+                            .depositRate(offering.getDepositRate())
+                            .status(offering.getIpoOfferingStatus().toString())
+                            .build();
+                })
+                .toList();
+    }
 }

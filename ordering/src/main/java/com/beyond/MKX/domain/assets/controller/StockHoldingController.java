@@ -11,7 +11,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.*;
+import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
@@ -42,8 +43,8 @@ public class StockHoldingController {
     }
 
     @GetMapping("/{corpId}/account-brief")
-    public ResponseEntity<?> getMyAccountId(@PathVariable UUID corpId) {
-        AccountIdResDTO dto = stockHoldingService.getCorporationAccountId(corpId);
-        return ApiResponse.ok(dto, "조회 완료");
+    public ResponseEntity<?> getCorporationAccountId(@PathVariable UUID corpId) {
+        AccountIdResDTO result = stockHoldingService.getCorporationAccountId(corpId);
+        return ApiResponse.ok(result, "기업 계좌 ID 조회입니다.");
     }
 }

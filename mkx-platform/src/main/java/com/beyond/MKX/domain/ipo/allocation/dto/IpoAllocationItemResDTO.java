@@ -19,6 +19,7 @@ public class IpoAllocationItemResDTO {
     private Long allocatedAmount;
     private Integer roundNo;
     private LocalDateTime allocatedAt;
+    private String status;  // 배정 상태 (COMPLETED, PENDING)
 
     // ▼ 추가: 구독자(청약자) 식별/요약 정보
     private String subscriberId;   // IpoSubscription.subscriberId
@@ -54,6 +55,7 @@ public class IpoAllocationItemResDTO {
                 .allocatedAmount(a.getAllocatedAmount())
                 .roundNo(a.getRoundNo())
                 .allocatedAt(a.getAllocatedAt())
+                .status(a.getStatus() != null ? a.getStatus().name() : null)
                 // 구독자 식별/요약
                 .subscriberId(nvlUUID(s.getSubscriberId()))
                 .accountId(nvlUUID(s.getAccountId()))

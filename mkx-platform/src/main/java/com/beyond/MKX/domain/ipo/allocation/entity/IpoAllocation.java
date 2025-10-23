@@ -47,6 +47,11 @@ public class IpoAllocation extends BaseIdAndTimeEntity {
     @Column(name = "round_no", nullable = false)
     private Integer roundNo;
 
+    /* 배정 상태 */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private AllocationStatus status;
+
     public static IpoAllocation of(IpoSubscription ipoSubscription, long allocatedQuantity, long allocatedPrice, int roundNo, LocalDateTime now) {
         if (ipoSubscription == null) throw new IllegalArgumentException("배정을 위해선 청약이 필수입니다.");
         if (allocatedQuantity <= 0 || allocatedPrice <= 0) throw new IllegalArgumentException("청약 가격/수량은 양수여야 합니다.");
@@ -61,6 +66,14 @@ public class IpoAllocation extends BaseIdAndTimeEntity {
                 .allocatedAmount(amount)
                 .roundNo(roundNo)
                 .allocatedAt(now != null ? now : LocalDateTime.now())
+                .status(AllocationStatus.PENDING)
                 .build();
+    }
+
+    /**
+     * 배정을 완료 상태로 변경
+     */
+    public void markCompleted() {
+        this.status = AllocationStatus.COMPLETED;
     }
 }

@@ -9,24 +9,23 @@ import com.beyond.MKX.domain.ipo.allocation.dto.IpoSettlementResDTO;
 import com.beyond.MKX.domain.ipo.allocation.entity.IpoAllocation;
 import com.beyond.MKX.domain.ipo.allocation.repository.IpoAllocationRepository;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOffering;
-import com.beyond.MKX.domain.ipo.offering.entity.IpoOfferingStatus;
 import com.beyond.MKX.domain.ipo.offering.repository.IpoOfferingRepository;
 import com.beyond.MKX.domain.ipo.subscription.entity.InvestorType;
 import com.beyond.MKX.domain.ipo.subscription.entity.IpoSubscription;
 import com.beyond.MKX.domain.ipo.subscription.entity.SubscriptionStatus;
 import com.beyond.MKX.domain.ipo.subscription.repository.IpoSubscriptionRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.math.RoundingMode;
 import java.util.*;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class IpoSettlementService {
     private final IpoOfferingRepository offeringRepository;
     private final IpoSubscriptionRepository subscriptionRepository;
@@ -41,76 +40,89 @@ public class IpoSettlementService {
 
 
     // ================================================================
-    // ① 개별 청약 정산 (기존 메서드 유지)
+    // ① 개별 청약 정산
     // ================================================================
     @Transactional
     public IpoSettlementResDTO settlePaymentsBySubscription(UUID subscriptionId) {
         IpoSubscription subscription = subscriptionRepository.findById(subscriptionId)
                 .orElseThrow(() -> new IllegalArgumentException("공모 청약이 존재하지 않습니다."));
-//        if (subscription.getStatus() != SubscriptionStatus.ALLOCATED) {
-//            throw new IllegalArgumentException("납입/환불은 배정(ALLOCATED) 상태만 가능합니다.");
-//        } ---> 청약 존재여부만 따지면 되지
 
         IpoOffering offering = subscription.getIpoOffering();
         IpoAllocation allocation = allocationRepository
                 .findTopByIpoSubscription_IdOrderByRoundNoDesc(subscriptionId)
                 .orElse(null);
 
-// === 기본 계산 ===
-        BigInteger offerPrice = bi(nz(offering.getOfferPrice())); // 확정 공모가
-        BigInteger allocatedQty = bi(allocation == null ? 0L : allocation.getAllocatedQuantity()); // 배정 수량
-        BigInteger finalAmt = allocatedQty.multiply(offerPrice); // 실제 청구금액
-        BigInteger depositAmt = bi(nz(subscription.getRequiredDeposit())); // 증거금 (스냅샷)
+        BigInteger offerPrice = bi(nz(offering.getOfferPrice()));
+        BigInteger allocatedQty = bi(allocation == null ? 0L : allocation.getAllocatedQuantity());
+        BigInteger finalAmt = allocatedQty.multiply(offerPrice);
+        BigInteger depositAmt = bi(nz(subscription.getRequiredDeposit()));
 
-// === 추가납입 / 환불 계산 ===
         BigInteger additional = BigInteger.ZERO;
         BigInteger refund = BigInteger.ZERO;
         int compare = finalAmt.compareTo(depositAmt);
-        if (compare > 0) {
-            additional = finalAmt.subtract(depositAmt); // 추가납입 필요
-        } else if (compare < 0) {
-            refund = depositAmt.subtract(finalAmt); // 환불 필요
-        }
+        if (compare > 0) additional = finalAmt.subtract(depositAmt);
+        else if (compare < 0) refund = depositAmt.subtract(finalAmt);
 
-// === 계좌 정보 ===
         BrokerageDepositAccount brokerageDeposit = brokerageDepositAccountService
                 .getRequiredByBrokerageId(subscription.getBrokerageId());
         String brokerageDepositNo = brokerageDeposit.getAccountNumber();
         String exchangeAccountNo = exchangeAccountNumber;
 
-// === 1단계: 선이관 (예치금 중 최소금액만 거래소로 이동) ===
+        // === 1단계: 선이관 ===
         if (depositAmt.signum() > 0) {
+            log.info("[STEP1] 예치금 선이관: 증권사({}) → 거래소({}) 금액={}", brokerageDepositNo, exchangeAccountNo, depositAmt);
             brokerageDepositAccountService.withdraw(brokerageDepositNo, depositAmt);
             exchangeAccountService.deposit(exchangeAccountNo, depositAmt);
         }
 
-// === 2단계: 추가납입 ===
-        //    기업 → 증권사예치 → 거래소 (자금 추적 가능)
+        // === 2단계: 추가납입 ===
         if (additional.signum() > 0 && subscription.getInvestorType() == InvestorType.CORPORATION) {
             UUID corpAccountId = subscription.getAccountId();
+            log.info("[STEP2] 추가납입 발생: 기업계좌({}) → 증권사({}) → 거래소({}), 금액={}", corpAccountId, brokerageDepositNo, exchangeAccountNo, additional);
+
             corporationAccountService.withdraw(corpAccountId, additional);
+            log.info(" └ 기업계좌 출금 완료: {}", corpAccountId);
+
             brokerageDepositAccountService.deposit(brokerageDepositNo, additional);
+            log.info(" └ 증권사 예치계좌 입금 완료: {}", brokerageDepositNo);
+
             brokerageDepositAccountService.withdraw(brokerageDepositNo, additional);
+            log.info(" └ 증권사 예치계좌 출금 완료: {}", brokerageDepositNo);
+
             exchangeAccountService.deposit(exchangeAccountNo, additional);
+            log.info(" └ 거래소 계좌 입금 완료: {}", exchangeAccountNo);
         }
 
-        // 🔸 환불 : 환불은 거래소 → 증권사 → 투자기업으로 명확히 분리
+        // === 3단계: 환불 ===
         else if (refund.signum() > 0 && subscription.getInvestorType() == InvestorType.CORPORATION) {
             UUID corpAccountId = subscription.getAccountId();
+            log.info("[STEP3] 환불 발생: 거래소({}) → 증권사({}) → 기업계좌({}), 금액={}", exchangeAccountNo, brokerageDepositNo, corpAccountId, refund);
+
             exchangeAccountService.withdraw(exchangeAccountNo, refund);
+            log.info(" └ 거래소 계좌 출금 완료: {}", exchangeAccountNo);
+
             brokerageDepositAccountService.deposit(brokerageDepositNo, refund);
+            log.info(" └ 증권사 예치계좌 입금 완료: {}", brokerageDepositNo);
+
             brokerageDepositAccountService.withdraw(brokerageDepositNo, refund);
+            log.info(" └ 증권사 예치계좌 출금 완료: {}", brokerageDepositNo);
+
             corporationAccountService.deposit(corpAccountId, refund);
+            log.info(" └ 기업계좌 입금 완료: {}", corpAccountId);
         }
-// === 4단계: TODO MEMBER 처리 ===
+
+        // === 4단계: 미지원 타입 ===
         else if (subscription.getInvestorType() == InvestorType.INDIVIDUAL) {
+            log.warn("[STEP4] INDIVIDUAL 투자자 정산은 현재 미지원 상태입니다. subscriptionId={}", subscriptionId);
             throw new UnsupportedOperationException("INDIVIDUAL 투자자 정산(추가납입/환불)은 추후 구현 대상입니다.");
         }
 
         subscription.setStatus(SubscriptionStatus.SETTLED);
         subscriptionRepository.save(subscription);
 
-// === 결과 DTO 반환 ===
+        log.info("[SETTLEMENT COMPLETE] 청약 {} 정산 완료 — finalAmt={}, depositAmt={}, additional={}, refund={}",
+                subscriptionId, finalAmt, depositAmt, additional, refund);
+
         return IpoSettlementResDTO.of(
                 subscription.getId().toString(),
                 offering.getId().toString(),
@@ -133,6 +145,7 @@ public class IpoSettlementService {
     // ================================================================
     @Transactional
     public List<IpoSettlementResDTO> settleAllPaymentsByOffering(UUID offeringId) {
+        log.info("[BATCH-SETTLE] 공모 {} 정산 시작", offeringId);
         IpoOffering offering = offeringRepository.findById(offeringId)
                 .orElseThrow(() -> new IllegalArgumentException("공모를 찾을 수 없습니다."));
 
@@ -143,6 +156,8 @@ public class IpoSettlementService {
         List<IpoSettlementResDTO> results = new ArrayList<>();
         for (IpoSubscription s : subs)
             results.add(settlePaymentsBySubscription(s.getId()));
+
+        log.info("[BATCH-SETTLE COMPLETE] 공모 {} 전체 정산 완료 (총 {}건)", offeringId, subs.size());
         return results;
     }
 
@@ -154,27 +169,28 @@ public class IpoSettlementService {
         IpoOffering offering = offeringRepository.findByIdForUpdate(offeringId)
                 .orElseThrow(() -> new IllegalArgumentException("공모 없음"));
 
-        // 🔸 핵심 수정: 송금 전 거래소 잔액 충분성 검증
         BigInteger totalProceeds = BigInteger
                 .valueOf(Optional.ofNullable(offering.getAllocatedQuantity()).orElse(0L))
                 .multiply(BigInteger.valueOf(offering.getOfferPrice()));
         BigInteger balance = exchangeAccountService.getByAccountNumber(exchangeAccountNumber).getBalance();
+
+        log.info("[PAYOUT] 발행사 송금 준비 — 공모={}, 필요금액={}, 거래소잔액={}", offeringId, totalProceeds, balance);
+
         if (balance.compareTo(totalProceeds) < 0)
             throw new IllegalStateException("거래소 계좌 잔액 부족 — 모든 정산 완료 전 송금 불가");
 
-        // 🔸 핵심 수정: 거래소 → 증권사 → 발행기업 흐름 유지
         var issuerAcc = corporationAccountService.getByCorporationId(
                 offering.getIpo().getCorporation().getId());
-        // 거래소 → 증권사 예치금
-        var brokerage = brokerageDepositAccountService.getRequiredByBrokerageId(
-                issuerAcc.getCorporationId());
-        brokerageDepositAccountService.deposit(brokerage.getAccountNumber(), totalProceeds);
-        // 증권사 → 발행기업
-        brokerageDepositAccountService.withdraw(brokerage.getAccountNumber(), totalProceeds);
+
+        exchangeAccountService.withdraw(exchangeAccountNumber, totalProceeds);
+        log.info(" └ 거래소 계좌 출금 완료 후 공모발행기업 예치 입금 완료");
         corporationAccountService.deposit(issuerAcc.getId(), totalProceeds);
+        log.info(" └ 발행기업 계좌 입금 완료");
 
         offering.settle(Optional.ofNullable(offering.getAllocatedQuantity()).orElse(0L));
         offeringRepository.save(offering);
+
+        log.info("[PAYOUT COMPLETE] 발행사 송금 완료 — 공모={}, 금액={}", offeringId, totalProceeds);
         return IpoPayoutResDTO.of(offering, totalProceeds);
     }
 }

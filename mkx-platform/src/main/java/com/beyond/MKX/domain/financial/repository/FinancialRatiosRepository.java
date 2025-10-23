@@ -15,4 +15,7 @@ public interface FinancialRatiosRepository extends JpaRepository<FinancialRatios
             "WHERE s.ticker = :ticker ORDER BY r.fiscalYear DESC, r.fiscalQuarter DESC")
     List<FinancialRatios> findAllByTickerOrderByDesc(@Param("ticker") String ticker);
 
+    @Query("SELECT r FROM FinancialRatios r WHERE r.stockId = :stockId ORDER BY r.fiscalYear DESC, r.fiscalQuarter DESC")
+    List<FinancialRatios> findByStockIdOrderByFiscalYearDescFiscalQuarterDesc(@Param("stockId") UUID stockId);
+
 }

@@ -1,6 +1,8 @@
 package com.beyond.MKX.domain.stock.entity;
 
 import com.beyond.MKX.common.domain.BaseIdAndTimeEntity;
+import com.beyond.MKX.domain.delisting.entity.DelistingReason;
+import com.beyond.MKX.domain.delisting.entity.DelistingStage;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -34,7 +36,14 @@ public class Stock extends BaseIdAndTimeEntity {
     private String nameKo;
 
     // ====== 상장/정지 상태 ======
-    public enum Status { LISTED, SUSPENDED }
+    public enum Status { 
+        LISTED,                    // 정상 상장
+        SUSPENDED,                 // 거래 정지
+        DELISTING_RISK,            // 상장폐지 위험 (기준 위반)
+        DELISTING_NOTICE,          // 상장폐지 예고
+        DELISTING_PROCESS,         // 상장폐지 절차 진행 중
+        DELISTED                   // 상장폐지 완료
+    }
 
     @Builder.Default
     @Enumerated(EnumType.STRING)
@@ -54,6 +63,21 @@ public class Stock extends BaseIdAndTimeEntity {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;     // 소프트 삭제 등 필요 시 사용
 
+    // 상장폐지 관련 필드 추가
+    @Column(name = "delisting_stage")
+    @Enumerated(EnumType.STRING)
+    private DelistingStage delistingStage = DelistingStage.NORMAL;
+
+    @Column(name = "delisting_notice_date")
+    private LocalDateTime delistingNoticeDate;
+
+    @Column(name = "delisting_execution_date")
+    private LocalDateTime delistingExecutionDate;
+
+    @Column(name = "delisting_reason")
+    @Enumerated(EnumType.STRING)
+    private DelistingReason delistingReason;
+
     // ====== 도메인 메서드(선택적 변경만 허용) ======
     public void updateNameKo(String nameKo) {
         this.nameKo = nameKo;
@@ -69,6 +93,10 @@ public class Stock extends BaseIdAndTimeEntity {
 
     public void updateFreeFloatShares(Long freeFloatShares) {
         this.freeFloatShares = freeFloatShares;
+    }
+
+    public void setDelistingNoticeDate(LocalDateTime delistingNoticeDate) {
+        this.delistingNoticeDate = delistingNoticeDate;
     }
 
     public void softDelete(LocalDateTime deletedAt) {

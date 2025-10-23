@@ -116,7 +116,7 @@ public class BidExecutionService {
 
         /// 5. 주문 상태 변경
         orderLog.updateOrderStatus(OrderStatus.PARTIALLY_FILLED);
-        orderLog.updateFilledAt();
+        orderLog.recordFilledAt();
         orderLog.decFreezeAmount(total_filled_amount); // 동결 금액 차감
         log.info("{}원 동결 금액 차감", total_filled_amount);
         // 잔여 수량 감소
@@ -130,6 +130,7 @@ public class BidExecutionService {
             orderLog.updateOrderStatus(OrderStatus.FILLED);
 
             // 5-2. 환불 처리 (계좌 가용 금액 증가)
+            System.out.println("bidExecuteProcess: 환불 로직 시작");
             memberAccount.increaseAvailableBalance(orderLog.getFreezeAmount());
             log.info("{}원 환불 처리", orderLog.getFreezeAmount());
         } else if (orderLog.getOrderKind() == OrderKind.MARKET) {
@@ -160,10 +161,5 @@ public class BidExecutionService {
         return true;
     }
 
-    public void refundFreezeAmount(UUID orderLogId) {
-        OrderLog orderLog = orderLogRepository.findById(orderLogId)
-                .orElseThrow(() -> new EntityNotFoundException("해당 주문기록을 찾을 수 없습니다."));
-        orderLog.getAccount().increaseAvailableBalance(orderLog.getFreezeAmount());
-    }
 
 }

@@ -66,20 +66,6 @@ public class IpoOfferingController {
         return ApiResponse.ok(IpoOfferingResDTO.from(cancelled), "공모가 취소되었습니다.");
     }
 
-    @PatchMapping("/{offeringId}/auto-fix-price")
-    public ResponseEntity<?> autoFix(@PathVariable UUID offeringId,
-                                     @RequestParam(defaultValue = "3.0") double T) {
-        IpoOffering fixed = offeringService.autoFixOfferPrice(offeringId, T);
-        return ApiResponse.ok(IpoOfferingResDTO.from(fixed), "경쟁률 기반 확정 공모가가 산정되었습니다.");
-    }
-
-    @PatchMapping("{offeringId}/auto-fix-price-random")
-    public ResponseEntity<?> autoFixRandom(@PathVariable UUID offeringId) {
-        IpoOffering fixed = offeringService.autoFixOfferPriceRandom(offeringId);
-        return ApiResponse.ok(IpoOfferingResDTO.from(fixed), "수요예측결과에 기반한 공모가가 산정되었습니다.");
-    }
-
-
     @GetMapping("/{ipoId}/offerings/list-status")
     public ResponseEntity<?> listByIpo(@PathVariable UUID ipoId,
                                        @RequestParam(required = false, name = "statuses")

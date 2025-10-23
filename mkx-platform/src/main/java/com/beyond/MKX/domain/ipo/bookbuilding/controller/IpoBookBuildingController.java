@@ -28,4 +28,10 @@ public class IpoBookBuildingController {
         List<IpoBookBuildingResDTO> resDTOList = bookBuildingService.findAllByOfferingId(offeringId);
         return ApiResponse.ok(resDTOList, "수요예측 내역 조회 완료");
     }
+
+    @PatchMapping("{offeringId}/book-building/finalize")
+    public ResponseEntity<?> fixOfferPrice(@PathVariable UUID offeringId) {
+        var fixOfferPrice = bookBuildingService.finalizeOfferPriceByBookBuilding(offeringId);
+        return ApiResponse.ok(fixOfferPrice, "수요예측 결과를 기반으로 확정공모가가 산정되었습니다.");
+    }
 }

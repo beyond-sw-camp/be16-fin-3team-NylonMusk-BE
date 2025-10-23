@@ -1,6 +1,7 @@
 package com.beyond.MKX.domain.order.controller;
 
 import com.beyond.MKX.common.apiResponse.ApiResponse;
+import com.beyond.MKX.domain.order.dto.OrderCancelRequestDTO;
 import com.beyond.MKX.domain.order.dto.OrderRequestDTO;
 import com.beyond.MKX.domain.order.dto.OrderResponseDTO;
 import com.beyond.MKX.domain.order.service.OrderBookService;
@@ -8,9 +9,11 @@ import com.beyond.MKX.domain.order.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Optional;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/order")
@@ -27,6 +30,16 @@ public class OrderController {
         OrderResponseDTO resDTO = orderService.placeOrder(reqDTO);
 
         return ApiResponse.created(resDTO);
+    }
+
+    @PostMapping("/cancel")
+    public ResponseEntity<?> cancelOrder(
+            @RequestBody @Valid OrderCancelRequestDTO reqDTO,
+            @RequestHeader("X-User-Id") UUID memberId
+//            @RequestHeader(value = "X-User-Role", required = false) String roleHeader
+    ) {
+        OrderResponseDTO resDTO = orderService.cancelOrder(reqDTO, memberId);
+        return ApiResponse.ok(resDTO);
     }
 
 

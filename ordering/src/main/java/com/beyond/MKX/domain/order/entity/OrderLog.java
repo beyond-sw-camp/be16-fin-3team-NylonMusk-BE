@@ -88,8 +88,11 @@ public class OrderLog extends BaseIdAndTimeEntity {
     @Column(name = "version", nullable = false)
     private Long version;
 
-    public void updateFilledAt() {
+    public void recordFilledAt() {
         this.filledAt = LocalDateTime.now();
+    }
+    public void recordCanceledAt() {
+        this.canceledAt = LocalDateTime.now();
     }
 
     public void decFreezeAmount(Long decAmount) {

@@ -5,6 +5,9 @@ import com.beyond.MKX.domain.delisting.client.StockHoldingClient;
 import com.beyond.MKX.domain.delisting.client.MemberAccountClient;
 import com.beyond.MKX.domain.delisting.dto.CurrentPriceResDto;
 import com.beyond.MKX.domain.delisting.dto.StockHoldingResDto;
+import com.beyond.MKX.domain.delisting.dto.DelistingProgressResDto;
+import com.beyond.MKX.domain.delisting.dto.ViolationSummaryDto;
+import com.beyond.MKX.domain.delisting.dto.CompensationStatusDto;
 import com.beyond.MKX.domain.delisting.entity.*;
 import com.beyond.MKX.domain.delisting.repository.*;
 import com.beyond.MKX.domain.stock.entity.Stock;
@@ -20,6 +23,7 @@ import com.beyond.MKX.domain.account.corporation.repository.CorporationAccountRe
 import com.beyond.MKX.domain.account.exchange.entity.ExchangeAccount;
 import com.beyond.MKX.domain.account.exchange.repository.ExchangeAccountRepository;
 import com.beyond.MKX.domain.delisting.entity.ExchangeSupportFund;
+import com.beyond.MKX.common.openai.OpenAiService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -29,11 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.UUID;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.ArrayList;
+import java.util.*;
 
 /**
  * 상장폐지 통합 비즈니스 로직 서비스
@@ -65,6 +65,8 @@ public class DelistingService {
     private final CorporationAccountRepository corporationAccountRepo;
     private final ExchangeAccountRepository exchangeAccountRepo;
     private final ExchangeSupportFundRepository exchangeSupportFundRepo;
+    private final OpenAiService openAiService;
+    private final GptAnalysisService gptAnalysisService;
 
     /**
      * 기준 위반 감지 및 기록
@@ -82,6 +84,17 @@ public class DelistingService {
         if (!isViolation(criteria, currentValue)) {
             log.info("기준 위반 아님: stockId={}, criteriaCode={}", stockId, criteriaCode);
             return null;
+        }
+
+        // 최근 24시간 내 동일한 기준으로 해결되지 않은 위반이 있는지 확인
+        LocalDateTime recentTime = LocalDateTime.now().minusHours(24);
+        List<DelistingViolation> recentViolations = violationRepo.findByStockIdAndCriteriaCodeAndViolationDateAfterAndIsResolvedFalse(
+                stockId, criteriaCode, recentTime);
+        
+        if (!recentViolations.isEmpty()) {
+            log.info("최근 24시간 내 동일한 기준 위반이 이미 존재함: stockId={}, criteriaCode={}, count={}", 
+                    stockId, criteriaCode, recentViolations.size());
+            return recentViolations.get(0); // 기존 위반 반환
         }
 
         // 기존 연속 위반 확인
@@ -119,6 +132,80 @@ public class DelistingService {
 
         log.info("기준 위반 기록 완료: violationId={}, consecutivePeriods={}", 
                 saved.getId(), consecutivePeriods);
+
+        return saved;
+    }
+
+    /**
+     * GPT 분석 결과를 포함한 기준 위반 감지 및 기록
+     */
+    public DelistingViolation detectViolationWithGptAnalysis(UUID stockId, String criteriaCode, 
+                                                           BigDecimal currentValue, String description,
+                                                           BigDecimal gptRiskScore, String gptAnalysisDescription,
+                                                           String gptAnalysisReasoning, boolean gptAnalysisUsed) {
+        log.info("GPT 분석 결과 포함 기준 위반 감지 시작: stockId={}, criteriaCode={}, currentValue={}, gptUsed={}", 
+                stockId, criteriaCode, currentValue, gptAnalysisUsed);
+
+        // 기준 조회
+        DelistingCriteria criteria = criteriaRepo.findByCriteriaCodeAndActive(criteriaCode)
+                .orElseThrow(() -> new IllegalArgumentException("활성화된 기준을 찾을 수 없습니다: " + criteriaCode));
+
+        // 위반 여부 확인
+        if (!isViolation(criteria, currentValue)) {
+            log.info("기준 위반 아님: stockId={}, criteriaCode={}", stockId, criteriaCode);
+            return null;
+        }
+
+        // 최근 24시간 내 동일한 기준으로 해결되지 않은 위반이 있는지 확인
+        LocalDateTime recentTime = LocalDateTime.now().minusHours(24);
+        List<DelistingViolation> recentViolations = violationRepo.findByStockIdAndCriteriaCodeAndViolationDateAfterAndIsResolvedFalse(
+                stockId, criteriaCode, recentTime);
+        
+        if (!recentViolations.isEmpty()) {
+            log.info("최근 24시간 내 동일한 기준 위반이 이미 존재함: stockId={}, criteriaCode={}, count={}", 
+                    stockId, criteriaCode, recentViolations.size());
+            return recentViolations.get(0); // 기존 위반 반환
+        }
+
+        // 기존 연속 위반 확인
+        List<DelistingViolation> existingViolations = violationRepo.findConsecutiveViolations(stockId, criteria.getId());
+        int consecutivePeriods = existingViolations.size() + 1;
+
+        // 위반 유형 결정
+        ViolationType violationType = determineViolationType(criteria, consecutivePeriods);
+
+        // 위반 기록 생성 (GPT 분석 결과 포함)
+        DelistingViolation violation = DelistingViolation.builder()
+                .stockId(stockId)
+                .criteriaId(criteria.getId())
+                .criteriaCode(criteriaCode)
+                .violationType(violationType)
+                .currentValue(currentValue)
+                .thresholdValue(criteria.getThresholdValue())
+                .consecutivePeriods(consecutivePeriods)
+                .violationDate(LocalDateTime.now())
+                .description(description)
+                .severityScore(calculateSeverityScore(criteria, consecutivePeriods))
+                .detectionMethod(DelistingViolation.DetectionMethod.AUTOMATIC)
+                .requiresAction(true)
+                .isResolved(false)  // 명시적으로 false 설정
+                .gptRiskScore(gptRiskScore)
+                .gptAnalysisDescription(gptAnalysisDescription)
+                .gptAnalysisReasoning(gptAnalysisReasoning)
+                .gptAnalysisUsed(gptAnalysisUsed)
+                .build();
+
+        DelistingViolation saved = violationRepo.save(violation);
+
+        // 주식 상태를 DELISTING_RISK로 변경 (위반 감지 시)
+        updateStockStatusToRisk(stockId);
+
+        // 이력 기록
+        recordHistory(stockId, ActionType.CRITERIA_VIOLATION, null, null, 
+                     "기준 위반 감지 (GPT 분석 포함): " + criteriaCode, saved.getId().toString(), null);
+
+        log.info("GPT 분석 결과 포함 기준 위반 기록 완료: violationId={}, consecutivePeriods={}, gptUsed={}", 
+                saved.getId(), consecutivePeriods, gptAnalysisUsed);
 
         return saved;
     }
@@ -198,29 +285,79 @@ public class DelistingService {
     }
 
     /**
-     * 상장폐지 단계 진행 체크
+     * 상장폐지 진행 상황 종합 체크 및 분석
      */
-    public void checkDelistingProgress(UUID stockId) {
-        log.info("상장폐지 진행 체크 시작: stockId={}", stockId);
+    public DelistingProgressResDto checkDelistingProgress(UUID stockId) {
+        log.info("상장폐지 진행 상황 체크 시작: stockId={}", stockId);
 
-        // 해결되지 않은 위반 목록 조회
-        List<DelistingViolation> unresolvedViolations = violationRepo.findByStockIdAndUnresolved(stockId);
-        
-        if (unresolvedViolations.isEmpty()) {
-            log.info("해결되지 않은 위반 없음: stockId={}", stockId);
-            return;
-        }
+        try {
+            // 주식 정보 조회
+            Stock stock = stockRepo.findById(stockId)
+                    .orElseThrow(() -> new IllegalArgumentException("Stock not found: " + stockId));
 
-        // 심각한 위반이 있는지 확인
-        boolean hasCriticalViolations = unresolvedViolations.stream()
-                .anyMatch(v -> v.getViolationType() == ViolationType.CRITICAL);
+            // 해결되지 않은 위반 목록 조회
+            List<DelistingViolation> unresolvedViolations = violationRepo.findByStockIdAndUnresolved(stockId);
+            
+            // 보상금 현황 조회
+            List<DelistingCompensation> compensations = compensationRepo.findByStockId(stockId);
+            
+            // 최근 GPT 분석 결과 조회
+            GptAnalysisResult latestAnalysis = gptAnalysisService.getLatestAnalysisResult(stockId);
 
-        if (hasCriticalViolations) {
-            // 상장폐지 예고 단계로 진행
-            proceedToDelistingNotice(stockId, unresolvedViolations);
-        } else {
-            // 경고 단계로 진행
-            proceedToWarning(stockId, unresolvedViolations);
+            // 진행 단계 결정
+            String progressStage = determineProgressStage(stock, unresolvedViolations);
+            
+            // 다음 단계 결정
+            List<String> nextSteps = determineNextSteps(progressStage, unresolvedViolations);
+            
+            // 예상 상장폐지 일정 계산
+            LocalDateTime estimatedDelistingDate = calculateEstimatedDelistingDate(progressStage, unresolvedViolations);
+            
+            // 전체 위험도 점수 계산
+            BigDecimal overallRiskScore = calculateOverallRiskScore(unresolvedViolations, latestAnalysis);
+            
+            // 위험도 레벨 결정
+            String riskLevel = determineRiskLevel(overallRiskScore);
+            
+            // 권장사항 생성
+            List<String> recommendations = generateRecommendations(progressStage, unresolvedViolations, compensations);
+
+            // 위반 요약 생성
+            List<ViolationSummaryDto> violationSummaries = unresolvedViolations.stream()
+                    .map(this::mapToViolationSummary)
+                    .toList();
+
+            // 보상금 현황 생성
+            CompensationStatusDto compensationStatus = mapToCompensationStatus(compensations);
+
+            DelistingProgressResDto result = DelistingProgressResDto.builder()
+                    .stockId(stockId)
+                    .ticker(stock.getTicker())
+                    .nameKo(stock.getNameKo())
+                    .currentStatus(stock.getStatus().toString())
+                    .progressStage(progressStage)
+                    .unresolvedViolations(violationSummaries)
+                    .nextSteps(nextSteps)
+                    .compensationStatus(compensationStatus)
+                    .estimatedDelistingDate(estimatedDelistingDate)
+                    .lastAnalysisDate(latestAnalysis != null ? latestAnalysis.getAnalysisDate() : null)
+                    .totalViolationCount(unresolvedViolations.size())
+                    .criticalViolationCount((int) unresolvedViolations.stream()
+                            .filter(v -> v.getViolationType() == ViolationType.CRITICAL)
+                            .count())
+                    .overallRiskScore(overallRiskScore)
+                    .riskLevel(riskLevel)
+                    .recommendations(recommendations)
+                    .build();
+
+            log.info("상장폐지 진행 상황 체크 완료: stockId={}, stage={}, violations={}, riskLevel={}", 
+                    stockId, progressStage, unresolvedViolations.size(), riskLevel);
+
+            return result;
+
+        } catch (Exception e) {
+            log.error("상장폐지 진행 상황 체크 실패: stockId={}", stockId, e);
+            throw new RuntimeException("상장폐지 진행 상황 체크 실패", e);
         }
     }
 
@@ -656,11 +793,17 @@ public void scheduledRetryFailedCompensations() {
             
             int violationCount = 0;
             
+            // 재무 데이터 맵 생성 (GPT 분석용)
+            Map<String, Object> financialData = buildFinancialDataMap(recentFinancials, recentRatios);
+            
             for (DelistingCriteria criteria : activeCriteria) {
                 // 각 기준별로 위반 여부 체크
                 if (checkCriteriaViolationFromFinancials(stockId, criteria, recentFinancials, recentRatios, corporation)) {
                     violationCount++;
                 }
+                
+                // 모든 기준에 대해 GPT 분석 실행 (위반 여부와 관계없이)
+                performGptAnalysisForCriteria(stockId, criteria, financialData);
             }
             
             log.info("재무제표 기반 위반 감지 완료: stockId={}, 위반 건수={}", stockId, violationCount);
@@ -680,6 +823,12 @@ public void scheduledRetryFailedCompensations() {
         
         BigDecimal currentValue = null;
         String description = "";
+        
+        // GPT 분석 결과 저장용 변수들
+        BigDecimal gptRiskScore = null;
+        String gptAnalysisDescription = null;
+        String gptAnalysisReasoning = null;
+        boolean gptAnalysisUsed = false;
         
         try {
             switch (criteria.getCriteriaCode()) {
@@ -727,9 +876,19 @@ public void scheduledRetryFailedCompensations() {
                     break;
                     
                 case "INSUFFICIENT_CAPITAL":
-                    // 자본금 기준
-                    currentValue = BigDecimal.valueOf(corporation.getCapital());
-                    description = String.format("자본금: %,.0f원", currentValue);
+                    // 자본금 기준 - CompanyFinancials의 totalEquity 사용 (실제 총자본)
+                    if (!financials.isEmpty() && financials.get(0).getTotalEquity() != null) {
+                        currentValue = BigDecimal.valueOf(financials.get(0).getTotalEquity());
+                        description = String.format("총자본: %,.0f원", currentValue);
+                        log.info("INSUFFICIENT_CAPITAL 체크 - 재무제표 데이터 사용: totalEquity={}, currentValue={}", 
+                                financials.get(0).getTotalEquity(), currentValue);
+                    } else {
+                        // 재무제표 데이터가 없으면 Corporation의 자본금 사용
+                        currentValue = BigDecimal.valueOf(corporation.getCapital());
+                        description = String.format("설립자본금: %,.0f원", currentValue);
+                        log.info("INSUFFICIENT_CAPITAL 체크 - Corporation 데이터 사용: capital={}, currentValue={}", 
+                                corporation.getCapital(), currentValue);
+                    }
                     break;
                     
                 case "LOW_ROE":
@@ -764,19 +923,89 @@ public void scheduledRetryFailedCompensations() {
                     }
                     break;
                     
+                // 재무제표로 감지 불가능한 기준들 (위반 체크에서 제외)
+                case "FINAL_BANKRUPTCY":
+                case "BREACH_OF_TRUST":
+                case "EMBEZZLEMENT":
+                case "REPORT_DELAY":
+                    // 재무제표로 감지 불가능한 기준들은 위반 체크에서 제외
+                    log.info("재무제표 기반 감지 불가능한 기준 건너뜀: {}", criteria.getCriteriaCode());
+                    return false; // 위반 체크하지 않고 정상 처리
+                    
+                // 거래량 관련 기준들 (기본 틀만 구현, 나중에 marketData 연동)
+                case "LOW_TRADING_VOLUME_2Q":
+                    // TODO: marketData에서 실제 거래량 데이터 가져와서 구현
+                    log.info("거래량 기준 - marketData 연동 예정: {}", criteria.getCriteriaCode());
+                    return false; // 임시로 정상 처리
+                    
+                // 주가 관련 기준들 (기본 틀만 구현, 나중에 marketData 연동)
+                case "LOW_STOCK_PRICE_30D":
+                    // TODO: marketData에서 실제 주가 데이터 가져와서 구현
+                    log.info("주가 기준 - marketData 연동 예정: {}", criteria.getCriteriaCode());
+                    return false; // 임시로 정상 처리
+                    
+                // 시가총액 관련 기준들 (재무제표 기반 간접 추정)
+                case "LOW_MARKET_CAP_CONTINUOUS":
+                    // 재무제표로 간접 추정: 자산총계, 자기자본 등을 활용
+                    if (!financials.isEmpty()) {
+                        BigDecimal totalAssets = BigDecimal.valueOf(financials.get(0).getTotalAssets());
+                        BigDecimal totalEquity = BigDecimal.valueOf(financials.get(0).getTotalEquity());
+                        // 자산 대비 자기자본 비율이 낮으면 시가총액도 낮을 가능성
+                        if (totalAssets.compareTo(BigDecimal.ZERO) > 0) {
+                            currentValue = totalEquity.divide(totalAssets, 4, java.math.RoundingMode.HALF_UP)
+                                    .multiply(BigDecimal.valueOf(100));
+                            description = String.format("자기자본비율: %.2f%% (시가총액 간접 추정)", currentValue);
+                        }
+                    }
+                    break;
+                    
+                // 소수주주 관련 기준들 (재무제표 기반 간접 추정)
+                case "LOW_MINORITY_SHAREHOLDERS":
+                    // 재무제표로 간접 추정: 소액주주 배당금, 소액주주 이익 등을 활용
+                    if (!financials.isEmpty()) {
+                        BigDecimal netIncome = BigDecimal.valueOf(financials.get(0).getNetIncome());
+                        // 순이익이 낮으면 소수주주 이익도 낮을 가능성
+                        currentValue = netIncome;
+                        description = String.format("순이익: %,.0f원 (소수주주 이익 간접 추정)", netIncome);
+                    }
+                    break;
+                    
+                // 감사 의견 관련 기준들 (GPT API 연동)
+                case "AUDIT_OPINION_QUALIFIED":
+                case "AUDIT_OPINION_ADVERSE":
+                case "AUDIT_OPINION_DISCLAIMER":
+                    // 재무제표 데이터를 GPT API로 분석
+                    Map<String, Object> financialData = buildFinancialDataMap(financials, ratios);
+                    OpenAiService.AuditOpinionAnalysis analysis = openAiService.analyzeAuditOpinionRisk(financialData);
+                    
+                    currentValue = analysis.getRiskScore();
+                    description = String.format("GPT 재무분석 결과: %s (위험도: %.1f/10)", 
+                            analysis.getDescription(), analysis.getRiskScore());
+                    
+                    // GPT 분석 결과 저장
+                    gptRiskScore = analysis.getRiskScore();
+                    gptAnalysisDescription = analysis.getDescription();
+                    gptAnalysisReasoning = analysis.getReasoning();
+                    gptAnalysisUsed = true;
+                    
+                    log.info("GPT 감사의견 분석 완료: criteria={}, riskScore={}, reasoning={}", 
+                            criteria.getCriteriaCode(), analysis.getRiskScore(), analysis.getReasoning());
+                    break;
+                    
                 default:
                     log.warn("알 수 없는 기준 코드: {}", criteria.getCriteriaCode());
                     return false;
             }
             
             if (currentValue != null && isViolation(criteria, currentValue)) {
-                // 위반 감지 시 자동 기록
-                DelistingViolation violation = detectViolation(stockId, criteria.getCriteriaCode(), 
-                                                             currentValue, description);
+                // 위반 감지 시 자동 기록 (GPT 분석 결과 포함)
+                DelistingViolation violation = detectViolationWithGptAnalysis(stockId, criteria.getCriteriaCode(), 
+                                                             currentValue, description, gptRiskScore, 
+                                                             gptAnalysisDescription, gptAnalysisReasoning, gptAnalysisUsed);
                 
                 if (violation != null) {
-                    log.info("재무제표 기반 위반 감지: stockId={}, criteria={}, value={}", 
-                            stockId, criteria.getCriteriaCode(), currentValue);
+                    log.info("재무제표 기반 위반 감지: stockId={}, criteria={}, value={}, gptUsed={}", 
+                            stockId, criteria.getCriteriaCode(), currentValue, gptAnalysisUsed);
                     return true;
                 }
             }
@@ -1291,5 +1520,240 @@ public void scheduledRetryFailedCompensations() {
         Stock stock = stockRepo.findById(stockId)
                 .orElseThrow(() -> new IllegalArgumentException("Stock not found: " + stockId));
         return stock.getCorporationId();
+    }
+
+    /**
+     * GPT API 분석을 위한 재무 데이터 맵 생성 (null 값 필터링)
+     */
+    private Map<String, Object> buildFinancialDataMap(List<CompanyFinancials> financials, List<FinancialRatios> ratios) {
+        Map<String, Object> data = new HashMap<>();
+        
+        if (!financials.isEmpty()) {
+            CompanyFinancials latest = financials.get(0);
+            
+            // null이 아닌 값만 추가
+            if (latest.getTotalAssets() != null && latest.getTotalAssets() > 0) {
+                data.put("totalAssets", latest.getTotalAssets());
+            }
+            if (latest.getTotalLiabilities() != null && latest.getTotalLiabilities() > 0) {
+                data.put("totalLiabilities", latest.getTotalLiabilities());
+            }
+            if (latest.getTotalEquity() != null && latest.getTotalEquity() > 0) {
+                data.put("totalEquity", latest.getTotalEquity());
+            }
+            if (latest.getRevenue() != null && latest.getRevenue() > 0) {
+                data.put("revenue", latest.getRevenue());
+            }
+            if (latest.getOperatingIncome() != null) {
+                data.put("operatingIncome", latest.getOperatingIncome());
+            }
+            if (latest.getNetIncome() != null) {
+                data.put("netIncome", latest.getNetIncome());
+            }
+        }
+        
+        if (!ratios.isEmpty()) {
+            FinancialRatios latest = ratios.get(0);
+            
+            // null이 아닌 값만 추가
+            if (latest.getCurrentRatio() != null && latest.getCurrentRatio().compareTo(BigDecimal.ZERO) > 0) {
+                data.put("currentRatio", latest.getCurrentRatio());
+            }
+            if (latest.getDebtRatio() != null && latest.getDebtRatio().compareTo(BigDecimal.ZERO) > 0) {
+                data.put("debtRatio", latest.getDebtRatio());
+            }
+            if (latest.getRoe() != null) {
+                data.put("roe", latest.getRoe());
+            }
+            if (latest.getRoa() != null) {
+                data.put("roa", latest.getRoa());
+            }
+        }
+        
+        log.info("GPT 분석용 재무 데이터 필터링 완료: availableFields={}", data.keySet());
+        return data;
+    }
+
+    /**
+     * 특정 기준에 대한 GPT 분석 실행
+     */
+    private void performGptAnalysisForCriteria(UUID stockId, DelistingCriteria criteria, Map<String, Object> financialData) {
+        try {
+            String analysisType = determineGptAnalysisType(criteria.getCriteriaCode());
+            
+            if (analysisType != null) {
+                log.info("GPT 분석 실행: stockId={}, criteriaCode={}, analysisType={}", 
+                        stockId, criteria.getCriteriaCode(), analysisType);
+                
+                gptAnalysisService.performAnalysis(stockId, criteria.getCriteriaCode(), analysisType, financialData);
+            }
+        } catch (Exception e) {
+            log.error("GPT 분석 실행 실패: stockId={}, criteriaCode={}", stockId, criteria.getCriteriaCode(), e);
+        }
+    }
+
+    /**
+     * 기준 코드에 따른 GPT 분석 유형 결정
+     */
+    private String determineGptAnalysisType(String criteriaCode) {
+        return switch (criteriaCode) {
+            case "AUDIT_OPINION_QUALIFIED" -> "AUDIT_OPINION_QUALIFIED";
+            case "AUDIT_OPINION_ADVERSE" -> "AUDIT_OPINION_ADVERSE";
+            case "AUDIT_OPINION_DISCLAIMER" -> "AUDIT_OPINION_DISCLAIMER";
+            case "LOW_REVENUE_2Y", "NEGATIVE_NET_INCOME", "LOW_EQUITY_RATIO", 
+                 "HIGH_DEBT_RATIO", "LOW_CURRENT_RATIO", "INSUFFICIENT_CAPITAL",
+                 "LOW_ROE", "LOW_ROA", "NEGATIVE_OPERATING_INCOME", "LOW_INTEREST_COVERAGE" -> "FINANCIAL_HEALTH";
+            case "LOW_MARKET_CAP_CONTINUOUS", "LOW_MINORITY_SHAREHOLDERS" -> "RISK_ASSESSMENT";
+            default -> null; // GPT 분석이 필요하지 않은 기준들
+        };
+    }
+
+    /**
+     * 진행 단계 결정
+     */
+    private String determineProgressStage(Stock stock, List<DelistingViolation> violations) {
+        if (violations.isEmpty()) {
+            return "NORMAL";
+        }
+        
+        boolean hasCriticalViolations = violations.stream()
+                .anyMatch(v -> v.getViolationType() == ViolationType.CRITICAL);
+        
+        if (hasCriticalViolations) {
+            return "CRITICAL_VIOLATIONS";
+        } else {
+            return "WARNING_VIOLATIONS";
+        }
+    }
+
+    /**
+     * 다음 단계 결정
+     */
+    private List<String> determineNextSteps(String progressStage, List<DelistingViolation> violations) {
+        return switch (progressStage) {
+            case "NORMAL" -> List.of("정상 운영", "정기 모니터링");
+            case "WARNING_VIOLATIONS" -> List.of("위반 기준 개선", "재무제표 정정", "정기 모니터링");
+            case "CRITICAL_VIOLATIONS" -> List.of("상장폐지 예고 발행", "보상금 지급 처리", "상장폐지 절차 준비");
+            default -> List.of("상황 분석 필요");
+        };
+    }
+
+    /**
+     * 예상 상장폐지 일정 계산
+     */
+    private LocalDateTime calculateEstimatedDelistingDate(String progressStage, List<DelistingViolation> violations) {
+        return switch (progressStage) {
+            case "CRITICAL_VIOLATIONS" -> LocalDateTime.now().plusMonths(2);
+            case "WARNING_VIOLATIONS" -> LocalDateTime.now().plusMonths(6);
+            default -> null;
+        };
+    }
+
+    /**
+     * 전체 위험도 점수 계산
+     */
+    private BigDecimal calculateOverallRiskScore(List<DelistingViolation> violations, GptAnalysisResult latestAnalysis) {
+        BigDecimal violationScore = violations.stream()
+                .map(v -> BigDecimal.valueOf(v.getSeverityScore()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
+        BigDecimal gptScore = latestAnalysis != null && latestAnalysis.getRiskScore() != null 
+                ? latestAnalysis.getRiskScore() 
+                : BigDecimal.ZERO;
+        
+        return violationScore.add(gptScore);
+    }
+
+    /**
+     * 위험도 레벨 결정
+     */
+    private String determineRiskLevel(BigDecimal riskScore) {
+        if (riskScore.compareTo(BigDecimal.valueOf(20)) >= 0) {
+            return "CRITICAL";
+        } else if (riskScore.compareTo(BigDecimal.valueOf(15)) >= 0) {
+            return "HIGH";
+        } else if (riskScore.compareTo(BigDecimal.valueOf(10)) >= 0) {
+            return "MEDIUM";
+        } else if (riskScore.compareTo(BigDecimal.valueOf(5)) >= 0) {
+            return "LOW";
+        } else {
+            return "MINIMAL";
+        }
+    }
+
+    /**
+     * 권장사항 생성
+     */
+    private List<String> generateRecommendations(String progressStage, List<DelistingViolation> violations, List<DelistingCompensation> compensations) {
+        List<String> recommendations = new ArrayList<>();
+        
+        if (progressStage.equals("CRITICAL_VIOLATIONS")) {
+            recommendations.add("즉시 상장폐지 예고 발행 필요");
+            recommendations.add("보상금 지급 절차 시작");
+        }
+        
+        if (!violations.isEmpty()) {
+            recommendations.add("위반 기준 개선 방안 수립");
+        }
+        
+        boolean hasFailedCompensations = compensations.stream()
+                .anyMatch(c -> c.getStatus() == CompensationStatus.FAILED);
+        
+        if (hasFailedCompensations) {
+            recommendations.add("실패한 보상금 재처리 필요");
+        }
+        
+        return recommendations.isEmpty() ? List.of("정상 운영 중") : recommendations;
+    }
+
+    /**
+     * 위반 요약 매핑
+     */
+    private ViolationSummaryDto mapToViolationSummary(DelistingViolation violation) {
+        return ViolationSummaryDto.builder()
+                .criteriaCode(violation.getCriteriaCode())
+                .criteriaName(violation.getCriteriaCode()) // TODO: 기준명 조회
+                .violationDate(violation.getViolationDate())
+                .consecutivePeriods(violation.getConsecutivePeriods())
+                .severityScore(violation.getSeverityScore())
+                .description(violation.getDescription())
+                .gptAnalysisUsed(violation.getGptAnalysisUsed())
+                .gptRiskScore(violation.getGptRiskScore())
+                .build();
+    }
+
+    /**
+     * 보상금 현황 매핑
+     */
+    private CompensationStatusDto mapToCompensationStatus(List<DelistingCompensation> compensations) {
+        if (compensations.isEmpty()) {
+            return CompensationStatusDto.builder()
+                    .isCompleted(false)
+                    .totalAmount(BigDecimal.ZERO)
+                    .paidAmount(BigDecimal.ZERO)
+                    .unpaidAmount(BigDecimal.ZERO)
+                    .status("NOT_STARTED")
+                    .build();
+        }
+        
+        BigDecimal totalAmount = compensations.stream()
+                .map(DelistingCompensation::getCompensationAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
+        BigDecimal paidAmount = compensations.stream()
+                .filter(c -> c.getStatus() == CompensationStatus.COMPLETED)
+                .map(DelistingCompensation::getCompensationAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
+        boolean isCompleted = compensations.stream()
+                .allMatch(c -> c.getStatus() == CompensationStatus.COMPLETED);
+        
+        return CompensationStatusDto.builder()
+                .isCompleted(isCompleted)
+                .totalAmount(totalAmount)
+                .paidAmount(paidAmount)
+                .unpaidAmount(totalAmount.subtract(paidAmount))
+                .status(isCompleted ? "COMPLETED" : "IN_PROGRESS")
+                .build();
     }
 }

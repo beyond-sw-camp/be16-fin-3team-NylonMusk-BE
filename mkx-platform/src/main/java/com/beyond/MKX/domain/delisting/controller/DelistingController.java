@@ -3,6 +3,7 @@ package com.beyond.MKX.domain.delisting.controller;
 import com.beyond.MKX.common.apiResponse.ApiResponse;
 import com.beyond.MKX.domain.delisting.dto.DelistingViolationCreateReqDto;
 import com.beyond.MKX.domain.delisting.dto.DelistingViolationResDto;
+import com.beyond.MKX.domain.delisting.dto.DelistingProgressResDto;
 import com.beyond.MKX.domain.delisting.entity.DelistingViolation;
 import com.beyond.MKX.domain.delisting.repository.DelistingViolationRepository;
 import com.beyond.MKX.domain.delisting.service.DelistingService;
@@ -44,12 +45,12 @@ public class DelistingController {
     }
 
     /**
-     * 상장폐지 진행 체크
+     * 상장폐지 진행 상황 종합 체크
      */
     @PostMapping("/progress/check/{stockId}")
     public ResponseEntity<?> checkDelistingProgress(@PathVariable UUID stockId) {
-        delistingService.checkDelistingProgress(stockId);
-        return ApiResponse.ok(null, "상장폐지 진행 체크 완료");
+        DelistingProgressResDto result = delistingService.checkDelistingProgress(stockId);
+        return ApiResponse.ok(result, "상장폐지 진행 상황 체크 완료");
     }
 
     /**
@@ -159,6 +160,10 @@ public class DelistingController {
                 .severityScore(violation.getSeverityScore())
                 .detectionMethod(violation.getDetectionMethod())
                 .requiresAction(violation.getRequiresAction())
+                .gptRiskScore(violation.getGptRiskScore())
+                .gptAnalysisDescription(violation.getGptAnalysisDescription())
+                .gptAnalysisReasoning(violation.getGptAnalysisReasoning())
+                .gptAnalysisUsed(violation.getGptAnalysisUsed())
                 .createdAt(violation.getCreatedAt())
                 .updatedAt(violation.getUpdatedAt())
                 .deletedAt(violation.getDeletedAt())

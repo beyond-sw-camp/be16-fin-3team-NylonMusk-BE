@@ -1,8 +1,14 @@
 package com.beyond.MKX.domain.ipo.bookbuilding.service;
 
+import com.beyond.MKX.common.auth.security.CustomAdminPrincipal;
+import com.beyond.MKX.domain.admin.entity.Admin;
+import com.beyond.MKX.domain.admin.repository.AdminRepository;
+import com.beyond.MKX.domain.corporation.entity.Corporation;
+import com.beyond.MKX.domain.ipo.bookbuilding.dto.IpoBookBuildingAvailableResDTO;
 import com.beyond.MKX.domain.ipo.bookbuilding.dto.IpoBookBuildingCreateDTO;
 import com.beyond.MKX.domain.ipo.bookbuilding.dto.IpoBookBuildingResDTO;
 import com.beyond.MKX.domain.ipo.bookbuilding.entity.IpoBookBuilding;
+import com.beyond.MKX.domain.ipo.bookbuilding.entity.ParticipantType;
 import com.beyond.MKX.domain.ipo.bookbuilding.repository.IpoBookBuildingRepository;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOffering;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOfferingStatus;
@@ -13,82 +19,100 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.CoderResult;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class IpoBookBuildingService {
     private final IpoBookBuildingRepository bookBuildingRepository;
     private final IpoOfferingRepository offeringRepository;
+    private final AdminRepository adminRepository;
 
     @Transactional
-    public IpoBookBuildingResDTO create(IpoBookBuildingCreateDTO createDTO) {
-        IpoOffering ipoOffering = offeringRepository.findByIdForUpdate(createDTO.getIpoOfferingId())
+    public IpoBookBuildingResDTO create(UUID offeringId, CustomAdminPrincipal principal, IpoBookBuildingCreateDTO createDTO) {
+        Admin admin = adminRepository.findById(principal.id())
+                .orElseThrow(() -> new IllegalArgumentException("관리자 없음"));
+
+        Corporation corporation = admin.getCorporation();
+        if (corporation == null) throw new IllegalArgumentException("기업 소속 관리자가 아닙니다.");
+
+        // 1) 무조건 path variable 기반으로 조회
+        IpoOffering ipoOffering = offeringRepository.findByIdForUpdate(offeringId)
                 .orElseThrow(() -> new IllegalArgumentException("공모 없음"));
 
-        if (ipoOffering.getIpoOfferingStatus() != IpoOfferingStatus.SCHEDULED) {
-            throw new IllegalArgumentException("SCHEDULED 상태에서만 수요예측 등록이 가능합니다.");
-        }
+        // 2) participant를 서버에서 강제 세팅
+        createDTO.setParticipantId(corporation.getId());
+        createDTO.setParticipantType(ParticipantType.CORPORATION);
 
-        UUID issuerCorpId = ipoOffering.getIpo().getId();
-        if (createDTO.getParticipantType().equals("CORPORATION")
+        // 3) 상태 가드
+        if (ipoOffering.getIpoOfferingStatus() != IpoOfferingStatus.SCHEDULED)
+            throw new IllegalArgumentException("SCHEDULED 상태에서만 수요예측 등록이 가능합니다.");
+
+        // 4) 발행사 자기참여 금지 (Corporation Id로 비교)
+        UUID issuerCorpId = ipoOffering.getIpo().getCorporation().getId();
+        if (createDTO.getParticipantType() == ParticipantType.CORPORATION
                 && createDTO.getParticipantId().equals(issuerCorpId)) {
             throw new IllegalArgumentException("발행사는 자기 공모의 수요예측에 참여할 수 없습니다.");
         }
 
-        if (createDTO.getBidQuantity() <= 0) {
-            throw new IllegalArgumentException("희망수량은 0보다 커야 합니다.");
-        }
-        if (createDTO.getBidQuantity() > ipoOffering.getOfferQuantity()) {
+        // 5) 수량 가드
+        if (createDTO.getBidQuantity() <= 0) throw new IllegalArgumentException("희망수량은 0보다 커야 합니다.");
+        if (createDTO.getBidQuantity() > ipoOffering.getOfferQuantity())
             throw new IllegalArgumentException("희망수량은 공모물량을 초과할 수 없습니다.");
-        }
 
-        boolean alreadyParticipated = bookBuildingRepository.existsByIpoOffering_IdAndParticipantId(
-                createDTO.getIpoOfferingId(), createDTO.getParticipantId());
-        if (alreadyParticipated) {
-            throw new IllegalArgumentException("이미 해당 공모에 수요예측 참여하셨습니다.");
-        }
+        // 6) 중복 참여 가드 (path variable 사용)
+        boolean alreadyParticipated = bookBuildingRepository
+                .existsByIpoOffering_IdAndParticipantId(offeringId, createDTO.getParticipantId());
+        if (alreadyParticipated) throw new IllegalArgumentException("이미 해당 공모에 수요예측 참여하셨습니다.");
 
+        // 7) 희망가 밴드 가드
         Long bidPrice = createDTO.getBidPrice();
         if (bidPrice != null) {
             long min = ipoOffering.getPriceBandMin();
             long max = ipoOffering.getPriceBandMax();
-            if (bidPrice > max || bidPrice < min) {
-                throw new IllegalArgumentException(
-                        String.format("희망가격은 공모가 밴드(%d~%d) 범위를 벗어날 수 없습니다.", min, max)
-                );
-            }
+            if (bidPrice < min || bidPrice > max)
+                throw new IllegalArgumentException(String.format("희망가격은 공모가 밴드(%d~%d)를 벗어날 수 없습니다.", min, max));
         }
 
-        IpoBookBuilding ipoBookBuilding = IpoBookBuilding.builder()
+        // 8) 저장
+        IpoBookBuilding entity = IpoBookBuilding.builder()
                 .ipoOffering(ipoOffering)
                 .participantType(createDTO.getParticipantType())
                 .participantId(createDTO.getParticipantId())
                 .bidPrice(createDTO.getBidPrice())
                 .bidQuantity(createDTO.getBidQuantity())
                 .acceptAllPrices(createDTO.getBidPrice() == null)
+                .alreadyParticipated(true)
                 .build();
 
-        IpoBookBuilding saved = bookBuildingRepository.save(ipoBookBuilding);
-        return IpoBookBuildingResDTO.from(saved);
+        return IpoBookBuildingResDTO.from(bookBuildingRepository.save(entity));
     }
 
     @Transactional(readOnly = true)
-    public List<IpoBookBuildingResDTO> findAllByOfferingId(UUID offeringId) {
-        List<IpoBookBuilding> bookBuildings = bookBuildingRepository.findAllByIpoOffering_Id(offeringId);
+    public List<IpoBookBuildingResDTO> findAllByOfferingId(UUID offeringId, UUID participantId) {
+        List<IpoBookBuilding> bookBuildings = bookBuildingRepository
+                .findAllByIpoOffering_IdAndParticipantId(offeringId, participantId);
         if (bookBuildings.isEmpty()) {
             throw new IllegalArgumentException("해당 공모에 대한 수요예측 내역이 없습니다.");
         }
-        return bookBuildings.stream().map(IpoBookBuildingResDTO::from).toList();
+        return bookBuildings.stream()
+                .map(IpoBookBuildingResDTO::from)
+                .toList();
     }
 
     @Transactional
-    public IpoOffering finalizeOfferPriceByBookBuilding(UUID offeringId) {
+    public IpoOffering fixOfferPriceByBookBuilding(UUID offeringId) {
         IpoOffering offering = offeringRepository.findByIdForUpdate(offeringId)
                 .orElseThrow(() -> new IllegalArgumentException("공모 없음."));
+        if (offering.getIpoOfferingStatus() == IpoOfferingStatus.PRICE_FIXED) {
+            throw new IllegalStateException("이미 확정된 공모입니다.");
+        }
+
         if (offering.getIpoOfferingStatus() != IpoOfferingStatus.SCHEDULED) {
             throw new IllegalArgumentException("SCHEDULED 상태에서만 수요예측 결과 ' 확정 ' 이 가능합니다.");
         }
@@ -153,33 +177,50 @@ public class IpoBookBuildingService {
         return offeringRepository.save(offering);
     }
 
+    /**
+     * 🔹 수요예측 가능한 공모 목록 조회
+     */
     @Transactional(readOnly = true)
-    public List<IpoBookBuildingResDTO> findAllSchduledOfferings() {
-        // SCHEDULED 상태인 공모 목록 조회 (IpoOffering에서 조회)
-        List<IpoOffering> scheduledOfferings = 
+    public List<IpoBookBuildingAvailableResDTO> findAllScheduledOfferings(UUID participantId) {
+        List<IpoOffering> scheduledOfferings =
                 offeringRepository.findAllByIpoOfferingStatus(IpoOfferingStatus.SCHEDULED);
 
         if (scheduledOfferings.isEmpty()) {
             throw new IllegalArgumentException("현재 수요예측 가능한(SCHEDULED) 공모가 없습니다.");
         }
 
-        // IpoOffering을 IpoBookBuildingResDTO로 변환
         return scheduledOfferings.stream()
-                .map(offering -> {
-                    // IpoBookBuildingResDTO 생성 (공모 정보만 포함)
-                    return IpoBookBuildingResDTO.builder()
-                            .ipoOfferingId(offering.getId())
-                            .ipoId(offering.getIpo().getId())
-                            .ipoSymbol(offering.getIpo().getSymbol())
-                            .ipoNameKo(offering.getIpo().getCorporation().getNameKo())
-                            .offerQuantity(offering.getOfferQuantity())
-                            .lotSize(offering.getLotSize())
-                            .priceBandMin(offering.getPriceBandMin())
-                            .priceBandMax(offering.getPriceBandMax())
-                            .depositRate(offering.getDepositRate())
-                            .status(offering.getIpoOfferingStatus().toString())
-                            .build();
-                })
+                .filter(offering -> !bookBuildingRepository
+                        .existsByIpoOffering_IdAndParticipantId(offering.getId(), participantId)) // 🔸 이미 참여한 공모 제외
+                .map(offering -> IpoBookBuildingAvailableResDTO.builder()
+                        .ipoOfferingId(offering.getId())
+                        .ipoId(offering.getIpo().getId())
+                        .ipoSymbol(offering.getIpo().getSymbol())
+                        .corporationName(offering.getIpo().getCorporation().getNameKo())
+                        .offerQuantity(offering.getOfferQuantity())
+                        .lotSize(offering.getLotSize())
+                        .priceBandMin(offering.getPriceBandMin())
+                        .priceBandMax(offering.getPriceBandMax())
+                        .depositRate(offering.getDepositRate())
+                        .status(offering.getIpoOfferingStatus().toString())
+                        .alreadyParticipated(false) // 🔸 항상 false
+                        .build())
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<IpoBookBuildingResDTO> findAllForIssuer(UUID offeringId, UUID issuerCorpId) {
+        IpoOffering offering = offeringRepository.findById(offeringId)
+                .orElseThrow(() -> new IllegalArgumentException("공모 없음"));
+
+        // 자기 공모만 조회 가능하도록 가드
+        if (!offering.getIpo().getCorporation().getId().equals(issuerCorpId)) {
+            throw new IllegalArgumentException("본인 발행 공모만 조회할 수 있습니다.");
+        }
+
+        List<IpoBookBuilding> bookBuildings = bookBuildingRepository.findAllByIpoOffering_Id(offeringId);
+        return bookBuildings.stream()
+                .map(IpoBookBuildingResDTO::from)
+                .collect(Collectors.toList());
     }
 }

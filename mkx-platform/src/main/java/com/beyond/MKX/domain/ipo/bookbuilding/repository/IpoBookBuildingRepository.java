@@ -13,4 +13,6 @@ public interface IpoBookBuildingRepository extends JpaRepository<IpoBookBuilding
     List<IpoBookBuilding> findAllByIpoOffering_IpoOfferingStatus(IpoOfferingStatus ipoOfferingStatus);
 
     boolean existsByIpoOffering_IdAndParticipantId(UUID ipoOfferingId, UUID participantId);
+
+    List<IpoBookBuilding> findAllByIpoOffering_IdAndParticipantId(UUID offeringId, UUID participantId);
 }

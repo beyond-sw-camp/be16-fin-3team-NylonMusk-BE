@@ -41,4 +41,7 @@ public class IpoBookBuilding extends BaseIdAndTimeEntity {
     @Builder.Default
     private Boolean acceptAllPrices = false;
 
+    @Builder.Default
+    private Boolean alreadyParticipated = false;
+
 }

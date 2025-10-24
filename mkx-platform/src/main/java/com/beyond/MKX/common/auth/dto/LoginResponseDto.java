@@ -13,6 +13,7 @@ import java.util.UUID;
 @Builder
 public class LoginResponseDto {
     private UUID userId;
+    private String name;
     private String email;
     private String role;
     private String status;

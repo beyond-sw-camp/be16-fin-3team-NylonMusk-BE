@@ -42,7 +42,8 @@
     <a href="#figma">10. 피그마(이미지·URL)</a><br />
     <a href="#erd">11. 피그마(이미지·URL)</a><br />
     <a href="#team">12. 팀 소개</a><br />
-    <a href="#timeline">13 일정</a><br />
+    <a href="#timeline">13. 일정</a><br />
+    <a href="#api">14. API 명세서</a><br />
   </div>
 
   <hr/>
@@ -221,6 +222,15 @@
       <li><strong>프로젝트 시작:</strong> 2025-09-12</li>
       <li><strong>프로젝트 종료:</strong> 2025-11-12</li>
     </ul>
+  </section>
+
+  <hr/>
+
+  <section id="api">
+    <h2>14) API 명세서 및 단위테스트</h2>
+    <div class="card">
+      <p><a href="https://documenter.getpostman.com/view/43742779/2sB3QRnmew" target="_blank" rel="noopener">API 명세서 및 단위테스트</a></p>
+    </div>
   </section>
 
   <hr/>

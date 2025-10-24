@@ -24,4 +24,8 @@ public interface MemberAccountRepository extends JpaRepository<MemberAccount, UU
 
     /** 특정 회원의 가장 최근 생성 계좌 조회 (created_at 기준) */
     Optional<MemberAccount> findFirstByMemberIdOrderByCreatedAtDesc(UUID memberId);
+
+    /** 특정 회원의 계좌 조회  */
+    Optional<MemberAccount> findByMemberId(UUID memberId);
+
 }

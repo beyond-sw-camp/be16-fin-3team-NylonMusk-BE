@@ -49,6 +49,8 @@ dependencies {
 
 	// msa간에 통신을 위한 openfeign의존성 추가
 	implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+
+	implementation 'org.jsoup:jsoup:1.17.2'
 }
 
 dependencyManagement {

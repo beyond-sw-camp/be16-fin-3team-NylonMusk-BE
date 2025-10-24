@@ -66,4 +66,13 @@ public interface DelistingViolationRepository extends JpaRepository<DelistingVio
      */
     @Query("SELECT COUNT(dv) FROM DelistingViolation dv WHERE dv.stockId = :stockId AND dv.isResolved = false")
     int countByStockIdAndIsResolvedFalse(@Param("stockId") UUID stockId);
+
+    /**
+     * 최근 기간 내 동일한 기준으로 해결되지 않은 위반 조회 (중복 방지용)
+     */
+    @Query("SELECT dv FROM DelistingViolation dv WHERE dv.stockId = :stockId AND dv.criteriaCode = :criteriaCode AND dv.violationDate > :recentTime AND dv.isResolved = false ORDER BY dv.violationDate DESC")
+    List<DelistingViolation> findByStockIdAndCriteriaCodeAndViolationDateAfterAndIsResolvedFalse(
+            @Param("stockId") UUID stockId, 
+            @Param("criteriaCode") String criteriaCode, 
+            @Param("recentTime") LocalDateTime recentTime);
 }

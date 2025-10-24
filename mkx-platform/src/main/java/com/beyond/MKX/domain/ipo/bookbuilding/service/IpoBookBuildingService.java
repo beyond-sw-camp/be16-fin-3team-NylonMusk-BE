@@ -4,8 +4,10 @@ import com.beyond.MKX.common.auth.security.CustomAdminPrincipal;
 import com.beyond.MKX.domain.admin.entity.Admin;
 import com.beyond.MKX.domain.admin.repository.AdminRepository;
 import com.beyond.MKX.domain.corporation.entity.Corporation;
+import com.beyond.MKX.domain.corporation.repository.CorporationRepository;
 import com.beyond.MKX.domain.ipo.bookbuilding.dto.IpoBookBuildingAvailableResDTO;
 import com.beyond.MKX.domain.ipo.bookbuilding.dto.IpoBookBuildingCreateDTO;
+import com.beyond.MKX.domain.ipo.bookbuilding.dto.IpoBookBuildingIssuerViewDTO;
 import com.beyond.MKX.domain.ipo.bookbuilding.dto.IpoBookBuildingResDTO;
 import com.beyond.MKX.domain.ipo.bookbuilding.entity.IpoBookBuilding;
 import com.beyond.MKX.domain.ipo.bookbuilding.entity.ParticipantType;
@@ -32,6 +34,7 @@ public class IpoBookBuildingService {
     private final IpoBookBuildingRepository bookBuildingRepository;
     private final IpoOfferingRepository offeringRepository;
     private final AdminRepository adminRepository;
+    private final CorporationRepository corporationRepository;
 
     @Transactional
     public IpoBookBuildingResDTO create(UUID offeringId, CustomAdminPrincipal principal, IpoBookBuildingCreateDTO createDTO) {
@@ -209,7 +212,7 @@ public class IpoBookBuildingService {
     }
 
     @Transactional(readOnly = true)
-    public List<IpoBookBuildingResDTO> findAllForIssuer(UUID offeringId, UUID issuerCorpId) {
+    public List<IpoBookBuildingIssuerViewDTO> findAllForIssuer(UUID offeringId, UUID issuerCorpId) {
         IpoOffering offering = offeringRepository.findById(offeringId)
                 .orElseThrow(() -> new IllegalArgumentException("공모 없음"));
 
@@ -219,8 +222,18 @@ public class IpoBookBuildingService {
         }
 
         List<IpoBookBuilding> bookBuildings = bookBuildingRepository.findAllByIpoOffering_Id(offeringId);
+        if (bookBuildings.isEmpty()) {
+            throw new IllegalArgumentException("해당 공모에 대한 수요예측 참여 데이터가 없습니다.");
+        }
+
         return bookBuildings.stream()
-                .map(IpoBookBuildingResDTO::from)
+                .map(b -> {
+                    // 참여 기업 이름 조회
+                    String participantName = corporationRepository.findById(b.getParticipantId())
+                            .map(Corporation::getNameKo)
+                            .orElse("알 수 없음");
+                    return IpoBookBuildingIssuerViewDTO.from(b, participantName);
+                })
                 .collect(Collectors.toList());
     }
 }

@@ -62,10 +62,6 @@ public class IpoOffering extends BaseIdAndTimeEntity {
     @Enumerated(EnumType.STRING)
     private IpoOfferingStatus ipoOfferingStatus;
 
-    /* 잔여 주식 배분 */
-    // TODO: 계좌 생성 이후 진행 할 예정
-
-
     /* 청약 경쟁률 */
     @Column(precision = 5, scale = 2, nullable = false)
     private BigDecimal competitionRatio;
@@ -78,8 +74,14 @@ public class IpoOffering extends BaseIdAndTimeEntity {
     @Column(name = "price_fixed_at")
     private LocalDateTime priceFixedAt;
 
-    /* 배정 방식 */
-    // TODO: 계좌 생성 이후 진행 할 예정
+    // 수요예측 시작 시간
+    @Column(nullable = true)
+    private LocalDateTime bookBuildingStart;
+
+    // 수요예측 마감 시간
+    @Column(nullable = true)
+    private LocalDateTime bookBuildingEnd;
+
 
     public void offeringOpen(java.time.LocalDateTime now) {
         if (this.ipoOfferingStatus != IpoOfferingStatus.PRICE_FIXED) {

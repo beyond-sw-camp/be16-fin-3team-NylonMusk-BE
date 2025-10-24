@@ -49,9 +49,8 @@ public class IpoOfferingService {
         /** 이전 차수 ‘미종결’이 남아 있으면 금지 */
         boolean priorUnfinished = ipoOfferingRepository.existsByIpo_IdAndIpoOfferingStatusIn(
                 ipo.getId(),
-                java.util.EnumSet.of(
+                EnumSet.of(
                         IpoOfferingStatus.SCHEDULED, IpoOfferingStatus.OPEN
-                        // CLOSED 이후 공모를 진행 가능하게 할 것인지, 공모가 확정/배정 이후 공모를 진행 가능하게 할 것인지 팀원과 협의하기!
                 )
         );
         if (priorUnfinished) {
@@ -117,6 +116,8 @@ public class IpoOfferingService {
                 .depositRate(offeringReqDTO.getDepositRate())
                 .competitionRatio(BigDecimal.ZERO)
                 .ipoOfferingStatus(IpoOfferingStatus.SCHEDULED)
+                .bookBuildingStart(offeringReqDTO.getBookBuildingStart())
+                .bookBuildingEnd(offeringReqDTO.getBookBuildingEnd())
                 .build();
 
         return ipoOfferingRepository.save(ipoOffering);

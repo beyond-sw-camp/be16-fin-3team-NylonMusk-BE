@@ -77,4 +77,10 @@ public interface IpoOfferingRepository extends JpaRepository<IpoOffering, UUID> 
     // 수요예측 가능한 공모 목록 조회
     List<IpoOffering> findAllByIpoOfferingStatus(IpoOfferingStatus status);
 
+    List<IpoOffering> findAllByIpoOfferingStatusAndBookBuildingEndBefore(
+            IpoOfferingStatus ipoOfferingStatus,
+            LocalDateTime bookBuildingEnd
+    );
+
+
 }

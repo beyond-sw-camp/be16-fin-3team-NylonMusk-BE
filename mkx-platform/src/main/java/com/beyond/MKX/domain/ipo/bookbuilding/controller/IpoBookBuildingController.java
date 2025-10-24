@@ -7,6 +7,7 @@ import com.beyond.MKX.domain.admin.repository.AdminRepository;
 import com.beyond.MKX.domain.corporation.entity.Corporation;
 import com.beyond.MKX.domain.ipo.bookbuilding.dto.IpoBookBuildingAvailableResDTO;
 import com.beyond.MKX.domain.ipo.bookbuilding.dto.IpoBookBuildingCreateDTO;
+import com.beyond.MKX.domain.ipo.bookbuilding.dto.IpoBookBuildingIssuerViewDTO;
 import com.beyond.MKX.domain.ipo.bookbuilding.dto.IpoBookBuildingResDTO;
 import com.beyond.MKX.domain.ipo.bookbuilding.service.IpoBookBuildingService;
 import lombok.RequiredArgsConstructor;
@@ -88,7 +89,7 @@ public class IpoBookBuildingController {
         return ApiResponse.ok(result, "수요예측 가능한 공모 리스트입니다.");
     }
 
-    @GetMapping("{offeringId}/book-building/all")
+    @GetMapping("{offeringId}/book-building/issuer-view")
     public ResponseEntity<?> getAllBookBuildingForIssuer(
             @AuthenticationPrincipal CustomAdminPrincipal principal,
             @PathVariable UUID offeringId) {
@@ -97,7 +98,7 @@ public class IpoBookBuildingController {
                 .orElseThrow(() -> new IllegalArgumentException("관리자 없음"));
 
         UUID issuerCorpId = admin.getCorporation().getId();
-        List<IpoBookBuildingResDTO> list = bookBuildingService.findAllForIssuer(offeringId, issuerCorpId);
-        return ApiResponse.ok(list, "발행사의 수요예측 참여 현황 조회 완료");
+        List<IpoBookBuildingIssuerViewDTO> list = bookBuildingService.findAllForIssuer(offeringId, issuerCorpId);
+        return ApiResponse.ok(list, "발행사용 수요예측 참여 현황 조회 완료");
     }
 }

@@ -84,6 +84,7 @@ public class DelistingViolation extends BaseIdAndTimeEntity {
      */
     @Column(name = "consecutive_periods")
     @Comment("연속 위반 기간")
+    @Builder.Default
     private Integer consecutivePeriods = 1;
 
     /**
@@ -150,7 +151,41 @@ public class DelistingViolation extends BaseIdAndTimeEntity {
      */
     @Column(name = "requires_action")
     @Comment("추가 조치 필요 여부")
+    @Builder.Default
     private Boolean requiresAction = true;
+
+    /**
+     * GPT AI 분석 위험도 점수
+     * GPT API로 분석한 위험도 점수 (0-10점)
+     */
+    @Column(name = "gpt_risk_score", precision = 3, scale = 1)
+    @Comment("GPT AI 분석 위험도 점수")
+    private BigDecimal gptRiskScore;
+
+    /**
+     * GPT AI 분석 상세 설명
+     * GPT API가 제공한 상세한 분석 설명
+     */
+    @Column(name = "gpt_analysis_description", columnDefinition = "TEXT")
+    @Comment("GPT AI 분석 상세 설명")
+    private String gptAnalysisDescription;
+
+    /**
+     * GPT AI 분석 판단 근거
+     * GPT API가 제공한 판단 근거 및 이유
+     */
+    @Column(name = "gpt_analysis_reasoning", columnDefinition = "TEXT")
+    @Comment("GPT AI 분석 판단 근거")
+    private String gptAnalysisReasoning;
+
+    /**
+     * GPT AI 분석 사용 여부
+     * 해당 위반이 GPT AI 분석을 통해 감지되었는지 여부
+     */
+    @Column(name = "gpt_analysis_used")
+    @Comment("GPT AI 분석 사용 여부")
+    @Builder.Default
+    private Boolean gptAnalysisUsed = false;
 
     /**
      * 동시성 제어(낙관적 락)

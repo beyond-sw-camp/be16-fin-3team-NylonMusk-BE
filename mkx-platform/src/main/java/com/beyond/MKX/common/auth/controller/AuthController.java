@@ -105,6 +105,7 @@ public class  AuthController {
 
         LoginResponseDto loginResponseDto = LoginResponseDto.builder()
                 .userId(admin.getId())
+                .name(admin.getName())
                 .email(admin.getEmail())
                 .role(role)
                 .status(admin.getStatus().name())

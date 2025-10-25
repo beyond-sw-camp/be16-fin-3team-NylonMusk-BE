@@ -34,9 +34,8 @@ public class KafkaExecutionConsumer {
             Acknowledgment ack
     ) {
         try {
-            System.out.println("=========== 체결 후처리 컨슘 시작 ===========");
+            System.out.println("=== partition = " + partition + "  offset = " + offset + " 체결 후처리 컨슘 시작 ===");
             System.out.println("executionEvent = " + executionEvent);
-            System.out.println("partition = " + partition + "  offset = " + offset);
 
             // 0. 멱등성 검사
 

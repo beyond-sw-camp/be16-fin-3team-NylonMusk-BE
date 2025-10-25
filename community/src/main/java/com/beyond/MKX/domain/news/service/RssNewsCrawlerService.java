@@ -85,6 +85,9 @@ public class RssNewsCrawlerService {
                 page += 1;
             }
             log.info("LISTED 종목 로드: {}건", map.size());
+            if (map.isEmpty()) {
+                log.warn("LISTED 종목이 0건입니다. mkx-platform-service 실행 여부/Eureka 등록을 확인하세요.");
+            }
         } catch (Exception e) {
             log.warn("LISTED 종목 조회 실패: {}", e.getMessage());
         }
@@ -121,7 +124,7 @@ public class RssNewsCrawlerService {
                     if (fromDesc != null) thumbnail = fromDesc;
                 }
 
-                // publisher 폴백: 링크 호스트로 사람이 읽기 쉬운 이름 매핑
+                // publisher 폴백: 피드 호스트 기반 기본값 사용
                 if (publisher == null || publisher.isBlank()) {
                     publisher = defaultPublisher;
                 }
@@ -131,14 +134,29 @@ public class RssNewsCrawlerService {
                     description = title;
                 }
 
+                // author 정규화: 언론사명과 동일하거나 브랜드명이면 무시 후 본문/제목에서 기자명 추출 시도
+                author = normalizeAuthor(author, publisher, description, title);
+                // 매일경제/한국경제는 페이지에서 author 메타/바이라인 추가 시도
+                if (author == null && ("매일경제".equals(publisher) || "한국경제".equals(publisher))) {
+                    author = fetchAuthorFromArticle(link);
+                    if (author != null && author.length() > 100) {
+                        author = author.substring(0, 100);
+                    }
+                }
+                // 이메일 제거/형태 정리 및 매일경제 케이스 '기자' 접미어 보강
+                author = postProcessAuthor(author, publisher);
+
                 if (link == null || link.isBlank()) continue;
                 if (newsArticleRepository.existsByLink(link)) continue;
 
                 // 종목 매칭: 제목/본문에 nameKo 포함 시 전부 수집
                 List<StockInfo> matched = new ArrayList<>();
+                String normTitle = normalizeKo(title);
+                String normDesc = normalizeKo(description);
                 for (Map.Entry<String, StockInfo> e : stockMap.entrySet()) {
                     String name = e.getKey();
-                    if ((title != null && title.contains(name)) || (description != null && description.contains(name))) {
+                    String normName = normalizeKo(name);
+                    if ((normTitle != null && normTitle.contains(normName)) || (normDesc != null && normDesc.contains(normName))) {
                         matched.add(e.getValue());
                     }
                 }
@@ -162,6 +180,12 @@ public class RssNewsCrawlerService {
                         .ticker(ticker)
                         .build();
                 newsArticleRepository.save(article);
+                log.info("저장: [{}] {} (매칭 {}건, 첫 종목: {}{})",
+                        publisher,
+                        title,
+                        matched.size(),
+                        ticker,
+                        matched.size() > 1 ? ", 외 " + (matched.size()-1) + "건" : "");
 
                 // 다중 종목 매핑 저장 (중복 방지)
                 for (StockInfo s : matched) {
@@ -194,6 +218,15 @@ public class RssNewsCrawlerService {
             Element found = el.getElementsByTag(tag).first();
             return found != null ? found.text() : null;
         } catch (Exception ignore) { return null; }
+    }
+
+    private String normalizeKo(String s) {
+        if (s == null) return null;
+        // 공백/특수문자 제거, 괄호/따옴표 등 제거
+        return s.replaceAll("[\\s\\p{Punct}]", "")
+                .replace("·", "")
+                .replace("ㆍ", "")
+                .toLowerCase();
     }
 
     private static String firstNonNull(String... values) {
@@ -308,5 +341,98 @@ public class RssNewsCrawlerService {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private String normalizeAuthor(String author, String publisher, String description, String title) {
+        String a = (author == null) ? null : author.trim();
+        if (a != null && a.equalsIgnoreCase(publisher)) a = null;
+        if (a != null && isBrandName(a)) a = null;
+        if (a == null) {
+            String fromText = extractAuthorFromText(description);
+            if (fromText == null || fromText.isBlank()) {
+                fromText = extractAuthorFromText(title);
+            }
+            a = fromText;
+        }
+        if (a != null && a.length() > 100) {
+            a = a.substring(0, 100);
+        }
+        return a;
+    }
+
+    private boolean isBrandName(String v) {
+        if (v == null) return false;
+        String s = v.replace(" ", "").toLowerCase();
+        String[] brands = { "매일경제", "매경", "매경닷컴", "한국경제", "한경", "조선일보", "조선비즈" };
+        for (String b : brands) {
+            if (s.contains(b)) return true;
+        }
+        return false;
+    }
+
+    private String extractAuthorFromText(String text) {
+        if (text == null) return null;
+        try {
+            Pattern p = Pattern.compile("([가-힣]{2,4})\\s*기자");
+            Matcher m = p.matcher(text);
+            if (m.find()) {
+                return m.group(1) + " 기자";
+            }
+        } catch (Exception ignore) {}
+        return null;
+    }
+
+    // 매일경제/한국경제 기사 페이지에서 기자명 추출(메타/바이라인)
+    private String fetchAuthorFromArticle(String link) {
+        try {
+            Document doc = Jsoup.connect(link)
+                    .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                    .referrer("https://www.google.com/")
+                    .timeout(5000)
+                    .get();
+            // 1) 메타 태그 시도
+            Element meta = doc.selectFirst("meta[name=byline], meta[property=article:author]");
+            if (meta != null) {
+                String a = meta.hasAttr("content") ? meta.attr("content") : meta.attr("value");
+                if (a != null && !a.isBlank() && !isBrandName(a)) return a.trim();
+            }
+            // 2) 바이라인/기자 요소 시도
+            Element by = doc.selectFirst(".author, .byline, .reporter, .journalist, .writer, [class*=reporter]");
+            if (by != null) {
+                String a = by.text();
+                if (a != null && !a.isBlank() && !isBrandName(a)) return a.trim();
+            }
+            // 3) 텍스트 패턴
+            String fromText = extractAuthorFromText(doc.text());
+            if (fromText != null && !fromText.isBlank()) return fromText;
+        } catch (Exception ignore) {}
+        return null;
+    }
+
+    private String postProcessAuthor(String author, String publisher) {
+        if (author == null || author.isBlank()) return null;
+        String a = author;
+        // 이메일 제거
+        a = a.replaceAll("[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}", "");
+        // 괄호 내 이메일/부가 텍스트 제거
+        a = a.replaceAll("\\(.*?@.*?\\)", "");
+        // 불필요한 구분자 제거 및 트림
+        a = a.replaceAll("[|:/]", " ").replaceAll("\\s+", " ").trim();
+        // '홍길동 기자' 형태 정규화
+        Matcher m = Pattern.compile("([가-힣]{2,4})\\s*(기자)?").matcher(a);
+        if (m.find()) {
+            a = m.group(1) + " 기자";
+        }
+        // 매일경제의 경우 '기자' 접미어가 없으면 붙임
+        if ("매일경제".equals(publisher) && !a.endsWith("기자")) {
+            // 한글 이름만 추출해서 기자 붙이기
+            Matcher m2 = Pattern.compile("([가-힣]{2,4})").matcher(a);
+            if (m2.find()) {
+                a = m2.group(1) + " 기자";
+            }
+        }
+        // 브랜드명만 남았으면 무효
+        if (isBrandName(a) || a.equalsIgnoreCase(publisher)) return null;
+        return a;
     }
 }

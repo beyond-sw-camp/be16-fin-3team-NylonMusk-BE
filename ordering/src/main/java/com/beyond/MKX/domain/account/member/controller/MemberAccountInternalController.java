@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
@@ -61,5 +62,36 @@ public class MemberAccountInternalController {
             UUID brokerageId,
             String accountNumber,
             String status
+    ) {}
+
+    /**
+     * 회원의 최근 계좌 상세 조회 (내부용)
+     * - 플랫폼 등 내부 시스템이 회원/계좌 상세를 합성하기 위해 사용
+     */
+    @GetMapping("/{memberId}/detail")
+    public ResponseEntity<MemberAccountDetailRes> getDetailByMember(@PathVariable UUID memberId) {
+        MemberAccount account = repository.findFirstByMemberIdOrderByCreatedAtDesc(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("회원 계좌 없음"));
+        return ResponseEntity.ok(new MemberAccountDetailRes(
+                account.getId(),
+                account.getMemberId(),
+                account.getBrokerageId(),
+                account.getNumber(),
+                account.getStatus().name(),
+                account.getBalance(),
+                account.getAvailableBalance(),
+                account.getCreatedAt()
+        ));
+    }
+
+    public record MemberAccountDetailRes(
+            UUID accountId,
+            UUID memberId,
+            UUID brokerageId,
+            String accountNumber,
+            String status,
+            Long balance,
+            Long availableBalance,
+            LocalDateTime createdAt
     ) {}
 }

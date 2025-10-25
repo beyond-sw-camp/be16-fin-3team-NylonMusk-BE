@@ -1,3 +1,7 @@
+# macOS metadata
+.DS_Store
+**/.DS_Store
+
 # Compiled class file
 *.class
 
@@ -39,3 +43,6 @@ replay_pid*
 .idea/modules/mkx-platform.main.iml
 
 .idea/modules/ordering.main.iml
+# IntelliJ IDEA project files
+.idea/
+*.iml

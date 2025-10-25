@@ -37,21 +37,11 @@ public class SecuritiesFirmPublicController {
             @PageableDefault(size = 10, sort = "nameKo", direction = Sort.Direction.ASC)
             Pageable pageable
     ) {
-        Page<SecuritiesFirm> page;
-
-        // 검색어가 있으면 검색, 없으면 전체 조회
-        if (search != null && !search.trim().isEmpty()) {
-            page = securitiesFirmRepository.searchByStatusAndName(
-                    SecuritiesFirm.Status.ACTIVE,
-                    search.trim(),
-                    pageable
-            );
-        } else {
-            page = securitiesFirmRepository.findAllByStatus(
-                    SecuritiesFirm.Status.ACTIVE,
-                    pageable
-            );
-        }
+        Page<SecuritiesFirm> page = securitiesFirmRepository.searchByStatusAndName(
+                SecuritiesFirm.Status.ACTIVE,
+                (search == null || search.trim().isEmpty()) ? null : search.trim(),
+                pageable
+        );
 
         // DTO로 변환
         Page<SecuritiesFirmSummaryDto> result = page.map(SecuritiesFirmSummaryDto::from);

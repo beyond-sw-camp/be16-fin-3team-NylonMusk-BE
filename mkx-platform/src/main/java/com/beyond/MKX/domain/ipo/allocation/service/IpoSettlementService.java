@@ -119,7 +119,7 @@ public class IpoSettlementService {
                 memberAccountFeign.deposit(memberAccNo, new AmountRequest(refund));
             }
         }
-        
+
         subscription.setStatus(SubscriptionStatus.SETTLED);
         subscriptionRepository.save(subscription);
 

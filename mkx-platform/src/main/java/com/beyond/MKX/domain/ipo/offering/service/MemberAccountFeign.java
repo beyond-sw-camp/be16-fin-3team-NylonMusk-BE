@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import java.math.BigInteger;
 import java.util.UUID;
 
-@FeignClient(name = "ordering-service", contextId = "memberAccountInternalClient")
+@FeignClient(name = "ordering-service", contextId = "memberAccountFeignForIpo")
 public interface MemberAccountFeign {
     @PostMapping("/api/internal/member-accounts/{accountNumber}/withdraw")
     void withdraw(@PathVariable String accountNumber,

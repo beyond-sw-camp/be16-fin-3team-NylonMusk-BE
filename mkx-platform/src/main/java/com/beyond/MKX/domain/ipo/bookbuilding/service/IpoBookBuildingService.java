@@ -53,8 +53,8 @@ public class IpoBookBuildingService {
         createDTO.setParticipantType(ParticipantType.CORPORATION);
 
         // 3) 상태 가드
-        if (ipoOffering.getIpoOfferingStatus() != IpoOfferingStatus.SCHEDULED)
-            throw new IllegalArgumentException("SCHEDULED 상태에서만 수요예측 등록이 가능합니다.");
+        if (ipoOffering.getIpoOfferingStatus() != IpoOfferingStatus.BOOK_BUILDING)
+            throw new IllegalArgumentException("BOOK_BUILDING 상태에서만 수요예측 등록이 가능합니다.");
 
         // 4) 발행사 자기참여 금지 (Corporation Id로 비교)
         UUID issuerCorpId = ipoOffering.getIpo().getCorporation().getId();

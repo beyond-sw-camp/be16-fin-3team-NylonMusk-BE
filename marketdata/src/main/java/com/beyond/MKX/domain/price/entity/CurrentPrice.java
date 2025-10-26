@@ -37,6 +37,15 @@ public class CurrentPrice {
     
     // 거래량 정보
     private BigDecimal volume;          // 당일 누적 거래량
+    private BigDecimal volumeChange;    // 거래량 변화율 (%)
+    private BigDecimal prevVolume;      // 전일 거래량 (비교용)
+    
+    // 52주 가격 범위 (InfluxDB에서 계산)
+    private long week52High;            // 52주 최고가 (0 = 데이터 없음)
+    private long week52Low;             // 52주 최저가 (0 = 데이터 없음)
+    
+    // 체결강도 (매수체결량 / 매도체결량 * 100)
+    private BigDecimal executionStrength; // 체결강도 (0 = 데이터 없음)
     
     // 호가 정보 (다음 체결 예상가)
     private Long bestBid;               // 최우선 매수호가 (가장 높은 매수 가격)

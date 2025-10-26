@@ -1,5 +1,6 @@
 package com.beyond.MKX.domain.ipo.allocation.service;
 
+import com.beyond.MKX.common.dto.AmountRequest;
 import com.beyond.MKX.domain.account.brokerage.entity.BrokerageDepositAccount;
 import com.beyond.MKX.domain.account.brokerage.service.BrokerageDepositAccountService;
 import com.beyond.MKX.domain.account.corporation.service.CorporationAccountService;
@@ -10,6 +11,7 @@ import com.beyond.MKX.domain.ipo.allocation.entity.IpoAllocation;
 import com.beyond.MKX.domain.ipo.allocation.repository.IpoAllocationRepository;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOffering;
 import com.beyond.MKX.domain.ipo.offering.repository.IpoOfferingRepository;
+import com.beyond.MKX.domain.ipo.offering.service.MemberAccountFeign;
 import com.beyond.MKX.domain.ipo.subscription.entity.InvestorType;
 import com.beyond.MKX.domain.ipo.subscription.entity.IpoSubscription;
 import com.beyond.MKX.domain.ipo.subscription.entity.SubscriptionStatus;
@@ -30,6 +32,7 @@ public class IpoSettlementService {
     private final IpoOfferingRepository offeringRepository;
     private final IpoSubscriptionRepository subscriptionRepository;
     private final IpoAllocationRepository allocationRepository;
+    private final MemberAccountFeign memberAccountFeign;
 
     private final ExchangeAccountService exchangeAccountService;
     private final CorporationAccountService corporationAccountService;
@@ -76,47 +79,47 @@ public class IpoSettlementService {
         }
 
         // === 2단계: 추가납입 ===
-        if (additional.signum() > 0 && subscription.getInvestorType() == InvestorType.CORPORATION) {
-            UUID corpAccountId = subscription.getAccountId();
-            log.info("[STEP2] 추가납입 발생: 기업계좌({}) → 증권사({}) → 거래소({}), 금액={}", corpAccountId, brokerageDepositNo, exchangeAccountNo, additional);
+        if (additional.signum() > 0) {
+            log.info("[STEP2] 추가납입 발생: 투자자유형={}, 금액={}", subscription.getInvestorType(), additional);
 
-            corporationAccountService.withdraw(corpAccountId, additional);
-            log.info(" └ 기업계좌 출금 완료: {}", corpAccountId);
+            if (subscription.getInvestorType() == InvestorType.CORPORATION) {
+                UUID corpAccountId = subscription.getAccountId();
+                corporationAccountService.withdraw(corpAccountId, additional);
+                brokerageDepositAccountService.deposit(brokerageDepositNo, additional);
+                brokerageDepositAccountService.withdraw(brokerageDepositNo, additional);
+                exchangeAccountService.deposit(exchangeAccountNo, additional);
+            }
 
-            brokerageDepositAccountService.deposit(brokerageDepositNo, additional);
-            log.info(" └ 증권사 예치계좌 입금 완료: {}", brokerageDepositNo);
-
-            brokerageDepositAccountService.withdraw(brokerageDepositNo, additional);
-            log.info(" └ 증권사 예치계좌 출금 완료: {}", brokerageDepositNo);
-
-            exchangeAccountService.deposit(exchangeAccountNo, additional);
-            log.info(" └ 거래소 계좌 입금 완료: {}", exchangeAccountNo);
+            else if (subscription.getInvestorType() == InvestorType.INDIVIDUAL) {
+                String memberAccNo = subscription.getAccountNumber();
+                memberAccountFeign.withdraw(memberAccNo, new AmountRequest(additional));
+                brokerageDepositAccountService.deposit(brokerageDepositNo, additional);
+                brokerageDepositAccountService.withdraw(brokerageDepositNo, additional);
+                exchangeAccountService.deposit(exchangeAccountNo, additional);
+            }
         }
 
         // === 3단계: 환불 ===
-        else if (refund.signum() > 0 && subscription.getInvestorType() == InvestorType.CORPORATION) {
-            UUID corpAccountId = subscription.getAccountId();
-            log.info("[STEP3] 환불 발생: 거래소({}) → 증권사({}) → 기업계좌({}), 금액={}", exchangeAccountNo, brokerageDepositNo, corpAccountId, refund);
+        else if (refund.signum() > 0) {
+            log.info("[STEP3] 환불 발생: 투자자유형={}, 금액={}", subscription.getInvestorType(), refund);
 
-            exchangeAccountService.withdraw(exchangeAccountNo, refund);
-            log.info(" └ 거래소 계좌 출금 완료: {}", exchangeAccountNo);
+            if (subscription.getInvestorType() == InvestorType.CORPORATION) {
+                UUID corpAccountId = subscription.getAccountId();
+                exchangeAccountService.withdraw(exchangeAccountNo, refund);
+                brokerageDepositAccountService.deposit(brokerageDepositNo, refund);
+                brokerageDepositAccountService.withdraw(brokerageDepositNo, refund);
+                corporationAccountService.deposit(corpAccountId, refund);
+            }
 
-            brokerageDepositAccountService.deposit(brokerageDepositNo, refund);
-            log.info(" └ 증권사 예치계좌 입금 완료: {}", brokerageDepositNo);
-
-            brokerageDepositAccountService.withdraw(brokerageDepositNo, refund);
-            log.info(" └ 증권사 예치계좌 출금 완료: {}", brokerageDepositNo);
-
-            corporationAccountService.deposit(corpAccountId, refund);
-            log.info(" └ 기업계좌 입금 완료: {}", corpAccountId);
+            else if (subscription.getInvestorType() == InvestorType.INDIVIDUAL) {
+                String memberAccNo = subscription.getAccountNumber();
+                exchangeAccountService.withdraw(exchangeAccountNo, refund);
+                brokerageDepositAccountService.deposit(brokerageDepositNo, refund);
+                brokerageDepositAccountService.withdraw(brokerageDepositNo, refund);
+                memberAccountFeign.deposit(memberAccNo, new AmountRequest(refund));
+            }
         }
-
-        // === 4단계: 미지원 타입 ===
-        else if (subscription.getInvestorType() == InvestorType.INDIVIDUAL) {
-            log.warn("[STEP4] INDIVIDUAL 투자자 정산은 현재 미지원 상태입니다. subscriptionId={}", subscriptionId);
-            throw new UnsupportedOperationException("INDIVIDUAL 투자자 정산(추가납입/환불)은 추후 구현 대상입니다.");
-        }
-
+        
         subscription.setStatus(SubscriptionStatus.SETTLED);
         subscriptionRepository.save(subscription);
 

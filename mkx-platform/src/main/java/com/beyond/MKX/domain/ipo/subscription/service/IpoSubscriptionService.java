@@ -1,5 +1,6 @@
 package com.beyond.MKX.domain.ipo.subscription.service;
 
+import com.beyond.MKX.common.dto.AmountRequest;
 import com.beyond.MKX.domain.account.brokerage.service.BrokerageDepositAccountService;
 import com.beyond.MKX.domain.account.corporation.service.CorporationAccountService;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOffering;
@@ -117,7 +118,7 @@ public class IpoSubscriptionService {
             // TODO: MEMBER(개인) 계좌 흐름 연동
             var brokerageDeposit = brokerageDepositAccountService.getRequiredByBrokerageId(subReqDto.brokerageId());
             String brokerageDepositNo = brokerageDeposit.getAccountNumber();
-            memberAccountFeign.withdraw(subReqDto.accountId(), BigInteger.valueOf(requiredDeposit));
+            memberAccountFeign.withdraw(subReqDto.accountNumber(), new AmountRequest(BigInteger.valueOf(requiredDeposit)));
             brokerageDepositAccountService.deposit(brokerageDepositNo, BigInteger.valueOf(requiredDeposit));
         }
 
@@ -128,6 +129,7 @@ public class IpoSubscriptionService {
                 .subscriberId(subReqDto.subscriberId())
                 .brokerageId(subReqDto.brokerageId())
                 .accountId(subReqDto.accountId())
+                .accountNumber(subReqDto.accountNumber())  // 👈 개인 청약 시 계좌번호 저장
                 .appliedQuantity(subReqDto.appliedQuantity())
                 .offerPriceSnapshot(priceSnapshot)
                 .depositRateSnapshot(depositRateSnapshot)
@@ -199,7 +201,7 @@ public class IpoSubscriptionService {
             // TODO: MEMBER(개인) 계좌 환불 흐름
             if (refundable > 0) {
                 brokerageDepositAccountService.withdraw(brokerageDepositNo, BigInteger.valueOf(refundable));
-                memberAccountFeign.deposit(ipoSubscription.getAccountId(), BigInteger.valueOf(refundable));
+                memberAccountFeign.deposit(ipoSubscription.getAccountNumber(), new AmountRequest(BigInteger.valueOf(refundable)));
             }
         }
 

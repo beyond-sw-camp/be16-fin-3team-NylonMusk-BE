@@ -116,8 +116,8 @@ public class IpoBookBuildingService {
             throw new IllegalStateException("이미 확정된 공모입니다.");
         }
 
-        if (offering.getIpoOfferingStatus() != IpoOfferingStatus.SCHEDULED) {
-            throw new IllegalArgumentException("SCHEDULED 상태에서만 수요예측 결과 ' 확정 ' 이 가능합니다.");
+        if (offering.getIpoOfferingStatus() != IpoOfferingStatus.BOOK_BUILDING) {
+            throw new IllegalArgumentException("BOOK_BUILDING 상태에서만 수요예측 결과 ' 확정 ' 이 가능합니다.");
         }
 
         List<IpoBookBuilding> bookBuildings = bookBuildingRepository.findAllByIpoOffering_Id(offeringId);
@@ -139,9 +139,8 @@ public class IpoBookBuildingService {
         for (IpoBookBuilding bookBuilding : bookBuildings) {
 //            가격 무관 참여의 경우 ( acceptAllPrices = true || 희망가 미기재 (bidPrice == null) )
             if (Boolean.TRUE.equals(bookBuilding.getAcceptAllPrices()) || bookBuilding.getBidPrice() == null) {
-                for (long price : demandMap.keySet()) {
-                    demandMap.put(price, demandMap.get(price) + bookBuilding.getBidQuantity());
-                }
+                // 🔹 가격 무관 응찰 → 밴드 하단(min)에 1회만 반영 (한국거래소·금융투자협회 기관청약시스템 로직과 동일)
+                demandMap.put(min, demandMap.get(min) + bookBuilding.getBidQuantity());
             } else {
                 long bidPrice = Math.max(min, Math.min(max, bookBuilding.getBidPrice())); // 범위 보정
                 demandMap.put(bidPrice, demandMap.getOrDefault(bidPrice, 0L) + bookBuilding.getBidQuantity());
@@ -151,10 +150,16 @@ public class IpoBookBuildingService {
         /** 2) 누적 수요 기준, 경쟁률 계산 */
         long cumulative = 0;
         double ratio = 0.0;
+        long equilibriumPrice = min; // 추후 균형가격(시장 수요곡선의 교차지점)을 계산하여 확정공모가
 
         for (Map.Entry<Long, Long> entry : demandMap.entrySet()) {
             cumulative += entry.getValue();
             ratio = (double) cumulative / offerQuantity;
+
+            if (cumulative >= offerQuantity) {
+                equilibriumPrice = entry.getKey();
+                break; // 최초로 수요가 공급량을 초과한 시점
+            }
         }
 
         /** 3) 경쟁률 기록 + 확정 공모가 반영 */

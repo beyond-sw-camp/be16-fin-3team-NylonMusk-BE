@@ -8,7 +8,6 @@ import com.beyond.MKX.domain.ipo.offering.entity.IpoOffering;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOfferingStatus;
 import com.beyond.MKX.domain.ipo.offering.service.IpoOfferingService;
 import jakarta.validation.Valid;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -77,10 +76,16 @@ public class IpoOfferingController {
 
     @GetMapping("/offerings/list")
     public ResponseEntity<?> listAll(@RequestParam(required = false, name = "statuses")
-                                     java.util.List<IpoOfferingStatus> statuses,
+                                     List<IpoOfferingStatus> statuses,
                                      @RequestParam(defaultValue = "false") boolean onlySubscribable,
                                      Pageable pageable) {
         var page = offeringService.listAll(statuses, onlySubscribable, pageable);
         return ApiResponse.ok(page, "공모 목록입니다.");
+    }
+
+    @PatchMapping("/offerings/{offeringId}/book-building/start")
+    public ResponseEntity<?> changeStatus(@PathVariable UUID offeringId) {
+        IpoOffering offering = offeringService.startBookBuilding(offeringId);
+        return ApiResponse.ok(IpoOfferingResDTO.from(offering), "SCHEDULED ~> BOOK_BUILDING 상태변경 완료");
     }
 }

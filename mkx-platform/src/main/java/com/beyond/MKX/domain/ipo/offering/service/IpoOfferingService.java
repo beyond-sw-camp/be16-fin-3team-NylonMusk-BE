@@ -62,7 +62,10 @@ public class IpoOfferingService {
             throw new IllegalStateException("해당 IPO는 공모 미사용(isOffering=false)으로 설정되어 있어 공모를 생성할 수 없습니다.");
         }
 
-        if (ipo.getStatus() == IpoStatus.LISTED || ipo.getStatus() == IpoStatus.REJECTED || ipo.getStatus() == IpoStatus.CANCELLED) {
+        // ✅ LISTED: 이미 상장 완료 → 공모 생성 불가
+        // ✅ REJECTED: 심사 거절 → 공모 생성 불가
+        // ⚠️ CANCELLED: 이전 공모 취소 가능성 → 재공모 허용
+        if (ipo.getStatus() == IpoStatus.LISTED || ipo.getStatus() == IpoStatus.REJECTED) {
             throw new IllegalArgumentException("해당 상장(ipo) 상태에서는 공모를 생성할 수 없습니다." + ipo.getStatus());
         }
         // 2) 공모 차수 중복 방지 (ipo_id, round_no)
@@ -298,6 +301,13 @@ public class IpoOfferingService {
         return page.map(e -> IpoOfferingListDTO.from(e, clock));
     }
 
-
-
+    @Transactional
+    public IpoOffering startBookBuilding(UUID offeringId) {
+        IpoOffering offering = ipoOfferingRepository.findByIdForUpdate(offeringId)
+                .orElseThrow(() -> new IllegalArgumentException("공모 없음"));
+        if (offering.getIpoOfferingStatus() != IpoOfferingStatus.SCHEDULED)
+            throw new IllegalStateException("SCHEDULED 상태에서만 수요예측 시작 가능");
+        offering.setIpoOfferingStatus(IpoOfferingStatus.BOOK_BUILDING);
+        return offering;
+    }
 }

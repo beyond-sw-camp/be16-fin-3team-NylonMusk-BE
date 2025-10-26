@@ -5,6 +5,7 @@ import com.beyond.MKX.domain.account.corporation.service.CorporationAccountServi
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOffering;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOfferingStatus;
 import com.beyond.MKX.domain.ipo.offering.repository.IpoOfferingRepository;
+import com.beyond.MKX.domain.ipo.offering.service.MemberAccountFeign;
 import com.beyond.MKX.domain.ipo.subscription.dto.IpoSubscriptionReqDTO;
 import com.beyond.MKX.domain.ipo.subscription.dto.IpoSubscriptionResDTO;
 import com.beyond.MKX.domain.ipo.subscription.entity.InvestorType;
@@ -27,6 +28,7 @@ import java.util.UUID;
 public class IpoSubscriptionService {
     private final IpoOfferingRepository offeringRepository;
     private final IpoSubscriptionRepository subscriptionRepository;
+    private final MemberAccountFeign memberAccountFeign;
     private final Clock clock = Clock.systemDefaultZone();
 
     private final BrokerageDepositAccountService brokerageDepositAccountService;
@@ -113,7 +115,10 @@ public class IpoSubscriptionService {
             brokerageDepositAccountService.deposit(brokerageDepositNo, BigInteger.valueOf(requiredDeposit));
         } else {
             // TODO: MEMBER(개인) 계좌 흐름 연동
-            throw new UnsupportedOperationException("Member 투자자 청약 자금이체는 추후 구현 대상입니다.");
+            var brokerageDeposit = brokerageDepositAccountService.getRequiredByBrokerageId(subReqDto.brokerageId());
+            String brokerageDepositNo = brokerageDeposit.getAccountNumber();
+            memberAccountFeign.withdraw(subReqDto.accountId(), BigInteger.valueOf(requiredDeposit));
+            brokerageDepositAccountService.deposit(brokerageDepositNo, BigInteger.valueOf(requiredDeposit));
         }
 
         // 7) 저장
@@ -189,8 +194,13 @@ public class IpoSubscriptionService {
                 corporationAccountService.deposit(ipoSubscription.getAccountId(), BigInteger.valueOf(refundable));
             }
         } else {
+            var brokerageDeposit = brokerageDepositAccountService.getRequiredByBrokerageId(ipoSubscription.getBrokerageId());
+            String brokerageDepositNo = brokerageDeposit.getAccountNumber();
             // TODO: MEMBER(개인) 계좌 환불 흐름
-            throw new UnsupportedOperationException("Member 투자자 환불은 추후 구현 대상입니다.");
+            if (refundable > 0) {
+                brokerageDepositAccountService.withdraw(brokerageDepositNo, BigInteger.valueOf(refundable));
+                memberAccountFeign.deposit(ipoSubscription.getAccountId(), BigInteger.valueOf(refundable));
+            }
         }
 
 //      5) 상태/환불 기록  long refundable = (ipoSubscription.getRequiredDeposit() == null ? 0L : ipoSubscription.getRequiredDeposit());

@@ -191,7 +191,7 @@ public class IpoBookBuildingService {
     @Transactional(readOnly = true)
     public List<IpoBookBuildingAvailableResDTO> findAllScheduledOfferings(UUID participantId) {
         List<IpoOffering> scheduledOfferings =
-                offeringRepository.findAllByIpoOfferingStatus(IpoOfferingStatus.SCHEDULED);
+                offeringRepository.findAllByIpoOfferingStatus(IpoOfferingStatus.BOOK_BUILDING);
 
         if (scheduledOfferings.isEmpty()) {
             throw new IllegalArgumentException("현재 수요예측 가능한(SCHEDULED) 공모가 없습니다.");

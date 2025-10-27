@@ -1,5 +1,6 @@
 package com.beyond.MKX.domain.delisting.service;
 
+import com.beyond.MKX.common.apiResponse.CommonDTO;
 import com.beyond.MKX.domain.delisting.client.CurrentPriceClient;
 import com.beyond.MKX.domain.delisting.client.StockHoldingClient;
 import com.beyond.MKX.domain.delisting.client.MemberAccountClient;
@@ -23,6 +24,9 @@ import com.beyond.MKX.domain.account.corporation.repository.CorporationAccountRe
 import com.beyond.MKX.domain.account.exchange.entity.ExchangeAccount;
 import com.beyond.MKX.domain.account.exchange.repository.ExchangeAccountRepository;
 import com.beyond.MKX.domain.delisting.entity.ExchangeSupportFund;
+import com.beyond.MKX.domain.account.accountlist.repository.AccountListRepository;
+import com.beyond.MKX.domain.account.accountlist.entity.AccountList;
+import com.beyond.MKX.domain.account.accountlist.entity.AccountType;
 import com.beyond.MKX.common.openai.OpenAiService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -65,6 +69,7 @@ public class DelistingService {
     private final CorporationAccountRepository corporationAccountRepo;
     private final ExchangeAccountRepository exchangeAccountRepo;
     private final ExchangeSupportFundRepository exchangeSupportFundRepo;
+    private final AccountListRepository accountListRepo;
     private final OpenAiService openAiService;
     private final GptAnalysisService gptAnalysisService;
 
@@ -94,6 +99,8 @@ public class DelistingService {
         if (!recentViolations.isEmpty()) {
             log.info("최근 24시간 내 동일한 기준 위반이 이미 존재함: stockId={}, criteriaCode={}, count={}", 
                     stockId, criteriaCode, recentViolations.size());
+            // 기존 위반이 있어도 상태 확인 및 업데이트 필요
+            updateStockStatusToRisk(stockId);
             return recentViolations.get(0); // 기존 위반 반환
         }
 
@@ -164,6 +171,8 @@ public class DelistingService {
         if (!recentViolations.isEmpty()) {
             log.info("최근 24시간 내 동일한 기준 위반이 이미 존재함: stockId={}, criteriaCode={}, count={}", 
                     stockId, criteriaCode, recentViolations.size());
+            // 기존 위반이 있어도 상태 확인 및 업데이트 필요
+            updateStockStatusToRisk(stockId);
             return recentViolations.get(0); // 기존 위반 반환
         }
 
@@ -212,21 +221,120 @@ public class DelistingService {
 
     /**
      * 주식 상태를 상장폐지 위험으로 변경
+     * 위반 감지 시 자동으로 DELISTING_RISK 상태로 변경
+     * 이후 3분 후 자동으로 DELISTING_PROCESS 상태로 전환
      */
+    @Transactional
     private void updateStockStatusToRisk(UUID stockId) {
         try {
             Stock stock = stockRepo.findById(stockId)
                     .orElseThrow(() -> new IllegalArgumentException("Stock not found: " + stockId));
             
-            // 이미 상장폐지 관련 상태가 아닌 경우에만 변경
+            // DELISTING_PROCESS 이후 단계는 변경하지 않음
+            if (stock.getStatus() == Stock.Status.DELISTING_PROCESS || 
+                stock.getStatus() == Stock.Status.DELISTED) {
+                log.info("이미 상장폐지 진행 중이거나 완료된 주식: stockId={}, status={}", 
+                        stockId, stock.getStatus());
+                return;
+            }
+            
+            // 상태가 변경되지 않았거나, stage가 설정되지 않은 경우 업데이트
+            boolean needsUpdate = false;
+            
             if (stock.getStatus() == Stock.Status.LISTED || stock.getStatus() == Stock.Status.SUSPENDED) {
+                // 정상 상장 → 상장폐지 위험
                 stock.updateStatus(Stock.Status.DELISTING_RISK);
+                stock.setDelistingStage(DelistingStage.WARNING);
+                needsUpdate = true;
+                log.info("주식 상태 변경: stockId={}, status=LISTED/SUSPENDED→DELISTING_RISK, stage=NORMAL→WARNING", stockId);
+            } else if (stock.getStatus() == Stock.Status.DELISTING_RISK && stock.getDelistingStage() == null) {
+                // 이미 DELISTING_RISK 상태인데 stage가 설정되지 않은 경우
+                stock.setDelistingStage(DelistingStage.WARNING);
+                needsUpdate = true;
+                log.info("주식 stage 설정: stockId={}, status=DELISTING_RISK, stage=WARNING", stockId);
+            }
+            
+            if (needsUpdate) {
                 stockRepo.save(stock);
-                log.info("주식 상태 변경: stockId={}, status=DELISTING_RISK", stockId);
+                log.info("주식 상태 업데이트 완료: stockId={}, status={}, stage={}", 
+                        stockId, stock.getStatus(), stock.getDelistingStage());
+                
+                // 위반이 해결되지 않은 경우, 3분 후 자동으로 DELISTING_PROCESS로 전환
+                scheduleAutoDelistingProcess(stockId);
             }
         } catch (Exception e) {
             log.error("주식 상태 변경 실패: stockId={}", stockId, e);
         }
+    }
+    
+    /**
+     * 3분 후 자동으로 DELISTING_PROCESS로 전환하는 스케줄러
+     * 공시 미제출 시 자동 진행
+     */
+    private void scheduleAutoDelistingProcess(UUID stockId) {
+        // 여기서는 단순히 기록만 하고, 별도의 스케줄러에서 처리
+        log.info("상장폐지 자동 진행 예약: stockId={}, 3분 후 DELISTING_PROCESS로 전환 예정", stockId);
+        // TODO: 별도 스케줄러에서 처리하거나, 이벤트 발행
+    }
+    
+    /**
+     * DelistingStage 순차 검증 및 자동 설정
+     * @param currentStage 현재 단계 (null 허용)
+     * @param newStage 새 단계
+     * @param stock Stock 엔티티
+     * @throws IllegalStateException 허용되지 않은 전환인 경우
+     * @return 실제 currentStage (자동 설정 후)
+     */
+    private DelistingStage validateAndAutoSetDelistingStage(DelistingStage currentStage, DelistingStage newStage, Stock stock) {
+        // currentStage가 null이면 stock 상태에 따라 자동 설정
+        if (currentStage == null) {
+            currentStage = inferDelistingStageFromStatus(stock);
+            if (currentStage != null) {
+                stock.setDelistingStage(currentStage);
+                log.info("delisting_stage 자동 설정: stockId={}, status={}, stage={}", 
+                        stock.getId(), stock.getStatus(), currentStage);
+            } else {
+                currentStage = DelistingStage.NORMAL;
+            }
+        }
+        
+        // 동일한 stage로 전환하는 것은 허용하지 않음 (이미 완료된 상태)
+        if (currentStage == newStage) {
+            log.info("이미 목표 stage에 도달: stockId={}, stage={}", stock.getId(), currentStage);
+            return currentStage;
+        }
+        
+        Map<DelistingStage, List<DelistingStage>> allowedTransitions = Map.of(
+            DelistingStage.NORMAL, List.of(DelistingStage.WARNING, DelistingStage.CAUTION, DelistingStage.DELISTING_NOTICE),
+            DelistingStage.WARNING, List.of(DelistingStage.CAUTION, DelistingStage.DELISTING_NOTICE),
+            DelistingStage.CAUTION, List.of(DelistingStage.DELISTING_NOTICE),
+            DelistingStage.DELISTING_NOTICE, List.of(DelistingStage.DELISTING_PROCESS),
+            DelistingStage.DELISTING_PROCESS, List.of(DelistingStage.DELISTED)
+        );
+        
+        List<DelistingStage> allowed = allowedTransitions.get(currentStage);
+        if (allowed == null || !allowed.contains(newStage)) {
+            throw new IllegalStateException(
+                String.format("상장폐지 단계 전환이 불가능합니다. 현재: %s, 요청: %s. 허용된 전환: %s", 
+                    currentStage, newStage, allowed)
+            );
+        }
+        
+        log.info("상장폐지 단계 전환 검증 통과: {} → {}", currentStage, newStage);
+        return currentStage;
+    }
+    
+    /**
+     * Stock의 status로부터 DelistingStage 추론
+     */
+    private DelistingStage inferDelistingStageFromStatus(Stock stock) {
+        return switch (stock.getStatus()) {
+            case LISTED, SUSPENDED -> DelistingStage.NORMAL;
+            case DELISTING_RISK -> DelistingStage.WARNING;
+            case DELISTING_NOTICE -> DelistingStage.DELISTING_NOTICE;
+            case DELISTING_PROCESS -> DelistingStage.DELISTING_PROCESS;
+            case DELISTED -> DelistingStage.DELISTED;
+        };
     }
 
     /**
@@ -240,11 +348,16 @@ public class DelistingService {
             Stock stock = stockRepo.findById(stockId)
                     .orElseThrow(() -> new IllegalArgumentException("Stock not found: " + stockId));
             
+            // ★ 순차 검증 및 자동 설정
+            DelistingStage currentStage = validateAndAutoSetDelistingStage(
+                stock.getDelistingStage(), DelistingStage.DELISTING_NOTICE, stock);
+            
             stock.updateStatus(Stock.Status.DELISTING_NOTICE);
             stock.setDelistingNoticeDate(LocalDateTime.now());
+            stock.setDelistingStage(DelistingStage.DELISTING_NOTICE);
             stockRepo.save(stock);
             
-            log.info("상장폐지 예고 완료: stockId={}", stockId);
+            log.info("상장폐지 예고 완료: stockId={}, stage: {} → DELISTING_NOTICE", stockId, currentStage);
             
             // 이력 기록
             recordHistory(stockId, ActionType.DELISTING_NOTICE, null, null,
@@ -258,6 +371,7 @@ public class DelistingService {
 
     /**
      * 상장폐지 절차 시작
+     * DELISTING_NOTICE → DELISTING_PROCESS
      */
     @Transactional
     public void startDelistingProcess(UUID stockId) {
@@ -267,16 +381,21 @@ public class DelistingService {
             Stock stock = stockRepo.findById(stockId)
                     .orElseThrow(() -> new IllegalArgumentException("Stock not found: " + stockId));
             
+            // ★ 순차 검증 및 자동 설정
+            DelistingStage currentStage = validateAndAutoSetDelistingStage(
+                stock.getDelistingStage(), DelistingStage.DELISTING_PROCESS, stock);
+            
             stock.updateStatus(Stock.Status.DELISTING_PROCESS);
+            stock.setDelistingStage(DelistingStage.DELISTING_PROCESS);
             stockRepo.save(stock);
             
-            log.info("상장폐지 절차 시작 완료: stockId={}", stockId);
+            log.info("상장폐지 절차 시작 완료: stockId={}, stage: {} → DELISTING_PROCESS", stockId, currentStage);
             
             // 이력 기록
             recordHistory(stockId, ActionType.STAGE_CHANGE, 
-                         com.beyond.MKX.domain.delisting.entity.DelistingStage.DELISTING_NOTICE,
-                         com.beyond.MKX.domain.delisting.entity.DelistingStage.DELISTING_PROCESS,
-                         "상장폐지 절차 시작", null, null);
+                         currentStage,
+                         DelistingStage.DELISTING_PROCESS,
+                         "상장폐지 절차 시작 (환불 처리 시작)", null, null);
             
         } catch (Exception e) {
             log.error("상장폐지 절차 시작 실패: stockId={}", stockId, e);
@@ -403,6 +522,25 @@ public class DelistingService {
         log.info("보상금 생성 및 지급 시작: stockId={}", stockId);
 
         try {
+            // ✅ 기존 보상금 확인 (중복 방지)
+            List<DelistingCompensation> existingCompensations = compensationRepo.findByStockId(stockId);
+            if (!existingCompensations.isEmpty()) {
+                log.info("이미 생성된 보상금이 존재: stockId={}, count={}", 
+                        stockId, existingCompensations.size());
+                
+                // 모든 보상금이 완료되었는지 확인
+                boolean allCompleted = existingCompensations.stream()
+                    .allMatch(c -> c.getStatus() == CompensationStatus.COMPLETED);
+                
+                if (allCompleted) {
+                    log.info("모든 보상금이 이미 완료됨: stockId={}", stockId);
+                    return; // 재처리 불필요
+                }
+                
+                log.info("미완료 보상금 존재 - 새로운 보상금 생성하지 않고 종료: stockId={}", stockId);
+                return; // 기존 미완료 보상금 재처리는 retryFailedCompensations에서 처리
+            }
+            
             // stockId로 Stock 엔티티 조회하여 ticker 가져오기
             Stock stock = stockRepo.findById(stockId)
                     .orElseThrow(() -> new IllegalArgumentException("Stock not found: " + stockId));
@@ -411,7 +549,15 @@ public class DelistingService {
             log.info("주식 정보 조회: stockId={}, ticker={}", stockId, ticker);
 
             // ordering 서비스에서 해당 주식의 모든 보유자 조회
-            List<StockHoldingResDto> holders = stockHoldingClient.getAllHoldersByTicker(ticker);
+            com.beyond.MKX.common.apiResponse.CommonDTO<List<StockHoldingResDto>> response = stockHoldingClient.getAllHoldersByTicker(ticker);
+            
+            if (response == null || response.getResult() == null) {
+                log.info("보유자 정보 조회 실패: stockId={}, ticker={}", stockId, ticker);
+                recordCompensationFailure(stockId, ticker, "HOLDINGS_NOT_FOUND", "보유자 정보를 찾을 수 없습니다");
+                return;
+            }
+            
+            List<StockHoldingResDto> holders = response.getResult();
 
             if (holders.isEmpty()) {
                 log.info("보유자가 없음: stockId={}, ticker={}", stockId, ticker);
@@ -421,10 +567,18 @@ public class DelistingService {
             // 보상 기준 주가 조회 (marketdata 서비스에서 현재가 조회)
             BigDecimal compensationPrice;
             try {
-                CurrentPriceResDto currentPrice = currentPriceClient.getCurrentPrice(ticker);
-                if (currentPrice != null && currentPrice.price() != null) {
-                    compensationPrice = BigDecimal.valueOf(currentPrice.price());
-                    log.info("현재가 조회 성공: ticker={}, price={}", ticker, compensationPrice);
+                CommonDTO<CurrentPriceResDto> currentPriceResponse = currentPriceClient.getCurrentPrice(ticker);
+                if (currentPriceResponse != null && currentPriceResponse.getResult() != null) {
+                    CurrentPriceResDto currentPrice = currentPriceResponse.getResult();
+                    if (currentPrice.price() != null) {
+                        compensationPrice = BigDecimal.valueOf(currentPrice.price());
+                        log.info("현재가 조회 성공: ticker={}, price={}", ticker, compensationPrice);
+                    } else {
+                        // 현재가 정보가 없으면 보상금 생성 중단하고 기록
+                        log.error("현재가 정보 없음으로 보상금 생성 중단: stockId={}, ticker={}", stockId, ticker);
+                        recordCompensationFailure(stockId, ticker, "CURRENT_PRICE_NOT_FOUND", "현재가 정보가 없습니다");
+                        return;
+                    }
                 } else {
                     // 현재가 정보가 없으면 보상금 생성 중단하고 기록
                     log.error("현재가 정보 없음으로 보상금 생성 중단: stockId={}, ticker={}", stockId, ticker);
@@ -443,6 +597,7 @@ public class DelistingService {
             List<DelistingCompensation> compensations = new ArrayList<>();
 
             // 각 보유자별로 보상금 생성
+            Map<UUID, String> accountNumberMap = new HashMap<>();
             for (StockHoldingResDto holder : holders) {
                 BigDecimal compensationAmount = compensationPrice.multiply(
                     BigDecimal.valueOf(holder.totalQuantity())
@@ -459,21 +614,30 @@ public class DelistingService {
                         .build();
 
                 compensations.add(compensation);
+                // 계좌번호 매핑 저장 (직접 조회)
+                String accountNumber = findAccountNumber(holder.memberAccountId());
+                accountNumberMap.put(holder.memberAccountId(), accountNumber);
                 totalCompensation = totalCompensation.add(compensationAmount);
 
-                log.info("보상금 생성: accountId={}, quantity={}, amount={}",
-                        holder.memberAccountId(), holder.totalQuantity(), compensationAmount);
+                log.info("보상금 생성: accountId={}, accountNumber={}, quantity={}, amount={}",
+                        holder.memberAccountId(), accountNumber, holder.totalQuantity(), compensationAmount);
             }
 
             // 실제 지급 처리 (3단계 방식)
-            processCompensationPayment(stockId, compensations, totalCompensation);
+            processCompensationPayment(stockId, compensations, totalCompensation, accountNumberMap);
 
             log.info("보상금 생성 및 지급 완료: stockId={}, 보유자 수={}, 총 보상금={}", 
                     stockId, holders.size(), totalCompensation);
 
         } catch (Exception e) {
             log.error("보상금 생성 중 오류 발생: stockId={}", stockId, e);
-            // FeignClient 호출 실패 시에도 상장폐지 진행은 계속되어야 함
+            // 전체 예외에 대해 실패 기록 남기기 (재처리 가능하도록)
+            try {
+                recordCompensationFailure(stockId, "COMPENSATION_CREATION_FAILED", 
+                    "보상금 생성 중 전체 프로세스 실패: " + e.getMessage());
+            } catch (Exception ex) {
+                log.error("실패 기록 저장 중 오류: stockId={}", stockId, ex);
+            }
         }
     }
 
@@ -490,6 +654,7 @@ private void recordCompensationFailure(UUID stockId, String ticker, String failu
                 .reason("보상금 생성 실패: " + failureMessage)
                 .executionResult(DelistingHistory.ExecutionResult.FAILED)
                 .executionMessage(failureCode + ": " + failureMessage)
+                .executionDate(LocalDateTime.now())
                 .executionIp("SYSTEM")
                 .sessionId("COMPENSATION_FAILURE")
                 .build();
@@ -517,6 +682,7 @@ private void recordCompensationFailure(UUID stockId, String failureCode, String 
                 .reason("보상금 지급 실패: " + failureMessage)
                 .executionResult(DelistingHistory.ExecutionResult.FAILED)
                 .executionMessage(failureCode + ": " + failureMessage)
+                .executionDate(LocalDateTime.now())
                 .executionIp("SYSTEM")
                 .sessionId("COMPENSATION_FAILURE")
                 .build();
@@ -549,21 +715,49 @@ public void retryFailedCompensations(UUID stockId) {
             return;
         }
         
-        // 보상금 재생성 시도
-        createCompensations(stockId);
+        log.info("실패 기록 발견: stockId={}, failureCount={}", stockId, failureRecords.size());
         
-        // 재처리 성공 기록
-        DelistingHistory retryRecord = DelistingHistory.builder()
-                .stockId(stockId)
-                .actionType(ActionType.COMPENSATION_FAILED)
-                .reason("보상금 재처리 시도")
-                .executionResult(DelistingHistory.ExecutionResult.RETRY_ATTEMPTED)
-                .executionMessage("관리자에 의한 재처리 시도")
-                .executionIp("SYSTEM")
-                .sessionId("COMPENSATION_RETRY")
-                .build();
+        // 전체 보상금 상태 확인
+        List<DelistingCompensation> allCompensations = compensationRepo.findByStockId(stockId);
+        log.info("전체 보상금: stockId={}, totalCount={}, status={}", stockId, allCompensations.size(),
+                allCompensations.stream().map(c -> c.getStatus().toString()).toList());
         
-        historyRepo.save(retryRecord);
+        // 기존 미완료 보상금 조회
+        List<DelistingCompensation> incompleteCompensations = allCompensations.stream()
+                .filter(c -> c.getStatus() != CompensationStatus.COMPLETED)
+                .toList();
+        
+        if (incompleteCompensations.isEmpty()) {
+            log.info("재처리할 미완료 보상금 없음 - 이미 모두 완료됨: stockId={}", stockId);
+            
+            // 모든 보상금이 완료되었으므로 실패 기록을 RESOLVED로 표시
+            failureRecords.forEach(record -> {
+                record.setExecutionResult(DelistingHistory.ExecutionResult.SUCCESS);
+                record.setExecutionMessage("모든 보상금 처리 완료");
+            });
+            historyRepo.saveAll(failureRecords);
+            log.info("실패 기록을 성공으로 표시 완료: stockId={}", stockId);
+            return;
+        }
+        
+        log.info("미완료 보상금 재처리 시작: stockId={}, incompleteCount={}, status={}", 
+                stockId, incompleteCompensations.size(),
+                incompleteCompensations.stream().map(c -> c.getStatus().toString()).toList());
+        
+        // 계좌번호 매핑 생성
+        Map<UUID, String> accountNumberMap = new HashMap<>();
+        for (DelistingCompensation compensation : incompleteCompensations) {
+            String accountNumber = findAccountNumber(compensation.getMemberAccountId());
+            accountNumberMap.put(compensation.getMemberAccountId(), accountNumber);
+        }
+        
+        // 총 보상금 계산
+        BigDecimal totalCompensation = incompleteCompensations.stream()
+                .map(DelistingCompensation::getCompensationAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
+        // 실제 지급 처리
+        processCompensationPayment(stockId, incompleteCompensations, totalCompensation, accountNumberMap);
         
         log.info("보상금 재처리 완료: stockId={}", stockId);
         
@@ -591,17 +785,28 @@ public void executeDelisting(UUID stockId) {
             return;
         }
         
+        // ★ 순차 검증 및 자동 설정
+        DelistingStage currentStage = validateAndAutoSetDelistingStage(
+            stock.getDelistingStage(), DelistingStage.DELISTED, stock);
+        
+        // ★ GPT 분석 결과에서 reason 가져오기
+        DelistingReason delistingReason = extractAndMapDelistingReason(stockId);
+        
         // 주식 상태를 DELISTED로 변경
         stock.updateStatus(Stock.Status.DELISTED);
+        stock.setDelistingExecutionDate(LocalDateTime.now());
+        stock.setDelistingStage(DelistingStage.DELISTED);
+        stock.setDelistingReason(delistingReason);
         stockRepo.save(stock);
         
-        log.info("주식 상태 변경 완료: stockId={}, status=DELISTED", stockId);
+        log.info("주식 상태 변경 완료: stockId={}, stage: {} → DELISTED, reason={}", 
+                stockId, currentStage, delistingReason);
         
         // 보상금 생성 (MSA 연동)
         createCompensations(stockId);
         
         // 이력 기록
-        recordHistory(stockId, ActionType.DELISTING_EXECUTION, null, null,
+        recordHistory(stockId, ActionType.DELISTING_EXECUTION, currentStage, DelistingStage.DELISTED,
                      "상장폐지 실행 완료", null, null);
         
         log.info("상장폐지 실행 완료: stockId={}", stockId);
@@ -619,9 +824,9 @@ public void executeDelisting(UUID stockId) {
 
 /**
  * 실패한 보상금 자동 재처리 스케줄러
- * 매 10분마다 실행되어 실패한 보상금을 자동으로 재시도
+ * 매 30초마다 실행되어 실패한 보상금을 자동으로 재시도
  */
-@Scheduled(fixedRate = 600000) // 10분마다 실행 (600,000ms = 10분)
+@Scheduled(fixedRate = 30000) // 30초마다 실행 (30,000ms = 30초)
 public void scheduledRetryFailedCompensations() {
     log.info("실패한 보상금 자동 재처리 스케줄러 시작");
     
@@ -631,11 +836,12 @@ public void scheduledRetryFailedCompensations() {
                 ActionType.COMPENSATION_FAILED, DelistingHistory.ExecutionResult.FAILED);
         
         if (failureRecords.isEmpty()) {
-            log.debug("재처리할 실패 기록 없음");
+            log.info("재처리할 실패 기록 없음 - 모든 보상금이 완료되었거나 진행 중이 아닙니다");
             return;
         }
         
-        log.info("실패한 보상금 재처리 대상: {}건", failureRecords.size());
+        log.info("실패한 보상금 재처리 대상: {}건, stockIds={}", failureRecords.size(), 
+                failureRecords.stream().map(DelistingHistory::getStockId).distinct().toList());
         
         // 주식별로 그룹화하여 중복 처리 방지
         List<UUID> uniqueStockIds = failureRecords.stream()
@@ -1186,34 +1392,76 @@ public void scheduledRetryFailedCompensations() {
     }
 
     /**
-     * 보상금 실제 지급 처리 (3단계 방식)
+     * 보상금 실제 지급 처리
+     * 
+     * 프로세스:
+     * 1. 기업 계좌 잔액 확인 (CorporationAccount)
+     * 2. 기업 유동자산 확인 (Corporation.capital)
+     * 3. 보상금 총액 대비 기업이 지급 가능한 금액 계산
+     * 4. 기업이 가진 금액을 거래소에 먼저 입금
+     * 5. 부족한 금액은 거래소가 funding으로 지급 (ExchangeSupportFund 생성)
+     * 6. 거래소가 소유자들에게 일괄 환불 (기업/회원 모두 가능)
      */
     @Transactional
-    private void processCompensationPayment(UUID stockId, List<DelistingCompensation> compensations, BigDecimal totalCompensation) {
+    private void processCompensationPayment(UUID stockId, List<DelistingCompensation> compensations, BigDecimal totalCompensation, Map<UUID, String> accountNumberMap) {
         log.info("보상금 지급 처리 시작: stockId={}, 총 보상금={}", stockId, totalCompensation);
 
         try {
-            // 1단계: 기업 계좌 잔액 확인
-            CorporationAccount corpAccount = getCorporationAccountByStockId(stockId);
-            BigDecimal availableBalance = new BigDecimal(corpAccount.getBalance());
-
-            if (availableBalance.compareTo(totalCompensation) >= 0) {
-                // 1단계: 기업 계좌에서 충분한 잔액이 있으면 정상 지급
-                log.info("1단계: 기업 계좌 잔액으로 정상 지급: stockId={}, 잔액={}", stockId, availableBalance);
-                processPaymentFromCash(stockId, compensations, totalCompensation);
+            // 1. stock.corporationId로 기업 계좌 확인
+            Stock stock = stockRepo.findById(stockId)
+                    .orElseThrow(() -> new IllegalArgumentException("Stock not found: " + stockId));
+            UUID corporationId = stock.getCorporationId();
+            
+            CorporationAccount corpAccount = corporationAccountRepo.findByCorporationId(corporationId)
+                    .orElseThrow(() -> new IllegalArgumentException("기업 계좌를 찾을 수 없음: corporationId=" + corporationId));
+            
+            // 2. 기업이 가지고 있는 금액 확인 (계좌 잔액)
+            BigDecimal accountBalance = new BigDecimal(corpAccount.getBalance());
+            log.info("기업 계좌 잔액: corporationId={}, balance={}", corporationId, accountBalance);
+            
+            // 3. Corporation의 capital 확인
+            Corporation corporation = corporationRepo.findById(corporationId)
+                    .orElseThrow(() -> new IllegalArgumentException("Corporation not found: " + corporationId));
+            BigDecimal capital = new BigDecimal(corporation.getCapital());
+            log.info("기업 자본금: corporationId={}, capital={}", corporationId, capital);
+            
+            // 기업이 지급 가능한 총액 = 계좌 잔액 + 자본금
+            BigDecimal availableFromCorporation = accountBalance.add(capital);
+            log.info("기업이 지급 가능한 총액: available={}, balance={}, capital={}", availableFromCorporation, accountBalance, capital);
+            
+            // 4. 보상금 총액과 비교
+            if (availableFromCorporation.compareTo(totalCompensation) >= 0) {
+                // 기업이 충분히 지급 가능
+                log.info("기업이 충분히 지급 가능: available={}, totalCompensation={}", availableFromCorporation, totalCompensation);
+                processFullPaymentFromCorporation(stockId, compensations, totalCompensation, accountNumberMap, corpAccount, corporation);
                 
             } else {
-                // 2단계: 유동자산에서 차감하고 지급
-                log.info("2단계: 유동자산 활용 지급 시작: stockId={}, 부족금액={}", 
-                        stockId, totalCompensation.subtract(availableBalance));
+                // 기업이 부족 → 기업이 가진 금액만큼 거래소에 입금하고, 부족분은 거래소가 funding
+                BigDecimal shortage = totalCompensation.subtract(availableFromCorporation);
+                log.info("기업이 부족함 - 거래소 funding 필요: shortage={}", shortage);
                 
-                BigDecimal remainingAmount = processPaymentFromCurrentAssets(stockId, compensations, totalCompensation, availableBalance);
+                // 기업 → 거래소 입금 (계좌 잔액 + 자본금 모두 거래소로)
+                // 1) 계좌 잔액 전액 출금
+                corpAccount.withdraw(accountBalance.toBigInteger());
+                corporationAccountRepo.save(corpAccount);
                 
-                if (remainingAmount.compareTo(BigDecimal.ZERO) > 0) {
-                    // 3단계: 파산 처리 후 거래소에서 지급
-                    log.info("3단계: 파산 처리 후 거래소 지급: stockId={}, 거래소 지급액={}", stockId, remainingAmount);
-                    processPaymentFromExchange(stockId, compensations, remainingAmount);
-                }
+                // 2) 자본금 전액 차감
+                corporation.setCapital(0L); // 전체 자본금 차감
+                corporationRepo.save(corporation);
+                
+                // 거래소 계좌에 입금
+                ExchangeAccount exchangeAccount = getExchangeAccount();
+                exchangeAccount.deposit(availableFromCorporation.toBigInteger());
+                exchangeAccountRepo.save(exchangeAccount);
+                
+                log.info("기업 → 거래소 입금 완료: amount={}, accountBalance={}, capital={}", 
+                        availableFromCorporation, accountBalance, capital);
+                
+                // 부족분은 거래소가 funding
+                processExchangeFunding(stockId, corporationId, shortage);
+                
+                // 거래소가 일괄 환불 처리
+                processRefundFromExchange(stockId, compensations, totalCompensation, accountNumberMap);
             }
 
         } catch (Exception e) {
@@ -1223,9 +1471,170 @@ public void scheduledRetryFailedCompensations() {
     }
 
     /**
+     * 기업이 충분한 경우 직접 환불 처리
+     */
+    private void processFullPaymentFromCorporation(UUID stockId, List<DelistingCompensation> compensations, 
+                                                   BigDecimal totalCompensation, Map<UUID, String> accountNumberMap, 
+                                                   CorporationAccount corpAccount, Corporation corporation) {
+        log.info("기업이 직접 환불 처리: stockId={}", stockId);
+        
+        BigDecimal accountBalance = new BigDecimal(corpAccount.getBalance());
+        
+        if (accountBalance.compareTo(totalCompensation) >= 0) {
+            // 계좌 잔액만으로 충분
+            corpAccount.withdraw(totalCompensation.toBigInteger());
+            corporationAccountRepo.save(corpAccount);
+            log.info("계좌 잔액에서 출금: amount={}", totalCompensation);
+            
+        } else {
+            // 계좌 잔액 전액 출금
+            corpAccount.withdraw(accountBalance.toBigInteger());
+            corporationAccountRepo.save(corpAccount);
+            
+            // 부족분은 자본금에서 차감
+            BigDecimal remaining = totalCompensation.subtract(accountBalance);
+            BigDecimal capital = new BigDecimal(corporation.getCapital());
+            corporation.setCapital(capital.subtract(remaining).longValue());
+            corporationRepo.save(corporation);
+            log.info("계좌 잔액 전액 출금: {}, 자본금 차감: {}", accountBalance, remaining);
+        }
+        
+        // 각 소유자에게 환불
+        for (DelistingCompensation compensation : compensations) {
+            processRefundToHolder(compensation, accountNumberMap);
+        }
+        
+        log.info("기업 직접 환불 완료: stockId={}, totalCompensation={}", stockId, totalCompensation);
+    }
+
+    /**
+     * 거래소 funding 처리 (ExchangeSupportFund 생성)
+     */
+    private void processExchangeFunding(UUID stockId, UUID corporationId, BigDecimal shortage) {
+        log.info("거래소 funding 처리 시작: stockId={}, shortage={}", stockId, shortage);
+        
+        // 거래소 계좌에서 출금
+        ExchangeAccount exchangeAccount = getExchangeAccount();
+        exchangeAccount.withdraw(shortage.toBigInteger());
+        exchangeAccountRepo.save(exchangeAccount);
+        
+        // ExchangeSupportFund 레코드 생성
+        ExchangeSupportFund supportFund = ExchangeSupportFund.builder()
+                .stockId(stockId)
+                .corporationId(corporationId)
+                .supportAmount(shortage)
+                .supportType(ExchangeSupportFund.SupportType.COMPENSATION_LOAN)
+                .status(ExchangeSupportFund.SupportStatus.ACTIVE)
+                .reason("상장폐지 보상금 지원 - 기업 자금 부족")
+                .repaymentDueDate(LocalDateTime.now().plusYears(3))
+                .interestRate(new BigDecimal("5.0"))
+                .processedBy(UUID.fromString("00000000-0000-0000-0000-000000000000"))
+                .processedAt(LocalDateTime.now())
+                .remarks("기업이 충분한 자금을 조달하지 못하여 거래소에서 지원")
+                .build();
+        
+        exchangeSupportFundRepo.save(supportFund);
+        log.info("거래소 funding 기록 생성 완료: stockId={}, fundId={}, amount={}", 
+                stockId, supportFund.getId(), shortage);
+    }
+
+    /**
+     * 거래소에서 일괄 환불 처리
+     */
+    private void processRefundFromExchange(UUID stockId, List<DelistingCompensation> compensations, 
+                                          BigDecimal totalCompensation, Map<UUID, String> accountNumberMap) {
+        log.info("거래소 일괄 환불 처리 시작: stockId={}, totalCompensation={}", stockId, totalCompensation);
+        
+        // 각 소유자에게 환불
+        for (DelistingCompensation compensation : compensations) {
+            processRefundToHolder(compensation, accountNumberMap);
+        }
+        
+        log.info("거래소 일괄 환불 완료: stockId={}, totalCompensation={}", stockId, totalCompensation);
+    }
+
+    /**
+     * 소유자에게 환불 처리 (기업/회원 구분)
+     */
+    private void processRefundToHolder(DelistingCompensation compensation, Map<UUID, String> accountNumberMap) {
+        try {
+            String accountNumber = accountNumberMap.get(compensation.getMemberAccountId());
+            if (accountNumber == null) {
+                log.error("계좌번호를 찾을 수 없음: memberAccountId={}", compensation.getMemberAccountId());
+                compensation.setStatus(CompensationStatus.FAILED);
+                compensationRepo.save(compensation);
+                return;
+            }
+            
+            // AccountList 조회하여 계좌 타입 확인
+            AccountList accountList = accountListRepo.findByAccountNumber(accountNumber)
+                    .orElse(null);
+            
+            if (accountList == null) {
+                log.error("계좌 정보를 찾을 수 없음: accountNumber={}", accountNumber);
+                compensation.setStatus(CompensationStatus.FAILED);
+                compensationRepo.save(compensation);
+                return;
+            }
+            
+            // 계좌 타입에 따라 다른 처리
+            if (accountList.getType() == AccountType.MEMBER) {
+                // MEMBER 계좌: ordering-service를 통해 입금
+                MemberAccountClient.DepositRequest request = new MemberAccountClient.DepositRequest(
+                        compensation.getCompensationAmount().longValue()
+                );
+                MemberAccountClient.DepositResult result = memberAccountClient.depositByAccountNumber(
+                        accountNumber,
+                        request
+                );
+                
+                if (result.success()) {
+                    compensation.setStatus(CompensationStatus.COMPLETED);
+                    compensation.setProcessedAt(LocalDateTime.now());
+                    compensation.setProcessedBy(UUID.fromString("00000000-0000-0000-0000-000000000000"));
+                    compensationRepo.save(compensation);
+                    log.info("회원 계좌 환불 완료: accountNumber={}, amount={}", accountNumber, compensation.getCompensationAmount());
+                } else {
+                    log.error("회원 계좌 환불 실패: accountNumber={}, message={}", accountNumber, result.message());
+                    compensation.setStatus(CompensationStatus.FAILED);
+                    compensationRepo.save(compensation);
+                }
+                
+            } else if (accountList.getType() == AccountType.CORPORATION) {
+                // CORPORATION 계좌: mkx-platform 내부에서 처리
+                CorporationAccount targetCorpAccount = corporationAccountRepo.findByAccountNumber(accountNumber)
+                        .orElse(null);
+                
+                if (targetCorpAccount != null) {
+                    targetCorpAccount.deposit(compensation.getCompensationAmount().toBigInteger());
+                    corporationAccountRepo.save(targetCorpAccount);
+                    compensation.setStatus(CompensationStatus.COMPLETED);
+                    compensation.setProcessedAt(LocalDateTime.now());
+                    compensation.setProcessedBy(UUID.fromString("00000000-0000-0000-0000-000000000000"));
+                    compensationRepo.save(compensation);
+                    log.info("기업 계좌 환불 완료: accountNumber={}, amount={}", accountNumber, compensation.getCompensationAmount());
+                } else {
+                    log.error("기업 계좌를 찾을 수 없음: accountNumber={}", accountNumber);
+                    compensation.setStatus(CompensationStatus.FAILED);
+                    compensationRepo.save(compensation);
+                }
+            } else {
+                log.error("지원하지 않는 계좌 타입: type={}, accountNumber={}", accountList.getType(), accountNumber);
+                compensation.setStatus(CompensationStatus.FAILED);
+                compensationRepo.save(compensation);
+            }
+            
+        } catch (Exception e) {
+            log.error("소유자 환불 처리 실패: memberAccountId={}", compensation.getMemberAccountId(), e);
+            compensation.setStatus(CompensationStatus.FAILED);
+            compensationRepo.save(compensation);
+        }
+    }
+
+    /**
      * 1단계: 기업 계좌 현금으로 지급
      */
-    private void processPaymentFromCash(UUID stockId, List<DelistingCompensation> compensations, BigDecimal totalCompensation) {
+    private void processPaymentFromCash(UUID stockId, List<DelistingCompensation> compensations, BigDecimal totalCompensation, Map<UUID, String> accountNumberMap) {
         CorporationAccount corpAccount = getCorporationAccountByStockId(stockId);
         
         // 기업 계좌에서 출금
@@ -1234,27 +1643,69 @@ public void scheduledRetryFailedCompensations() {
         
         // 각 보상금 지급 처리
         for (DelistingCompensation compensation : compensations) {
-            // 회원 계좌로 입금 (MSA 연동)
             try {
-                MemberAccountClient.DepositRequest request = new MemberAccountClient.DepositRequest(
-                        compensation.getMemberAccountId(),
-                        compensation.getCompensationAmount(),
-                        "상장폐지 보상금 지급"
-                );
-                MemberAccountClient.DepositResult result = memberAccountClient.deposit(request);
+                String accountNumber = accountNumberMap.get(compensation.getMemberAccountId());
+                if (accountNumber == null) {
+                    log.error("계좌번호를 찾을 수 없음: memberAccountId={}", compensation.getMemberAccountId());
+                    compensation.setStatus(CompensationStatus.FAILED);
+                    compensationRepo.save(compensation);
+                    continue;
+                }
                 
-                if (result.success()) {
+                // AccountList 조회하여 계좌 타입 확인
+                AccountList accountList = accountListRepo.findByAccountNumber(accountNumber)
+                        .orElse(null);
+                
+                if (accountList == null) {
+                    log.error("계좌 정보를 찾을 수 없음: accountNumber={}", accountNumber);
+                    compensation.setStatus(CompensationStatus.FAILED);
+                    compensationRepo.save(compensation);
+                    continue;
+                }
+                
+                // 계좌 타입에 따라 다른 처리
+                boolean success = false;
+                
+                if (accountList.getType() == AccountType.MEMBER) {
+                    // MEMBER 계좌: ordering-service를 통해 입금
+                    MemberAccountClient.DepositRequest request = new MemberAccountClient.DepositRequest(
+                            compensation.getCompensationAmount().longValue()
+                    );
+                    MemberAccountClient.DepositResult result = memberAccountClient.depositByAccountNumber(
+                            accountNumber,
+                            request
+                    );
+                    success = result.success();
+                    
+                } else if (accountList.getType() == AccountType.CORPORATION) {
+                    // CORPORATION 계좌: mkx-platform 내부에서 처리
+                    CorporationAccount targetCorpAccount = corporationAccountRepo.findByAccountNumber(accountNumber)
+                            .orElse(null);
+                    
+                    if (targetCorpAccount != null) {
+                        targetCorpAccount.deposit(compensation.getCompensationAmount().toBigInteger());
+                        corporationAccountRepo.save(targetCorpAccount);
+                        success = true;
+                        log.info("기업 계좌 입금 완료: accountNumber={}, amount={}", accountNumber, compensation.getCompensationAmount());
+                    } else {
+                        log.error("기업 계좌를 찾을 수 없음: accountNumber={}", accountNumber);
+                    }
+                } else {
+                    log.error("지원하지 않는 계좌 타입: type={}, accountNumber={}", accountList.getType(), accountNumber);
+                }
+                
+                if (success) {
                     // 보상금 상태 업데이트
                     compensation.setStatus(CompensationStatus.COMPLETED);
                     compensation.setProcessedAt(LocalDateTime.now());
                     compensation.setProcessedBy(UUID.fromString("00000000-0000-0000-0000-000000000000")); // 시스템 처리
                     compensationRepo.save(compensation);
                     
-                    log.info("현금 지급 완료: accountId={}, amount={}", 
-                            compensation.getMemberAccountId(), compensation.getCompensationAmount());
+                    log.info("현금 지급 완료: accountId={}, accountNumber={}, type={}, amount={}", 
+                            compensation.getMemberAccountId(), accountNumber, accountList.getType(), compensation.getCompensationAmount());
                 } else {
-                    log.error("현금 지급 실패: accountId={}, message={}", 
-                            compensation.getMemberAccountId(), result.message());
+                    log.error("현금 지급 실패: accountId={}, accountNumber={}, type={}", 
+                            compensation.getMemberAccountId(), accountNumber, accountList.getType());
                     compensation.setStatus(CompensationStatus.FAILED);
                     compensationRepo.save(compensation);
                 }
@@ -1275,7 +1726,7 @@ public void scheduledRetryFailedCompensations() {
      * 2단계: 유동자산에서 차감하고 지급
      */
     private BigDecimal processPaymentFromCurrentAssets(UUID stockId, List<DelistingCompensation> compensations, 
-                                                     BigDecimal totalCompensation, BigDecimal availableCash) {
+                                                     BigDecimal totalCompensation, BigDecimal availableCash, Map<UUID, String> accountNumberMap) {
         // 최신 재무제표 조회
         CompanyFinancials latestFinancials = companyFinancialsRepo
                 .findByStockIdOrderByFiscalYearDescFiscalQuarterDesc(stockId)
@@ -1313,21 +1764,67 @@ public void scheduledRetryFailedCompensations() {
             // 각 보상금 지급 처리
             for (DelistingCompensation compensation : compensations) {
                 try {
-                    MemberAccountClient.DepositRequest request = new MemberAccountClient.DepositRequest(
-                            compensation.getMemberAccountId(),
-                            compensation.getCompensationAmount(),
-                            "상장폐지 보상금 지급 (유동자산 활용)"
-                    );
-                    MemberAccountClient.DepositResult result = memberAccountClient.deposit(request);
+                    String accountNumber = accountNumberMap.get(compensation.getMemberAccountId());
+                    if (accountNumber == null) {
+                        log.error("계좌번호를 찾을 수 없음: memberAccountId={}", compensation.getMemberAccountId());
+                        compensation.setStatus(CompensationStatus.FAILED);
+                        compensationRepo.save(compensation);
+                        continue;
+                    }
                     
-                    if (result.success()) {
+                    // AccountList 조회하여 계좌 타입 확인
+                    AccountList accountList = accountListRepo.findByAccountNumber(accountNumber)
+                            .orElse(null);
+                    
+                    if (accountList == null) {
+                        log.error("계좌 정보를 찾을 수 없음: accountNumber={}", accountNumber);
+                        compensation.setStatus(CompensationStatus.FAILED);
+                        compensationRepo.save(compensation);
+                        continue;
+                    }
+                    
+                    // 계좌 타입에 따라 다른 처리
+                    boolean success = false;
+                    
+                    if (accountList.getType() == AccountType.MEMBER) {
+                        // MEMBER 계좌: ordering-service를 통해 입금
+                        MemberAccountClient.DepositRequest request = new MemberAccountClient.DepositRequest(
+                                compensation.getCompensationAmount().longValue()
+                        );
+                        MemberAccountClient.DepositResult result = memberAccountClient.depositByAccountNumber(
+                                accountNumber,
+                                request
+                        );
+                        success = result.success();
+                        
+                    } else if (accountList.getType() == AccountType.CORPORATION) {
+                        // CORPORATION 계좌: mkx-platform 내부에서 처리
+                        CorporationAccount targetCorpAccount = corporationAccountRepo.findByAccountNumber(accountNumber)
+                                .orElse(null);
+                        
+                        if (targetCorpAccount != null) {
+                            targetCorpAccount.deposit(compensation.getCompensationAmount().toBigInteger());
+                            corporationAccountRepo.save(targetCorpAccount);
+                            success = true;
+                            log.info("기업 계좌 입금 완료 (유동자산): accountNumber={}, amount={}", accountNumber, compensation.getCompensationAmount());
+                        } else {
+                            log.error("기업 계좌를 찾을 수 없음: accountNumber={}", accountNumber);
+                        }
+                    } else {
+                        log.error("지원하지 않는 계좌 타입: type={}, accountNumber={}", accountList.getType(), accountNumber);
+                    }
+                    
+                    if (success) {
                         compensation.setStatus(CompensationStatus.COMPLETED);
                         compensation.setProcessedAt(LocalDateTime.now());
                         compensation.setProcessedBy(UUID.fromString("00000000-0000-0000-0000-000000000000"));
                         compensationRepo.save(compensation);
+                        
+                        log.info("유동자산 지급 완료: accountId={}, accountNumber={}, type={}, amount={}", 
+                                compensation.getMemberAccountId(), accountNumber, accountList.getType(), compensation.getCompensationAmount());
                     } else {
-                        log.error("유동자산 지급 실패: accountId={}, message={}", 
-                                compensation.getMemberAccountId(), result.message());
+                        log.error("유동자산 지급 실패: accountId={}, accountNumber={}, type={}", 
+                                compensation.getMemberAccountId(), accountNumber, accountList.getType());
                         compensation.setStatus(CompensationStatus.FAILED);
                         compensationRepo.save(compensation);
                     }
@@ -1369,21 +1866,61 @@ public void scheduledRetryFailedCompensations() {
                 
                 if (proportionalAmount.compareTo(BigDecimal.ZERO) > 0) {
                     try {
-                        MemberAccountClient.DepositRequest request = new MemberAccountClient.DepositRequest(
-                                compensation.getMemberAccountId(),
-                                proportionalAmount,
-                                "상장폐지 보상금 부분 지급"
-                        );
-                        MemberAccountClient.DepositResult result = memberAccountClient.deposit(request);
+                        String accountNumber = accountNumberMap.get(compensation.getMemberAccountId());
+                        if (accountNumber == null) {
+                            log.error("계좌번호를 찾을 수 없음: memberAccountId={}", compensation.getMemberAccountId());
+                            compensation.setStatus(CompensationStatus.FAILED);
+                            compensationRepo.save(compensation);
+                            continue;
+                        }
                         
-                        if (result.success()) {
+                        // AccountList 조회하여 계좌 타입 확인
+                        AccountList accountList = accountListRepo.findByAccountNumber(accountNumber)
+                                .orElse(null);
+                        
+                        if (accountList == null) {
+                            log.error("계좌 정보를 찾을 수 없음: accountNumber={}", accountNumber);
+                            compensation.setStatus(CompensationStatus.FAILED);
+                            compensationRepo.save(compensation);
+                            continue;
+                        }
+                        
+                        // 계좌 타입에 따라 다른 처리
+                        boolean success = false;
+                        
+                        if (accountList.getType() == AccountType.MEMBER) {
+                            MemberAccountClient.DepositRequest request = new MemberAccountClient.DepositRequest(
+                                    proportionalAmount.longValue()
+                            );
+                            MemberAccountClient.DepositResult result = memberAccountClient.depositByAccountNumber(
+                                    accountNumber,
+                                    request
+                            );
+                            success = result.success();
+                            
+                        } else if (accountList.getType() == AccountType.CORPORATION) {
+                            CorporationAccount targetCorpAccount = corporationAccountRepo.findByAccountNumber(accountNumber)
+                                    .orElse(null);
+                            
+                            if (targetCorpAccount != null) {
+                                targetCorpAccount.deposit(proportionalAmount.toBigInteger());
+                                corporationAccountRepo.save(targetCorpAccount);
+                                success = true;
+                                log.info("기업 계좌 입금 완료 (부분 지급): accountNumber={}, amount={}", accountNumber, proportionalAmount);
+                            } else {
+                                log.error("기업 계좌를 찾을 수 없음: accountNumber={}", accountNumber);
+                            }
+                        } else {
+                            log.error("지원하지 않는 계좌 타입: type={}, accountNumber={}", accountList.getType(), accountNumber);
+                        }
+                        
+                        if (success) {
                             compensation.setStatus(CompensationStatus.PARTIAL_PAID);
                             compensation.setProcessedAt(LocalDateTime.now());
                             compensation.setProcessedBy(UUID.fromString("00000000-0000-0000-0000-000000000000"));
                             compensationRepo.save(compensation);
                         } else {
-                            log.error("부분 지급 실패: accountId={}, message={}", 
-                                    compensation.getMemberAccountId(), result.message());
+                            log.error("부분 지급 실패: accountId={}, type={}", compensation.getMemberAccountId(), accountList.getType());
                             compensation.setStatus(CompensationStatus.FAILED);
                             compensationRepo.save(compensation);
                         }
@@ -1407,7 +1944,7 @@ public void scheduledRetryFailedCompensations() {
     /**
      * 3단계: 파산 처리 후 거래소에서 지급
      */
-    private void processPaymentFromExchange(UUID stockId, List<DelistingCompensation> compensations, BigDecimal remainingAmount) {
+    private void processPaymentFromExchange(UUID stockId, List<DelistingCompensation> compensations, BigDecimal remainingAmount, Map<UUID, String> accountNumberMap) {
         // 1. 기업 파산 처리
         Corporation corporation = corporationRepo.findById(getCorporationIdByStockId(stockId))
                 .orElseThrow(() -> new IllegalArgumentException("Corporation not found"));
@@ -1452,21 +1989,62 @@ public void scheduledRetryFailedCompensations() {
                     BigDecimal unpaidAmount = compensation.getCompensationAmount().subtract(paidAmount);
                     
                     try {
-                        MemberAccountClient.DepositRequest request = new MemberAccountClient.DepositRequest(
-                                compensation.getMemberAccountId(),
-                                unpaidAmount,
-                                "상장폐지 보상금 거래소 지원금 지급"
-                        );
-                        MemberAccountClient.DepositResult result = memberAccountClient.deposit(request);
+                        String accountNumber = accountNumberMap.get(compensation.getMemberAccountId());
+                        if (accountNumber == null) {
+                            log.error("계좌번호를 찾을 수 없음: memberAccountId={}", compensation.getMemberAccountId());
+                            compensation.setStatus(CompensationStatus.FAILED);
+                            compensationRepo.save(compensation);
+                            continue;
+                        }
                         
-                        if (result.success()) {
+                        // AccountList 조회하여 계좌 타입 확인
+                        AccountList accountList = accountListRepo.findByAccountNumber(accountNumber)
+                                .orElse(null);
+                        
+                        if (accountList == null) {
+                            log.error("계좌 정보를 찾을 수 없음: accountNumber={}", accountNumber);
+                            compensation.setStatus(CompensationStatus.FAILED);
+                            compensationRepo.save(compensation);
+                            continue;
+                        }
+                        
+                        // 계좌 타입에 따라 다른 처리
+                        boolean success = false;
+                        
+                        if (accountList.getType() == AccountType.MEMBER) {
+                            MemberAccountClient.DepositRequest request = new MemberAccountClient.DepositRequest(
+                                    unpaidAmount.longValue()
+                            );
+                            MemberAccountClient.DepositResult result = memberAccountClient.depositByAccountNumber(
+                                    accountNumber,
+                                    request
+                            );
+                            success = result.success();
+                            
+                        } else if (accountList.getType() == AccountType.CORPORATION) {
+                            CorporationAccount targetCorpAccount = corporationAccountRepo.findByAccountNumber(accountNumber)
+                                    .orElse(null);
+                            
+                            if (targetCorpAccount != null) {
+                                targetCorpAccount.deposit(unpaidAmount.toBigInteger());
+                                corporationAccountRepo.save(targetCorpAccount);
+                                success = true;
+                                log.info("기업 계좌 입금 완료 (거래소 지급): accountNumber={}, amount={}", accountNumber, unpaidAmount);
+                            } else {
+                                log.error("기업 계좌를 찾을 수 없음: accountNumber={}", accountNumber);
+                            }
+                        } else {
+                            log.error("지원하지 않는 계좌 타입: type={}, accountNumber={}", accountList.getType(), accountNumber);
+                        }
+                        
+                        if (success) {
                             compensation.setStatus(CompensationStatus.COMPLETED);
                             compensation.setProcessedAt(LocalDateTime.now());
                             compensation.setProcessedBy(UUID.fromString("00000000-0000-0000-0000-000000000000"));
                             compensationRepo.save(compensation);
                         } else {
-                            log.error("거래소 지급 실패: accountId={}, message={}", 
-                                    compensation.getMemberAccountId(), result.message());
+                            log.error("거래소 지급 실패: accountId={}, type={}", 
+                                    compensation.getMemberAccountId(), accountList.getType());
                             compensation.setStatus(CompensationStatus.FAILED);
                             compensationRepo.save(compensation);
                         }
@@ -1755,5 +2333,181 @@ public void scheduledRetryFailedCompensations() {
                 .unpaidAmount(totalAmount.subtract(paidAmount))
                 .status(isCompleted ? "COMPLETED" : "IN_PROGRESS")
                 .build();
+    }
+    
+    /**
+     * GPT 분석 결과에서 상장폐지 사유 추출 및 매핑
+     */
+    private DelistingReason extractAndMapDelistingReason(UUID stockId) {
+        String gptReason = extractDelistingReasonFromGpt(stockId);
+        return mapToDelistingReason(gptReason);
+    }
+    
+    /**
+     * GPT 분석 결과에서 reason 추출
+     */
+    private String extractDelistingReasonFromGpt(UUID stockId) {
+        try {
+            GptAnalysisResult latestAnalysis = gptAnalysisService.getLatestAnalysisResult(stockId);
+            if (latestAnalysis != null && latestAnalysis.getAnalysisReasoning() != null) {
+                return latestAnalysis.getAnalysisReasoning();
+            }
+        } catch (Exception e) {
+            log.warn("GPT 분석 결과 조회 실패: stockId={}", stockId, e);
+        }
+        return null;
+    }
+    
+    /**
+     * String을 DelistingReason enum으로 매핑
+     */
+    private DelistingReason mapToDelistingReason(String gptReason) {
+        if (gptReason == null) {
+            return DelistingReason.FINANCIAL_DISTRESS;  // 기본값
+        }
+        
+        String lowerReason = gptReason.toLowerCase();
+        
+        if (lowerReason.contains("재무") || lowerReason.contains("매출") || lowerReason.contains("순이익")) {
+            return DelistingReason.FINANCIAL_DISTRESS;
+        } else if (lowerReason.contains("거래량") || lowerReason.contains("거래")) {
+            return DelistingReason.LOW_TRADING_VOLUME;
+        } else if (lowerReason.contains("법규") || lowerReason.contains("위반")) {
+            return DelistingReason.REGULATORY_VIOLATION;
+        } else if (lowerReason.contains("제출") || lowerReason.contains("지연")) {
+            return DelistingReason.REPORT_DELAY;
+        } else if (lowerReason.contains("부도")) {
+            return DelistingReason.BANKRUPTCY;
+        } else {
+            return DelistingReason.FINANCIAL_DISTRESS;  // 기본값
+        }
+    }
+    
+    /**
+     * DELISTING_NOTICE 상태인 주식을 자동으로 DELISTED로 전환 (미사용 - 관리자가 수동 실행)
+     * 흐름: DELISTING_NOTICE → DELISTED
+     */
+    @Transactional
+    public void processAutoDelistingProcess() {
+        // 자동 전환 제거: 관리자가 수동으로 executeDelisting 실행
+        log.debug("상장폐지 절차는 관리자가 수동으로 실행해야 합니다");
+    }
+    
+    /**
+     * DELISTING_RISK 상태인 주식 중 3분 이상 지난 것을 자동으로 DELISTING_NOTICE로 전환
+     * 흐름: WARNING → DELISTING_NOTICE → DELISTING_PROCESS → DELISTED
+     */
+    @Transactional
+    public void processAutoDelisting() {
+        try {
+            // DELISTING_RISK 상태인 모든 주식 조회
+            List<Stock> atRiskStocks = stockRepo.findByStatus(Stock.Status.DELISTING_RISK);
+            
+            if (atRiskStocks.isEmpty()) {
+                log.debug("자동 상장폐지 진행 대상 없음");
+                return;
+            }
+            
+            int processedCount = 0;
+            
+            for (Stock stock : atRiskStocks) {
+                try {
+                    // 이 주식의 최신 위반 기록 조회
+                    List<DelistingViolation> violations = violationRepo
+                            .findByStockIdAndIsResolvedFalse(stock.getId());
+                    
+                    if (violations.isEmpty()) {
+                        log.debug("위반 기록 없음: stockId={}", stock.getId());
+                        continue;
+                    }
+                    
+                    // 가장 오래된 해결되지 않은 위반 기록
+                    DelistingViolation oldestViolation = violations.stream()
+                            .min(Comparator.comparing(DelistingViolation::getViolationDate))
+                            .orElse(null);
+                    
+                    if (oldestViolation == null) {
+                        continue;
+                    }
+                    
+                    // 위반 발생 후 3분 지났는지 확인
+                    LocalDateTime threeMinutesAgo = LocalDateTime.now().minusMinutes(3);
+                    
+                    if (oldestViolation.getViolationDate().isBefore(threeMinutesAgo)) {
+                        log.info("3분 유예기간 경과: stockId={}, violationDate={}, 전환 대상", 
+                                stock.getId(), oldestViolation.getViolationDate());
+                        
+                        // 현재 stage 확인
+                        DelistingStage currentStage = stock.getDelistingStage() != null ? stock.getDelistingStage() : DelistingStage.WARNING;
+                        
+                        // WARNING → DELISTING_NOTICE로 전환 (예고 발행)
+                        if (currentStage == DelistingStage.WARNING) {
+                            validateAndAutoSetDelistingStage(currentStage, DelistingStage.DELISTING_NOTICE, stock);
+                            
+                            stock.updateStatus(Stock.Status.DELISTING_NOTICE);
+                            stock.setDelistingStage(DelistingStage.DELISTING_NOTICE);
+                            stock.setDelistingNoticeDate(LocalDateTime.now());
+                            stockRepo.save(stock);
+                            
+                            // 이력 기록
+                            recordHistory(stock.getId(), ActionType.STAGE_CHANGE, 
+                                         DelistingStage.WARNING, DelistingStage.DELISTING_NOTICE,
+                                         "3분 유예기간 경과 - 예고 발행", 
+                                         oldestViolation.getId().toString(), null);
+                            
+                            processedCount++;
+                            log.info("자동 예고 발행 완료: stockId={}", stock.getId());
+                        }
+                    }
+                    
+                } catch (Exception e) {
+                    log.error("자동 예고 발행 실패: stockId={}", stock.getId(), e);
+                }
+            }
+            
+            if (processedCount > 0) {
+                log.info("자동 예고 발행 완료: {} 개 주식", processedCount);
+            }
+            
+        } catch (Exception e) {
+            log.error("자동 예고 발행 처리 중 오류 발생", e);
+        }
+    }
+
+    /**
+     * 계좌번호 조회
+     * 
+     * 기업도 IPO를 통해 주식을 보유할 수 있으므로, corporation_account에서 먼저 조회하고
+     * 없으면 ordering-service의 member_account를 조회합니다.
+     */
+    private String findAccountNumber(UUID accountId) {
+        // 1. corporation_account에서 먼저 조회 (기업이 주식 보유 가능)
+        try {
+            CorporationAccount corpAccount = corporationAccountRepo.findById(accountId)
+                    .orElse(null);
+            if (corpAccount != null) {
+                log.info("기업 계좌 발견: accountId={}, accountNumber={}", accountId, corpAccount.getAccountNumber());
+                return corpAccount.getAccountNumber();
+            }
+        } catch (Exception e) {
+            log.debug("기업 계좌 조회 실패: accountId={}", accountId);
+        }
+        
+        // 2. ordering-service에서 member_account 조회
+        try {
+            Map<String, Object> response = memberAccountClient.getAccountNumber(accountId);
+            if (response != null && Boolean.TRUE.equals(response.get("success"))) {
+                String accountNumber = (String) response.get("accountNumber");
+                if (accountNumber != null && !accountNumber.isEmpty()) {
+                    log.info("회원 계좌 발견: accountId={}, accountNumber={}", accountId, accountNumber);
+                    return accountNumber;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("회원 계좌 조회 실패: accountId={}, error={}", accountId, e.getMessage());
+        }
+        
+        log.warn("계좌 조회 실패: accountId={}", accountId);
+        return null;
     }
 }

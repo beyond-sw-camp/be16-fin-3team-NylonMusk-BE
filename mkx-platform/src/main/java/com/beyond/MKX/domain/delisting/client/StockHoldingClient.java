@@ -1,5 +1,6 @@
 package com.beyond.MKX.domain.delisting.client;
 
+import com.beyond.MKX.common.apiResponse.CommonDTO;
 import com.beyond.MKX.domain.delisting.dto.StockHoldingResDto;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,8 +19,8 @@ public interface StockHoldingClient {
      * 특정 ticker의 모든 보유자 조회
      * 
      * @param ticker 주식 티커
-     * @return 해당 주식을 보유한 모든 계좌 정보
+     * @return CommonDTO로 감싸진 해당 주식을 보유한 모든 계좌 정보
      */
     @GetMapping("/api/internal/stock-holdings/ticker/{ticker}")
-    List<StockHoldingResDto> getAllHoldersByTicker(@PathVariable("ticker") String ticker);
+    CommonDTO<List<StockHoldingResDto>> getAllHoldersByTicker(@PathVariable("ticker") String ticker);
 }

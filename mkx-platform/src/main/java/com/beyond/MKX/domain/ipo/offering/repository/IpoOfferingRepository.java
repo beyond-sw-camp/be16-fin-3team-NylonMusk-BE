@@ -13,6 +13,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -72,5 +73,17 @@ public interface IpoOfferingRepository extends JpaRepository<IpoOffering, UUID> 
                  and :now between o.subscriptionStart and o.subscriptionEnd
             """)
     Page<IpoOffering> findCurrentlySubscribable(@Param("now") LocalDateTime now, Pageable pageable);
+
+    // 수요예측 가능한 공모 목록 조회
+    List<IpoOffering> findAllByIpoOfferingStatus(IpoOfferingStatus status);
+
+    List<IpoOffering> findAllByIpoOfferingStatusAndBookBuildingEndBefore(
+            IpoOfferingStatus ipoOfferingStatus,
+            LocalDateTime bookBuildingEnd
+    );
+
+    List<IpoOffering> findAllByIpoOfferingStatusAndBookBuildingStartBefore(IpoOfferingStatus status, LocalDateTime now);
+    List<IpoOffering> findAllByIpoOfferingStatusAndSubscriptionStartBefore(IpoOfferingStatus status, LocalDateTime now);
+    List<IpoOffering> findAllByIpoOfferingStatusAndSubscriptionEndBefore(IpoOfferingStatus status, LocalDateTime now);
 
 }

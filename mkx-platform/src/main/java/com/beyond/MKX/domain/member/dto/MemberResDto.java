@@ -25,6 +25,11 @@ public class MemberResDto {
     private String brokerageName;
     private String accountNumber;   // 추가: 개인 계좌번호
     private String accountStatus;   // 추가: 개인 계좌 상태
+    private UUID accountId;         // 추가: 개인 계좌 ID
+    private UUID accountBrokerageId;// 추가: 계좌 소속 증권사 ID
+    private Long accountBalance;    // 추가: 잔고
+    private Long accountAvailable;  // 추가: 출금 가능 금액
+    private LocalDateTime accountCreatedAt; // 추가: 계좌 생성일
     private LocalDateTime createdAt;
 
     public static MemberResDto from(Member member) {

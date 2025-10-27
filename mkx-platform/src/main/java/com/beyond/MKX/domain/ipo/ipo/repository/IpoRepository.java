@@ -82,4 +82,6 @@ public interface IpoRepository extends JpaRepository<Ipo, UUID> {
 
     @Query("select i from Ipo i join fetch i.corporation c where c.id = :corporationId order by i.requestedAt desc")
     List<Ipo> findByCorporationIdOrderByRequestedAtDesc(@Param("corporationId") UUID corporationId);
+
+    boolean existsByCorporation_IdAndStatusIn(UUID corporationId, Collection<IpoStatus> statuses);
 }

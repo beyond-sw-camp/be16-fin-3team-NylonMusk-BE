@@ -1,4 +1,4 @@
-package com.beyond.MKX.domain.ipo.common.config;
+package com.beyond.MKX.domain.ipo.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

@@ -1,5 +1,6 @@
 package com.beyond.MKX.domain.ipo.offering.dto;
 
+import jakarta.persistence.Column;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -51,6 +52,14 @@ public class IpoOfferingReqDTO {
     @NotNull
     @DecimalMin("0.00") @DecimalMax("100.00")
     private BigDecimal depositRate;
+
+    // 수요예측 시작 시간
+    @Column(nullable = true)
+    private LocalDateTime bookBuildingStart;
+
+    // 수요예측 마감 시간
+    @Column(nullable = true)
+    private LocalDateTime bookBuildingEnd;
 
 //    /* 청약 경쟁률 */
 //    // 사후 집계값이지만 DTO에 두면 업데이트용 엔드포인트에서 활용

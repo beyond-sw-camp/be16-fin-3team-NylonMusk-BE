@@ -74,6 +74,15 @@ public class IpoService {
         Corporation corporation = corporationRepository.findById(corp.getId())
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 기업입니다."));
 
+        boolean hasActiveIpo = ipoRepository.existsByCorporation_IdAndStatusIn(
+                corporation.getId(),
+                List.of(IpoStatus.REQUESTED, IpoStatus.UNDER_REVIEW, IpoStatus.APPROVED, IpoStatus.LISTED)
+                );
+
+        if (hasActiveIpo) {
+            throw new IllegalArgumentException("이미 상장이 진행됐거나 진행 중인 기업입니다. 진행 중이라면 기존 요청을 먼저 처리하세요.");
+        }
+
         Ipo ipo = ipoCreateReqDTO.toEntity(corporation);
         ipoRepository.save(ipo);
 

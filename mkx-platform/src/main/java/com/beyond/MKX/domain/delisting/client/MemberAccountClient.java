@@ -1,10 +1,13 @@
 package com.beyond.MKX.domain.delisting.client;
 
 import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import java.math.BigDecimal;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -16,25 +19,33 @@ import java.util.UUID;
  * @author MKX Platform Team
  * @since 2025-01-15
  */
-@FeignClient(name = "ordering-service", path = "/api/internal/accounts", contextId = "delistingMemberAccountClient")
+@FeignClient(name = "ordering-service", path = "/api/internal/member-accounts", contextId = "delistingMemberAccountClient")
 public interface MemberAccountClient {
 
     /**
-     * 회원 계좌 입금
+     * 계좌번호 조회 (내부용)
      * 
+     * @param memberAccountId 회원 계좌 ID
+     * @return 계좌번호
+     */
+    @GetMapping("/{memberAccountId}/account-number")
+    Map<String, Object> getAccountNumber(@PathVariable UUID memberAccountId);
+
+    /**
+     * 회원 계좌 입금 (내부용) - 계좌번호 기준
+     * 
+     * @param accountNumber 계좌번호
      * @param request 입금 요청 정보
      * @return 입금 결과
      */
-    @PostMapping("/deposit")
-    DepositResult deposit(@RequestBody DepositRequest request);
+    @PostMapping("/by-number/{accountNumber}/deposit")
+    DepositResult depositByAccountNumber(@PathVariable String accountNumber, @RequestBody DepositRequest request);
 
     /**
      * 입금 요청 DTO
      */
     record DepositRequest(
-            UUID memberAccountId,
-            BigDecimal amount,
-            String description
+            Long amount
     ) {}
 
     /**
@@ -44,5 +55,14 @@ public interface MemberAccountClient {
             boolean success,
             String message,
             BigDecimal newBalance
+    ) {}
+    
+    /**
+     * 계좌번호 조회 결과 DTO
+     */
+    record AccountNumberResult(
+            boolean success,
+            String message,
+            String accountNumber
     ) {}
 }

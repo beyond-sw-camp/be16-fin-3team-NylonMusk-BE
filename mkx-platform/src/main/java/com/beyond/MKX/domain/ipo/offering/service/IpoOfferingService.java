@@ -49,9 +49,8 @@ public class IpoOfferingService {
         /** 이전 차수 ‘미종결’이 남아 있으면 금지 */
         boolean priorUnfinished = ipoOfferingRepository.existsByIpo_IdAndIpoOfferingStatusIn(
                 ipo.getId(),
-                java.util.EnumSet.of(
+                EnumSet.of(
                         IpoOfferingStatus.SCHEDULED, IpoOfferingStatus.OPEN
-                        // CLOSED 이후 공모를 진행 가능하게 할 것인지, 공모가 확정/배정 이후 공모를 진행 가능하게 할 것인지 팀원과 협의하기!
                 )
         );
         if (priorUnfinished) {
@@ -63,7 +62,10 @@ public class IpoOfferingService {
             throw new IllegalStateException("해당 IPO는 공모 미사용(isOffering=false)으로 설정되어 있어 공모를 생성할 수 없습니다.");
         }
 
-        if (ipo.getStatus() == IpoStatus.LISTED || ipo.getStatus() == IpoStatus.REJECTED || ipo.getStatus() == IpoStatus.CANCELLED) {
+        // ✅ LISTED: 이미 상장 완료 → 공모 생성 불가
+        // ✅ REJECTED: 심사 거절 → 공모 생성 불가
+        // ⚠️ CANCELLED: 이전 공모 취소 가능성 → 재공모 허용
+        if (ipo.getStatus() == IpoStatus.LISTED || ipo.getStatus() == IpoStatus.REJECTED) {
             throw new IllegalArgumentException("해당 상장(ipo) 상태에서는 공모를 생성할 수 없습니다." + ipo.getStatus());
         }
         // 2) 공모 차수 중복 방지 (ipo_id, round_no)
@@ -117,6 +119,8 @@ public class IpoOfferingService {
                 .depositRate(offeringReqDTO.getDepositRate())
                 .competitionRatio(BigDecimal.ZERO)
                 .ipoOfferingStatus(IpoOfferingStatus.SCHEDULED)
+                .bookBuildingStart(offeringReqDTO.getBookBuildingStart())
+                .bookBuildingEnd(offeringReqDTO.getBookBuildingEnd())
                 .build();
 
         return ipoOfferingRepository.save(ipoOffering);
@@ -269,100 +273,6 @@ public class IpoOfferingService {
         return ipoOffering;
     }
 
-    @Transactional
-    public IpoOffering autoFixOfferPrice(UUID offeringId, double T) {
-        IpoOffering ipoOffering = ipoOfferingRepository.findByIdForUpdate(offeringId)
-                .orElseThrow(() -> new IllegalArgumentException("공모를 찾을 수 없습니다."));
-
-        if (ipoOffering.getIpoOfferingStatus() != IpoOfferingStatus.CLOSED) {
-            throw new IllegalStateException("확정공모가는 CLOSED 상태에서만 확정할 수 있습니다.");
-        }
-
-        long totalApplied = subscriptionRepository
-                .sumAppliedQuantityByOffering(offeringId, SubscriptionStatus.PAID);
-
-        Long quantityObj = ipoOffering.getOfferQuantity();
-        if (quantityObj == null || quantityObj <= 0) {
-            throw new IllegalArgumentException("공모 물량이 0 이하입니다.");
-        }
-        long quantity = quantityObj;
-
-        long min = ipoOffering.getPriceBandMin();
-        long max = ipoOffering.getPriceBandMax();
-        long face = ipoOffering.getIpo().getFaceValue();
-
-        double r = (double) totalApplied / (double) quantity;
-
-        double tThreshold = (T <= 1.0) ? 3.0 : T;
-        long price = (r < 1.0) ? min
-                : (r >= tThreshold) ? max
-                : BigDecimal.valueOf(min + (max - min) * (r - 1) / (tThreshold - 1))
-                .setScale(0, RoundingMode.DOWN)
-                .longValueExact();
-
-        if (price < face) price = face;
-
-        ipoOffering.setCompetitionRatio(BigDecimal.valueOf(r).setScale(2, RoundingMode.HALF_UP)); // 전용 세터 권장
-        ipoOffering.fixOfferPrice(price, min, max, face);
-
-        return ipoOffering;
-    }
-
-    @Transactional
-    public IpoOffering autoFixOfferPriceRandom(UUID offeringId) {
-        IpoOffering ipoOffering = ipoOfferingRepository.findByIdForUpdate(offeringId)
-                .orElseThrow(() -> new IllegalArgumentException("공모를 찾을 수 없습니다."));
-
-        if (ipoOffering.getIpoOfferingStatus() != IpoOfferingStatus.SCHEDULED) {
-            throw new IllegalStateException("확정공모가는 SCHEDULED 상태에서만 확정할 수 있습니다.");
-        }
-
-        long totalApplied = subscriptionRepository
-                .sumAppliedQuantityByOffering(offeringId, SubscriptionStatus.PAID);
-
-        Long quantityObj = ipoOffering.getOfferQuantity();
-        if (quantityObj == null || quantityObj <= 0) {
-            throw new IllegalArgumentException("공모 물량이 0 이하입니다.");
-        }
-        long quantity = quantityObj;
-
-        long min = ipoOffering.getPriceBandMin();
-        long max = ipoOffering.getPriceBandMax();
-        long face = ipoOffering.getIpo().getFaceValue();
-
-        // 1) 경쟁률 랜덤 생성 (예: 0.5 ~ 4.0 구간) -> 추후 수요예측모델
-        //    필요시 구간만 바꿔 쓰시면 됩니다.
-        double r = ThreadLocalRandom.current().nextDouble(0.5, 4.0);
-
-
-        // 2) 랜덤 경쟁률 기반 임시 가격 산정 규칙(간단형)
-        //    - r < 1  : 최저가(수요 부족 가정)
-        //    - 1 ≤ r < 3: min~max 선형 보간
-        //    - r ≥ 3  : 최고가(수요 과열 가정)
-        long price;
-        if (r < 1.0) {
-            price = min;
-        } else if (r >= 3.0) {
-            price = max;
-        } else {
-            double t = (r - 1.0) / (3.0 - 1.0);           // 0~1로 정규화
-            double p = min + (max - min) * t;             // 선형보간
-            price = java.math.BigDecimal.valueOf(p)
-                    .setScale(0, java.math.RoundingMode.DOWN)
-                    .longValueExact();
-        }
-
-        // 3) 액면가 하한 보정
-        if (price < face) price = face;
-
-        // 4) 경쟁률/가격 확정 → PRICE_FIXED 전환
-        ipoOffering.setCompetitionRatio(java.math.BigDecimal
-                .valueOf(r).setScale(2, java.math.RoundingMode.HALF_UP));
-        ipoOffering.fixOfferPrice(price, min, max, face);
-
-        return ipoOffering;
-    }
-
     @Transactional(readOnly = true)
     public IpoOfferingResDTO findById(UUID ipoOfferingId) {
         IpoOffering ipoOffering = ipoOfferingRepository.findById(ipoOfferingId)
@@ -391,6 +301,13 @@ public class IpoOfferingService {
         return page.map(e -> IpoOfferingListDTO.from(e, clock));
     }
 
-
-
+    @Transactional
+    public IpoOffering startBookBuilding(UUID offeringId) {
+        IpoOffering offering = ipoOfferingRepository.findByIdForUpdate(offeringId)
+                .orElseThrow(() -> new IllegalArgumentException("공모 없음"));
+        if (offering.getIpoOfferingStatus() != IpoOfferingStatus.SCHEDULED)
+            throw new IllegalStateException("SCHEDULED 상태에서만 수요예측 시작 가능");
+        offering.setIpoOfferingStatus(IpoOfferingStatus.BOOK_BUILDING);
+        return offering;
+    }
 }

@@ -28,4 +28,20 @@ public interface NewsArticleRepository extends JpaRepository<NewsArticle, UUID> 
             @Param("q") String q,
             Pageable pageable
     );
+
+    @Query("""
+            select a from NewsArticleStock s
+            join s.article a
+            where s.stockId = :stockId
+              and (
+                    :q is null or lower(a.title) like lower(concat('%', :q, '%'))
+                 or lower(a.description) like lower(concat('%', :q, '%'))
+              )
+            order by a.publishedAt desc
+            """)
+    Page<NewsArticle> searchByStockId(
+            @Param("stockId") UUID stockId,
+            @Param("q") String q,
+            Pageable pageable
+    );
 }

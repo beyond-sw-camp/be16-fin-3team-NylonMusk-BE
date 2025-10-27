@@ -136,8 +136,8 @@ public class RssNewsCrawlerService {
 
                 // author 정규화: 언론사명과 동일하거나 브랜드명이면 무시 후 본문/제목에서 기자명 추출 시도
                 author = normalizeAuthor(author, publisher, description, title);
-                // 매일경제/한국경제는 페이지에서 author 메타/바이라인 추가 시도
-                if (author == null && ("매일경제".equals(publisher) || "한국경제".equals(publisher))) {
+                // 매일경제/한국경제/조선일보는 페이지에서 author 메타/바이라인 추가 시도
+                if (author == null && ("매일경제".equals(publisher) || "한국경제".equals(publisher) || "조선일보".equals(publisher))) {
                     author = fetchAuthorFromArticle(link);
                     if (author != null && author.length() > 100) {
                         author = author.substring(0, 100);
@@ -382,7 +382,7 @@ public class RssNewsCrawlerService {
         return null;
     }
 
-    // 매일경제/한국경제 기사 페이지에서 기자명 추출(메타/바이라인)
+    // 매일경제/한국경제/조선일보 기사 페이지에서 기자명 추출(메타/바이라인)
     private String fetchAuthorFromArticle(String link) {
         try {
             Document doc = Jsoup.connect(link)
@@ -391,13 +391,17 @@ public class RssNewsCrawlerService {
                     .timeout(5000)
                     .get();
             // 1) 메타 태그 시도
-            Element meta = doc.selectFirst("meta[name=byline], meta[property=article:author]");
+            Element meta = doc.selectFirst(
+                    "meta[name=byline], meta[property=article:author], meta[name=author], meta[property=og:author]"
+            );
             if (meta != null) {
                 String a = meta.hasAttr("content") ? meta.attr("content") : meta.attr("value");
                 if (a != null && !a.isBlank() && !isBrandName(a)) return a.trim();
             }
             // 2) 바이라인/기자 요소 시도
-            Element by = doc.selectFirst(".author, .byline, .reporter, .journalist, .writer, [class*=reporter]");
+            Element by = doc.selectFirst(
+                    ".author, .byline, .reporter, .journalist, .writer, [class*=reporter], [class*=author], [class*=byline], [itemprop=author], [rel=author]"
+            );
             if (by != null) {
                 String a = by.text();
                 if (a != null && !a.isBlank() && !isBrandName(a)) return a.trim();

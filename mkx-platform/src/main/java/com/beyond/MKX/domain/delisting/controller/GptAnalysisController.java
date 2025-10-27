@@ -159,7 +159,7 @@ public class GptAnalysisController {
             return ApiResponse.ok(comprehensiveResult, "종합 GPT 분석 결과 조회 성공");
             
         } catch (Exception e) {
-            return ApiResponse.internalServerError(null, "종합 분석 결과 조회 실패: " + e.getMessage());
+            return ApiResponse.ok(null, "종합 분석 결과 조회 실패: " + e.getMessage());
         }
     }
 

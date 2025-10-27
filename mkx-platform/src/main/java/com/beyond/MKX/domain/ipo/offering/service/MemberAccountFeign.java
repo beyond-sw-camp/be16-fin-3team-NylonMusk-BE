@@ -4,6 +4,7 @@ import com.beyond.MKX.common.dto.AmountRequest;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.math.BigInteger;
@@ -13,9 +14,9 @@ import java.util.UUID;
 public interface MemberAccountFeign {
     @PostMapping("/api/internal/member-accounts/{accountNumber}/withdraw")
     void withdraw(@PathVariable String accountNumber,
-                  @RequestParam AmountRequest request);
+                  @RequestBody AmountRequest request);
 
     @PostMapping("/api/internal/member-accounts/{accountNumber}/deposit")
     void deposit(@PathVariable String accountNumber,
-                 @RequestParam AmountRequest request);
+                 @RequestBody AmountRequest request);
 }

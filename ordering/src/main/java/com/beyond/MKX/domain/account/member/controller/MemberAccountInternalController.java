@@ -1,14 +1,13 @@
 package com.beyond.MKX.domain.account.member.controller;
 
+import com.beyond.MKX.domain.account.member.dto.AmountRequest;
 import com.beyond.MKX.domain.account.member.dto.MemberAccountSummary;
+import com.beyond.MKX.domain.account.member.service.MemberAccountService;
 import com.beyond.MKX.domain.assets.entity.MemberAccount;
 import com.beyond.MKX.domain.assets.repository.MemberAccountRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -24,6 +23,7 @@ import java.util.UUID;
 public class MemberAccountInternalController {
 
     private final MemberAccountRepository repository;
+    private final MemberAccountService service;
 
     /**
      * 회원의 최근 계좌 요약 조회
@@ -94,4 +94,21 @@ public class MemberAccountInternalController {
             Long availableBalance,
             LocalDateTime createdAt
     ) {}
+
+    // 내부 시스템용 자금 이동 API 추가 (mkx-platform → ordering Feign 호출용)
+
+    @PostMapping("/{accountNumber}/withdraw")
+    public ResponseEntity<Long> internalWithdraw(@PathVariable String accountNumber,
+                                                 @RequestBody AmountRequest req) {
+        Long balance = service.withdraw(accountNumber, req.getAmount());
+        return ResponseEntity.ok(balance);
+    }
+
+    @PostMapping("/{accountNumber}/deposit")
+    public ResponseEntity<Long> internalDeposit(@PathVariable String accountNumber,
+                                                @RequestBody AmountRequest req) {
+        Long balance = service.deposit(accountNumber, req.getAmount());
+        return ResponseEntity.ok(balance);
+    }
+
 }

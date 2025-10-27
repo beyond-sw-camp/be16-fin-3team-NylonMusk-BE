@@ -34,7 +34,9 @@ public class StockHoldingService {
      */
     public List<StockHoldingResDTO> getAllHoldersByTicker(String ticker) {
         List<StockHolding> holdings = stockHoldingRepository.findAllByTicker(ticker);
-        return holdings.stream().map(StockHoldingResDTO::from).toList();
+        return holdings.stream()
+                .map(holding -> StockHoldingResDTO.from(holding))
+                .toList();
     }
 
     public AccountIdResDTO getCorporationAccountId(UUID corpId) {

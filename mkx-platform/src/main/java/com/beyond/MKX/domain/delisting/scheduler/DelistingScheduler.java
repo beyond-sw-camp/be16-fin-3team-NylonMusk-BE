@@ -52,6 +52,26 @@ public class DelistingScheduler {
             log.error("일일 상장폐지 체크 중 오류 발생", e);
         }
     }
+    
+    /**
+     * 매 분마다 상장폐지 자동 진행 체크
+     * - DELISTING_RISK: 3분 후 자동으로 DELISTING_NOTICE (예고 발행)
+     * - DELISTING_NOTICE: 관리자가 수동으로 executeDelisting 실행 (환불 처리)
+     */
+    @Scheduled(fixedRate = 60000) // 1분마다
+    public void autoDelistingProcessCheck() {
+        log.debug("상장폐지 자동 진행 체크 시작");
+        
+        try {
+            // DELISTING_RISK → DELISTING_NOTICE 전환 (3분 후)
+            delistingService.processAutoDelisting();
+            
+            // DELISTING_NOTICE 이후는 관리자가 수동으로 처리
+            
+        } catch (Exception e) {
+            log.error("상장폐지 자동 진행 체크 중 오류 발생", e);
+        }
+    }
 
     /**
      * 매주 월요일 오전 10시에 제출 서류 지연 체크

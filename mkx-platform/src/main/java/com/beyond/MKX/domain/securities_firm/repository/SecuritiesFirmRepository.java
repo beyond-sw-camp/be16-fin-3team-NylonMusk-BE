@@ -26,12 +26,44 @@ public interface SecuritiesFirmRepository extends JpaRepository<SecuritiesFirm, 
     Page<SecuritiesFirm> findAllByStatus(SecuritiesFirm.Status status, Pageable pageable);
 
     //  검색 기능 포함 페이징 (국문명 또는 영문명)
-    @Query("SELECT s FROM SecuritiesFirm s WHERE s.status = :status " +
+    @Query("SELECT s FROM SecuritiesFirm s WHERE s.status = :status AND s.deletedAt IS NULL " +
             "AND (:search IS NULL OR LOWER(s.nameKo) LIKE LOWER(CONCAT('%', :search, '%')) " +
             "OR LOWER(s.nameEng) LIKE LOWER(CONCAT('%', :search, '%')))")
     Page<SecuritiesFirm> searchByStatusAndName(
             @Param("status") SecuritiesFirm.Status status,
             @Param("search") String search,
+            Pageable pageable
+    );
+
+    @Query(
+            value = """
+                select s
+                from SecuritiesFirm s
+                where s.deletedAt is null
+                  and (:status is null or s.status = :status)
+                  and (
+                       :q is null
+                    or lower(s.nameKo) like lower(concat('%', :q, '%'))
+                    or lower(s.nameEng) like lower(concat('%', :q, '%'))
+                    or s.regNo like concat('%', :q, '%')
+                  )
+                """,
+            countQuery = """
+                select count(s)
+                from SecuritiesFirm s
+                where s.deletedAt is null
+                  and (:status is null or s.status = :status)
+                  and (
+                       :q is null
+                    or lower(s.nameKo) like lower(concat('%', :q, '%'))
+                    or lower(s.nameEng) like lower(concat('%', :q, '%'))
+                    or s.regNo like concat('%', :q, '%')
+                  )
+                """
+    )
+    Page<SecuritiesFirm> searchAdmin(
+            @Param("status") SecuritiesFirm.Status status,
+            @Param("q") String q,
             Pageable pageable
     );
 }

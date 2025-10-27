@@ -7,6 +7,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "securities_firm")
@@ -74,6 +75,10 @@ public class SecuritiesFirm extends BaseIdAndTimeEntity {
     @Column(length = 255)
     private String rejectReason;
 
+    // 소프트 딜리트 시각 (null이면 활성)
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
     public enum Status {
         PENDING, ACTIVE, REJECTED, DELISTED
     }
@@ -86,5 +91,9 @@ public class SecuritiesFirm extends BaseIdAndTimeEntity {
     public void reject(String reason) {
         this.status = Status.REJECTED;
         this.rejectReason = reason;
+    }
+
+    public void softDelete(LocalDateTime when) {
+        this.deletedAt = when;
     }
 }

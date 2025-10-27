@@ -60,11 +60,8 @@ public class IpoOffering extends BaseIdAndTimeEntity {
     private BigDecimal depositRate;
     /* 상태 */
     @Enumerated(EnumType.STRING)
+    @Column(length = 30, nullable = false)
     private IpoOfferingStatus ipoOfferingStatus;
-
-    /* 잔여 주식 배분 */
-    // TODO: 계좌 생성 이후 진행 할 예정
-
 
     /* 청약 경쟁률 */
     @Column(precision = 5, scale = 2, nullable = false)
@@ -78,8 +75,14 @@ public class IpoOffering extends BaseIdAndTimeEntity {
     @Column(name = "price_fixed_at")
     private LocalDateTime priceFixedAt;
 
-    /* 배정 방식 */
-    // TODO: 계좌 생성 이후 진행 할 예정
+    // 수요예측 시작 시간
+    @Column(nullable = true)
+    private LocalDateTime bookBuildingStart;
+
+    // 수요예측 마감 시간
+    @Column(nullable = true)
+    private LocalDateTime bookBuildingEnd;
+
 
     public void offeringOpen(java.time.LocalDateTime now) {
         if (this.ipoOfferingStatus != IpoOfferingStatus.PRICE_FIXED) {
@@ -101,8 +104,12 @@ public class IpoOffering extends BaseIdAndTimeEntity {
         this.competitionRatio = ratio.setScale(2, RoundingMode.HALF_UP);
     }
 
+    public void setIpoOfferingStatus(IpoOfferingStatus status) {
+        this.ipoOfferingStatus = status;
+    }
+
     public void fixOfferPrice(long price, long min, long max, long face) {
-        if (this.ipoOfferingStatus != IpoOfferingStatus.SCHEDULED) {
+        if (this.ipoOfferingStatus != IpoOfferingStatus.BOOK_BUILDING) {
             throw new IllegalStateException("SCHEDULED 에서만 가격 확정 가능");
         }
         if (price < face) throw new IllegalArgumentException("확정 공모가는 액면가(" + face + ") 이상이어야 합니다.");

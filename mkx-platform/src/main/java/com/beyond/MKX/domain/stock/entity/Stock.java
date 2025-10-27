@@ -99,6 +99,18 @@ public class Stock extends BaseIdAndTimeEntity {
         this.delistingNoticeDate = delistingNoticeDate;
     }
 
+    public void setDelistingExecutionDate(LocalDateTime delistingExecutionDate) {
+        this.delistingExecutionDate = delistingExecutionDate;
+    }
+
+    public void setDelistingStage(DelistingStage delistingStage) {
+        this.delistingStage = delistingStage;
+    }
+
+    public void setDelistingReason(DelistingReason delistingReason) {
+        this.delistingReason = delistingReason;
+    }
+
     public void softDelete(LocalDateTime deletedAt) {
         this.deletedAt = deletedAt;
     }

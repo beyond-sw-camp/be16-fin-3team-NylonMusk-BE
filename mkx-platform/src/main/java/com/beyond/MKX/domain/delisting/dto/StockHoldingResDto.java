@@ -12,6 +12,7 @@ import java.util.UUID;
 @Builder
 public record StockHoldingResDto(
         UUID memberAccountId,
+        String accountNumber,  // 계좌번호 추가
         UUID brokerageId,
         String ticker,
         Long totalQuantity,

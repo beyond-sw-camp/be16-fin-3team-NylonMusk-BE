@@ -70,11 +70,22 @@ public class IpoSubscriptionService {
         }
 
 //        3) 중복 청약 방지 (한 계좌당 한 회차의 공모 청약 가능)
-        boolean subscriptionExist = subscriptionRepository.existsByIpoOffering_IdAndAccountId(
-                subReqDto.ipoOfferingId(), subReqDto.accountId()
-        );
+        boolean subscriptionExist = false;
+        
+        if (subReqDto.investorType() == InvestorType.CORPORATION) {
+            // 기업 투자자: accountId로 중복 체크
+            subscriptionExist = subscriptionRepository.existsByIpoOffering_IdAndAccountId(
+                    subReqDto.ipoOfferingId(), subReqDto.accountId()
+            );
+        } else if (subReqDto.investorType() == InvestorType.INDIVIDUAL) {
+            // 개인 투자자: accountNumber로 중복 체크
+            subscriptionExist = subscriptionRepository.existsByIpoOffering_IdAndAccountNumber(
+                    subReqDto.ipoOfferingId(), subReqDto.accountNumber()
+            );
+        }
+        
         if (subscriptionExist) {
-            throw new IllegalArgumentException("해당 계좌로는 이미 공모 청약 신청이 되었습니다.");
+            throw new IllegalArgumentException("동일 계좌로 이미 청약하셨습니다.");
         }
 
 //        4) 수량 제약 (필수 : 최소 1개 이상, lotSize의 배수만큼 청약 신청 가능)

@@ -17,11 +17,24 @@ public class StockQueryService {
 
     public Page<StockListResDto> getStocks(String q, String status, Pageable pageable) {
         Stock.Status statusEnum = null;
+        Stock.Status excludeStatus = null;
+        
         if (status != null && !status.isBlank()) {
-            statusEnum = Stock.Status.valueOf(status.toUpperCase());
+            // DELISTED 제외 요청 처리 (!DELISTED)
+            if (status.equalsIgnoreCase("!DELISTED")) {
+                excludeStatus = Stock.Status.DELISTED;
+            } else {
+                statusEnum = Stock.Status.valueOf(status.toUpperCase());
+            }
         }
 
-        Page<Stock> page = stockRepository.search(statusEnum, emptyToNull(q), pageable);
+        Page<Stock> page;
+        if (excludeStatus != null) {
+            page = stockRepository.searchExcludingStatus(excludeStatus, emptyToNull(q), pageable);
+        } else {
+            page = stockRepository.search(statusEnum, emptyToNull(q), pageable);
+        }
+        
         return page.map(StockListResDto::from);
     }
 

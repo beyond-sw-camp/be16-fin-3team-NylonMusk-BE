@@ -15,21 +15,28 @@ import java.util.UUID;
 @Builder
 public class StockHoldingResDTO {
     private UUID memberAccountId;
+    private String accountNumber;  // 계좌번호 추가
     private UUID brokerageId;
     private String ticker;
     private Long totalQuantity;
     private Long availableQuantity;
     private Long totalPurchasePrice;
 
-    public static StockHoldingResDTO from(StockHolding e) {
+    public static StockHoldingResDTO from(StockHolding e, String accountNumber) {
         return StockHoldingResDTO.builder()
                 .memberAccountId(e.getMemberAccountId())
+                .accountNumber(accountNumber)
                 .brokerageId(e.getBrokerageId())
                 .ticker(e.getTicker())
                 .totalQuantity(e.getTotalQuantity())
                 .availableQuantity(e.getAvailableQuantity())
                 .totalPurchasePrice(e.getTotalPurchasePrice())
                 .build();
+    }
+
+    // 기존 메서드는 호환성을 위해 유지
+    public static StockHoldingResDTO from(StockHolding e) {
+        return from(e, null);
     }
 
 }

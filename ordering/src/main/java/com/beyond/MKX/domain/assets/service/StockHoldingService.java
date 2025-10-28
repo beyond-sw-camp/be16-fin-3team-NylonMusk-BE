@@ -7,7 +7,8 @@ import com.beyond.MKX.domain.assets.repository.StockHoldingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
+import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +27,16 @@ public class StockHoldingService {
     public List<StockHoldingResDTO> getMyStocks(UUID memberAccountId) {
         List<StockHolding> stockHoldingList = stockHoldingRepository.findAllByMemberAccountId(memberAccountId);
         return stockHoldingList.stream().map(StockHoldingResDTO::from).toList();
+    }
+
+    /**
+     * 특정 ticker의 모든 보유자 조회 (내부 API용)
+     */
+    public List<StockHoldingResDTO> getAllHoldersByTicker(String ticker) {
+        List<StockHolding> holdings = stockHoldingRepository.findAllByTicker(ticker);
+        return holdings.stream()
+                .map(holding -> StockHoldingResDTO.from(holding))
+                .toList();
     }
 
     public AccountIdResDTO getCorporationAccountId(UUID corpId) {

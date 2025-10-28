@@ -18,6 +18,7 @@ public class StockHoldingResDTO {
     private String accountNumber;  // 계좌번호 추가
     private UUID brokerageId;
     private String ticker;
+    private String nameKo; // 기업명 필드 추가
     private Long totalQuantity;
     private Long availableQuantity;
     private Long totalPurchasePrice;
@@ -28,6 +29,7 @@ public class StockHoldingResDTO {
                 .accountNumber(accountNumber)
                 .brokerageId(e.getBrokerageId())
                 .ticker(e.getTicker())
+                .nameKo(null) // StockHolding 엔티티에는 nameKo가 없으므로 null
                 .totalQuantity(e.getTotalQuantity())
                 .availableQuantity(e.getAvailableQuantity())
                 .totalPurchasePrice(e.getTotalPurchasePrice())

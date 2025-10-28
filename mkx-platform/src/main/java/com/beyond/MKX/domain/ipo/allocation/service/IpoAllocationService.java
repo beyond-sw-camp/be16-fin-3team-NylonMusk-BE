@@ -1,6 +1,7 @@
 package com.beyond.MKX.domain.ipo.allocation.service;
 
 import com.beyond.MKX.domain.account.brokerage.repository.BrokerageDepositAccountRepository;
+import com.beyond.MKX.domain.corporation.repository.CorporationRepository;
 import com.beyond.MKX.domain.ipo.IpoAllocationOutbox.entity.IpoAllocationOutbox;
 import com.beyond.MKX.domain.ipo.IpoAllocationOutbox.entity.OutboxStatus;
 import com.beyond.MKX.domain.ipo.IpoAllocationOutbox.repository.IpoAllocationOutboxRepository;
@@ -13,8 +14,10 @@ import com.beyond.MKX.domain.ipo.ipo.entity.IpoStatus;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOffering;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOfferingStatus;
 import com.beyond.MKX.domain.ipo.offering.repository.IpoOfferingRepository;
+import com.beyond.MKX.domain.ipo.subscription.dto.IpoSubscriptionResDTO;
 import com.beyond.MKX.domain.ipo.subscription.entity.IpoSubscription;
 import com.beyond.MKX.domain.ipo.subscription.entity.SubscriptionStatus;
+import com.beyond.MKX.domain.ipo.subscription.entity.InvestorType;
 import com.beyond.MKX.domain.ipo.subscription.repository.IpoSubscriptionRepository;
 import com.beyond.MKX.domain.stock.repository.StockRepository;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -34,6 +38,7 @@ public class IpoAllocationService {
     private final IpoSubscriptionRepository subscriptionRepository;
     private final IpoOfferingRepository offeringRepository;
     private final IpoAllocationOutboxRepository outboxRepository;
+    private final CorporationRepository corporationRepository;
     private final Clock clock = Clock.systemDefaultZone();
 
     /**
@@ -244,7 +249,17 @@ public class IpoAllocationService {
                 .mapToLong(IpoAllocation::getAllocatedQuantity)
                 .sum();
 
-        return IpoAllocationSummaryResDTO.of(o, list, allocatedTotalQuantity);
+        IpoAllocationSummaryResDTO result = IpoAllocationSummaryResDTO.of(o, list, allocatedTotalQuantity);
+        
+        // 투자자 이름 설정
+        result.getAllocations().forEach(item -> {
+            String subscriberName = resolveSubscriberNameForCorporationView(item);
+            log.info("[IPO] Setting subscriber name for item: subscriberId={}, investorType={}, subscriberName={}", 
+                    item.getSubscriberId(), item.getInvestorType(), subscriberName);
+            item.setSubscriberName(subscriberName);
+        });
+
+        return result;
     }
 
     /**
@@ -269,6 +284,35 @@ public class IpoAllocationService {
         allocationRepository.save(allocation);
 
         log.info("[IPO][COMPLETE] completeAllocationBySubscription completed. allocationId={}", allocation.getId());
+    }
+
+    /** 발행사 관점: 기관만 실명, 개인은 익명 처리 */
+    private String resolveSubscriberNameForCorporationView(com.beyond.MKX.domain.ipo.allocation.dto.IpoAllocationItemResDTO item) {
+        log.info("[IPO] resolveSubscriberNameForCorporationView: subscriberId={}, investorType={}", 
+                item.getSubscriberId(), item.getInvestorType());
+        
+        try {
+            if (item.getInvestorType() != null && 
+                (item.getInvestorType().equals("CORPORATION") || item.getInvestorType().equals(InvestorType.CORPORATION.name()))) {
+                
+                log.info("[IPO] Processing CORPORATION investor: subscriberId={}", item.getSubscriberId());
+                UUID subscriberId = UUID.fromString(item.getSubscriberId());
+                String corporationName = corporationRepository.findById(subscriberId)
+                        .map(c -> c.getNameKo())
+                        .orElse("알 수 없음");
+                log.info("[IPO] Resolved corporation name: {}", corporationName);
+                return corporationName;
+            }
+            // 개인투자자는 이름 노출 금지
+            log.info("[IPO] Processing INDIVIDUAL investor or unknown type.");
+            return "개인 투자자";
+        } catch (IllegalArgumentException e) {
+            log.error("[IPO] Invalid UUID format for subscriberId: {}", item.getSubscriberId(), e);
+            return "알 수 없음 (UUID 오류)";
+        } catch (Exception e) {
+            log.error("[IPO] Error resolving subscriber name for subscriberId={}: {}", item.getSubscriberId(), e.getMessage(), e);
+            return "알 수 없음 (처리 오류)";
+        }
     }
 
 }

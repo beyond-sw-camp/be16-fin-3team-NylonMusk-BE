@@ -1,7 +1,9 @@
 package com.beyond.MKX.domain.account.member.controller;
 
 import com.beyond.MKX.common.apiResponse.ApiResponse;
+import com.beyond.MKX.domain.account.member.dto.AmountRequest;
 import com.beyond.MKX.domain.account.member.dto.MemberAccountSummary;
+import com.beyond.MKX.domain.account.member.service.MemberAccountService;
 import com.beyond.MKX.domain.assets.entity.MemberAccount;
 import com.beyond.MKX.domain.assets.repository.MemberAccountRepository;
 import com.beyond.MKX.domain.account.member.service.MemberAccountService;
@@ -59,6 +61,8 @@ public class MemberAccountInternalController {
                 account.getStatus().name()
         ));
     }
+
+
     
     /**
      * memberAccountId로 계좌번호 조회
@@ -183,7 +187,36 @@ public class MemberAccountInternalController {
         ), "입금 완료");
     }
 
+    /**
+     * 내부용 회원 계좌 출금 (정산, 환불 등) - 계좌번호 기준
+     */
+    @PostMapping("/by-number/{accountNumber}/withdraw")
+    public ResponseEntity<?> withdrawByAccountNumber(
+            @PathVariable String accountNumber,
+            @RequestBody DepositInternalRequest request
+    ) {
+        MemberAccount account = repository.findByNumber(accountNumber)
+                .orElse(null);
+
+        if (account == null) {
+            log.warn("회원 계좌를 찾을 수 없음: accountNumber={}", accountNumber);
+            return ApiResponse.ok(Map.of(
+                    "success", false,
+                    "message", "회원 계좌를 찾을 수 없습니다"
+            ), "계좌 조회 실패");
+        }
+
+        Long balance = memberAccountService.withdraw(accountNumber, request.amount());
+
+        return ApiResponse.ok(Map.of(
+                "success", true,
+                "message", "출금 완료",
+                "newBalance", balance
+        ), "출금 완료");
+    }
+
     public record DepositInternalRequest(
             Long amount
     ) {}
+
 }

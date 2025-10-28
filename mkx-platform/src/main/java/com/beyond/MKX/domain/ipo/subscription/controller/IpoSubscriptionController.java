@@ -10,7 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.UUID;
+import java.util.*;
 
 @RestController
 @RequestMapping("/ipo/subscription")
@@ -25,18 +25,29 @@ public class IpoSubscriptionController {
         return ApiResponse.ok(subscriptionRes, "청약 접수가 완료되었습니다.");
     }
 
-    /** 청약 취소 (APPLIED or PAID -> CANCELLED) */
+    /**
+     * 청약 취소 (APPLIED or PAID -> CANCELLED)
+     */
     @PatchMapping("/{subscriptionId}/cancel")
     public ResponseEntity<?> cancel(@PathVariable UUID subscriptionId) {
         IpoSubscriptionResDTO res = subscriptionService.cancel(subscriptionId);
         return ApiResponse.ok(res, "청약이 취소되었습니다.");
     }
 
-    /** 단건 조회 (선택) */
+    /**
+     * 단건 조회 (선택)
+     */
     @GetMapping("/{subscriptionId}")
     public ResponseEntity<?> get(@PathVariable UUID subscriptionId) {
         IpoSubscriptionResDTO res = subscriptionService.get(subscriptionId);
         return ApiResponse.ok(res, "조회 완료");
+    }
+
+    // 특정 공모의 청약 전체 조회
+    @GetMapping("/{offeringId}/list")
+    public ResponseEntity<?> getAll(@PathVariable UUID offeringId) {
+        List<IpoSubscriptionResDTO> res = subscriptionService.findAll(offeringId);
+        return ApiResponse.ok(res, "해당 공모의 청약 리스트입니다.");
     }
 
     /** 청약 납입(APPLIED -> PAID) / 향후 시간이 된다면 추가공모로직으로 쓸 예정 / 아마 못 쓸 듯, 그래도 아까워서  */

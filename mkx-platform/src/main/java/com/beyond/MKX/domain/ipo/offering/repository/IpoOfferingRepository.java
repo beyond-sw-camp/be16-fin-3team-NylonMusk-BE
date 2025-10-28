@@ -86,4 +86,6 @@ public interface IpoOfferingRepository extends JpaRepository<IpoOffering, UUID> 
     List<IpoOffering> findAllByIpoOfferingStatusAndSubscriptionStartBefore(IpoOfferingStatus status, LocalDateTime now);
     List<IpoOffering> findAllByIpoOfferingStatusAndSubscriptionEndBefore(IpoOfferingStatus status, LocalDateTime now);
 
+
+
 }

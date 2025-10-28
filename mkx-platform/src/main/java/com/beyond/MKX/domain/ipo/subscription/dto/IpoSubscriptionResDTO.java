@@ -1,6 +1,7 @@
 package com.beyond.MKX.domain.ipo.subscription.dto;
 
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOffering;
+import com.beyond.MKX.domain.ipo.subscription.entity.InvestorType;
 import com.beyond.MKX.domain.ipo.subscription.entity.IpoSubscription;
 import com.beyond.MKX.domain.ipo.subscription.entity.SubscriptionStatus;
 import lombok.AllArgsConstructor;
@@ -20,6 +21,9 @@ public class IpoSubscriptionResDTO {
     private UUID id;
     private UUID ipoOfferingId;
     private UUID accountId;
+    private UUID subscriberId;
+    private String subscriberName;
+    private InvestorType investorType;
     private Long appliedQuantity;
     private Long offerPriceSnapshot;
     private BigDecimal depositRateSnapshot;
@@ -43,6 +47,9 @@ public class IpoSubscriptionResDTO {
                 .ipoOfferingId(subscription.getIpoOffering().getId())
                 .accountId(subscription.getAccountId())
                 .appliedQuantity(subscription.getAppliedQuantity())
+                .subscriberId(subscription.getSubscriberId())
+                .subscriberName(null)
+                .investorType(subscription.getInvestorType())
                 .offerPriceSnapshot(subscription.getOfferPriceSnapshot())
                 .depositRateSnapshot(subscription.getDepositRateSnapshot())
                 .requiredDeposit(requiredDeposit)

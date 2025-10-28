@@ -22,7 +22,7 @@ public class IpoAutoFixScheduler {
     private final Clock clock;
 
     // 🔹수요예측 시작 시 자동 BOOK_BUILDING 전환 (cron 표현식)
-    @Scheduled(cron = "0 */1 * * * *")  // 매 1분마다
+    @Scheduled(cron = "*/10 * * * * *")  // 매 1분마다
 //    @Scheduled(cron = "0 0 * * * *")  // 매시간 0분 0초마다 실행
     @Transactional
     public void autoFixOfferPriceForEndedBookBuilding() {

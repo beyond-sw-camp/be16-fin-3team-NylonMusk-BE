@@ -11,10 +11,16 @@ import java.util.UUID;
 public interface DelistingCompensationRepository extends JpaRepository<DelistingCompensation, UUID> {
 
     /**
-     * 주식별 보상 목록 조회
+     * 주식별 보상 목록 조회 (삭제되지 않은 것만)
+     */
+    @Query("SELECT dc FROM DelistingCompensation dc WHERE dc.stockId = :stockId AND dc.deletedAt IS NULL ORDER BY dc.requestedAt DESC")
+    List<DelistingCompensation> findByStockId(@Param("stockId") UUID stockId);
+    
+    /**
+     * 주식별 모든 보상 목록 조회 (삭제된 것 포함)
      */
     @Query("SELECT dc FROM DelistingCompensation dc WHERE dc.stockId = :stockId ORDER BY dc.requestedAt DESC")
-    List<DelistingCompensation> findByStockId(@Param("stockId") UUID stockId);
+    List<DelistingCompensation> findAllByStockId(@Param("stockId") UUID stockId);
 
     /**
      * 회원별 보상 목록 조회

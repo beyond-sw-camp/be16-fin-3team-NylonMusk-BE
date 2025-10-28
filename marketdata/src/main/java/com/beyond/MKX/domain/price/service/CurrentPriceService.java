@@ -37,6 +37,9 @@ public class CurrentPriceService {
     // Redis key prefix
     private static final String PRICE_KEY_PREFIX = "price:";
     private static final String PREV_CLOSE_KEY_PREFIX = "price:prev_close:";
+    private static final String PREV_VOLUME_KEY_PREFIX = "price:prev_volume:";
+    private static final String BUY_EXECUTION_VOLUME_KEY = "exec:buy:volume:";
+    private static final String SELL_EXECUTION_VOLUME_KEY = "exec:sell:volume:";
     
     // 현재가 데이터 TTL (1시간)
     private static final long PRICE_TTL_MINUTES = 60;
@@ -62,6 +65,11 @@ public class CurrentPriceService {
                         .high(execution.getPrice())
                         .low(execution.getPrice())
                         .volume(BigDecimal.ZERO)
+                        .volumeChange(BigDecimal.ZERO)
+                        .prevVolume(BigDecimal.ZERO)
+                        .week52High(0L)
+                        .week52Low(0L)
+                        .executionStrength(BigDecimal.ZERO)
                         .change(0L)
                         .changeRate(BigDecimal.ZERO)
                         .timestamp(Instant.ofEpochMilli(execution.getTimestamp()))
@@ -180,9 +188,9 @@ public class CurrentPriceService {
     }
 
     /**
-     * 현재가 저장 (Redis에)
+     * 현재가 저장 (Redis에) - public으로 변경하여 외부 접근 가능
      */
-    private void saveCurrentPrice(CurrentPrice currentPrice) {
+    public void saveCurrentPrice(CurrentPrice currentPrice) {
         try {
             String redisKey = buildRedisKey(currentPrice.getTicker());
             redisTemplate.opsForValue().set(redisKey, currentPrice, 
@@ -262,6 +270,77 @@ public class CurrentPriceService {
             }
         } catch (Exception e) {
             log.error("Failed to initialize daily price: ticker={}", ticker, e);
+        }
+    }
+
+    /**
+     * 거래량 변화율 업데이트
+     * 
+     * volumeChange = ((현재 거래량 - 전일 거래량) / 전일 거래량) × 100
+     */
+    public void updateVolumeChange(String ticker) {
+        try {
+            CurrentPrice currentPrice = getCurrentPrice(ticker);
+            if (currentPrice == null) return;
+            
+            // 전일 거래량 조회 (Redis에서)
+            String prevVolumeKey = PREV_VOLUME_KEY_PREFIX + ticker;
+            Object prevVolumeObj = redisTemplate.opsForValue().get(prevVolumeKey);
+            
+            if (prevVolumeObj != null) {
+                BigDecimal prevVolume = new BigDecimal(prevVolumeObj.toString());
+                BigDecimal currentVolume = currentPrice.getVolume() != null ? 
+                    currentPrice.getVolume() : BigDecimal.ZERO;
+                
+                if (prevVolume.compareTo(BigDecimal.ZERO) > 0) {
+                    BigDecimal volumeChange = currentVolume.subtract(prevVolume)
+                        .divide(prevVolume, 2, RoundingMode.HALF_UP)
+                        .multiply(BigDecimal.valueOf(100));
+                    
+                    currentPrice.setVolumeChange(volumeChange);
+                    currentPrice.setPrevVolume(prevVolume);
+                    saveCurrentPrice(currentPrice);
+                    
+                    log.debug("Updated volume change: ticker={}, change={}%", 
+                        ticker, volumeChange);
+                } else {
+                    // 전일 거래량이 0이면 변화율을 0으로
+                    currentPrice.setVolumeChange(BigDecimal.ZERO);
+                    currentPrice.setPrevVolume(BigDecimal.ZERO);
+                    saveCurrentPrice(currentPrice);
+                }
+            } else {
+                // 전일 거래량 데이터가 없으면 0으로 초기화
+                currentPrice.setVolumeChange(BigDecimal.ZERO);
+                currentPrice.setPrevVolume(BigDecimal.ZERO);
+                saveCurrentPrice(currentPrice);
+                log.debug("No previous volume data for ticker: {}", ticker);
+            }
+            
+        } catch (Exception e) {
+            log.error("Failed to update volume change for ticker: {}", ticker, e);
+        }
+    }
+    
+    /**
+     * 전일 거래량 저장 (장 마감 시 호출)
+     */
+    public void savePrevVolume(String ticker) {
+        try {
+            CurrentPrice currentPrice = getCurrentPrice(ticker);
+            if (currentPrice != null && currentPrice.getVolume() != null) {
+                String prevVolumeKey = PREV_VOLUME_KEY_PREFIX + ticker;
+                redisTemplate.opsForValue().set(
+                    prevVolumeKey, 
+                    currentPrice.getVolume().toString(), 
+                    365, TimeUnit.DAYS
+                );
+                
+                log.info("Saved prev volume: ticker={}, volume={}", 
+                    ticker, currentPrice.getVolume());
+            }
+        } catch (Exception e) {
+            log.error("Failed to save prev volume: ticker={}", ticker, e);
         }
     }
 

@@ -23,6 +23,7 @@ public class IpoAllocationItemResDTO {
 
     // ▼ 추가: 구독자(청약자) 식별/요약 정보
     private String subscriberId;   // IpoSubscription.subscriberId
+    private String subscriberName;
     private String accountId;      // IpoSubscription.accountId
     private String brokerageId;    // IpoSubscription.brokerageId
     private String investorType;   // IpoSubscription.investorType.name()

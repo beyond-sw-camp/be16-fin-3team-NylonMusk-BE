@@ -2,7 +2,7 @@ package com.beyond.MKX.domain.orderbook.service;
 
 import com.beyond.MKX.domain.execution.dto.ExecutionEventDTO;
 import com.beyond.MKX.domain.orderbook.entity.OrderBook;
-import com.beyond.MKX.domain.orderbook.websocket.OrderBookWebSocketHandler;
+import com.beyond.MKX.domain.orderbook.event.OrderBookEventPublisher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,8 +23,12 @@ import java.util.concurrent.TimeUnit;
 public class OrderBookService {
 
     private final RedisTemplate<String, Object> redisTemplate;
-    private final OrderBookWebSocketHandler orderBookWebSocketHandler;
+    private final OrderBookEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
+    
+    // ✅ 제거: 고도화 기능 의존성 제거 (이벤트 기반으로 전환)
+    // private final com.beyond.MKX.domain.market.service.MarketSummaryService marketSummaryService;
+    // private final OrderBookStatisticsService orderBookStatisticsService;
 
     // Redis key prefix
     private static final String ORDERBOOK_KEY_PREFIX = "orderbook:";
@@ -72,8 +76,8 @@ public class OrderBookService {
             // Redis에 저장
             saveOrderBook(orderBook);
             
-            // WebSocket으로 브로드캐스트
-            orderBookWebSocketHandler.broadcastOrderBook(ticker, orderBook);
+            // ✅ 변경: 이벤트 발행으로 WebSocket 전송
+            eventPublisher.publishEnhancedUpdate(ticker);
             
             log.info("[ORDERBOOK/EXEC] ✅ Updated orderbook: ticker={}, bids={}, asks={}", 
                     ticker, orderBook.getBids().size(), orderBook.getAsks().size());
@@ -167,7 +171,7 @@ public class OrderBookService {
         OrderBook orderBook = getOrderBook(ticker);
         orderBook.addBid(price, quantity);
         saveOrderBook(orderBook);
-        orderBookWebSocketHandler.broadcastOrderBook(ticker, orderBook);
+        eventPublisher.publishEnhancedUpdate(ticker);
         log.info("[ORDERBOOK/ADD] Added BID: ticker={}, price={}, quantity={}", ticker, price, quantity);
     }
 
@@ -178,7 +182,7 @@ public class OrderBookService {
         OrderBook orderBook = getOrderBook(ticker);
         orderBook.addAsk(price, quantity);
         saveOrderBook(orderBook);
-        orderBookWebSocketHandler.broadcastOrderBook(ticker, orderBook);
+        eventPublisher.publishEnhancedUpdate(ticker);
         log.info("[ORDERBOOK/ADD] Added ASK: ticker={}, price={}, quantity={}", ticker, price, quantity);
     }
 
@@ -203,7 +207,7 @@ public class OrderBookService {
             }
             
             saveOrderBook(orderBook);
-            orderBookWebSocketHandler.broadcastOrderBook(ticker, orderBook);
+            eventPublisher.publishEnhancedUpdate(ticker);
             log.info("[ORDERBOOK/UPDATE] Updated BID: ticker={}, price={}, remaining={}", 
                     ticker, price, remainingQuantity);
         } else {
@@ -232,7 +236,7 @@ public class OrderBookService {
             }
             
             saveOrderBook(orderBook);
-            orderBookWebSocketHandler.broadcastOrderBook(ticker, orderBook);
+            eventPublisher.publishEnhancedUpdate(ticker);
             log.info("[ORDERBOOK/UPDATE] Updated ASK: ticker={}, price={}, remaining={}", 
                     ticker, price, remainingQuantity);
         } else {
@@ -255,7 +259,7 @@ public class OrderBookService {
         if (quantity.compareTo(BigDecimal.ZERO) > 0) {
             orderBook.removeBid(price, quantity);
             saveOrderBook(orderBook);
-            orderBookWebSocketHandler.broadcastOrderBook(ticker, orderBook);
+            eventPublisher.publishEnhancedUpdate(ticker);
             log.info("[ORDERBOOK/REMOVE] Removed BID: ticker={}, price={}", ticker, price);
         }
     }
@@ -275,7 +279,7 @@ public class OrderBookService {
         if (quantity.compareTo(BigDecimal.ZERO) > 0) {
             orderBook.removeAsk(price, quantity);
             saveOrderBook(orderBook);
-            orderBookWebSocketHandler.broadcastOrderBook(ticker, orderBook);
+            eventPublisher.publishEnhancedUpdate(ticker);
             log.info("[ORDERBOOK/REMOVE] Removed ASK: ticker={}, price={}", ticker, price);
         }
     }
@@ -388,13 +392,6 @@ public class OrderBookService {
         }
     }
     
-    /**
-     * WebSocket 세션 수 조회 (디버깅용)
-     * 
-     * @param ticker 종목코드
-     * @return 해당 ticker를 구독하는 WebSocket 세션 수
-     */
-    public int getWebSocketSessionCount(String ticker) {
-        return orderBookWebSocketHandler.getLocalSessionCount(ticker);
-    }
+    // ✅ 제거: WebSocket 의존성 제거로 인해 삭제
+    // WebSocket 세션 수는 WebSocketHandler에서 직접 조회해야 함
 }

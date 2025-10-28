@@ -19,6 +19,7 @@ import com.beyond.MKX.domain.stock.entity.Stock;
 import com.beyond.MKX.domain.stock.repository.StockRepository;
 import com.beyond.MKX.domain.stock.util.StockTickerGenerator;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -39,6 +40,7 @@ import java.util.*;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class IpoService {
     @Value("${cloud.aws.s3.bucket}")
     private String bucketName;
@@ -73,6 +75,15 @@ public class IpoService {
 
         Corporation corporation = corporationRepository.findById(corp.getId())
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 기업입니다."));
+
+        boolean hasActiveIpo = ipoRepository.existsByCorporation_IdAndStatusIn(
+                corporation.getId(),
+                List.of(IpoStatus.REQUESTED, IpoStatus.UNDER_REVIEW, IpoStatus.APPROVED, IpoStatus.LISTED)
+                );
+
+        if (hasActiveIpo) {
+            throw new IllegalArgumentException("이미 상장이 진행됐거나 진행 중인 기업입니다. 진행 중이라면 기존 요청을 먼저 처리하세요.");
+        }
 
         Ipo ipo = ipoCreateReqDTO.toEntity(corporation);
         ipoRepository.save(ipo);
@@ -205,32 +216,53 @@ public class IpoService {
                     String t = ipo.getStockTicker();
                     Long price = ipo.getPriceOnListing();
 
+                    log.info("[IPO-LISTING] 상장 후 주식 배정 시작. ipoId={}, ticker={}, price={}", id, t, price);
+
                     var events = outboxRepository.findAllByIpoIdAndStatus(id, OutboxStatus.PENDING);
+                    log.info("[IPO-LISTING] 조회된 PENDING 이벤트 수: {}", events.size());
+
+                    if (events.isEmpty()) {
+                        log.warn("[IPO-LISTING] PENDING 상태의 이벤트가 없습니다!");
+                        return;
+                    }
+
                     int ok = 0, fail = 0;
 
                     for (var ev : events) {
+                        log.info("[IPO-LISTING] 이벤트 처리 시작. allocationId={}, accountId={}, qty={}",
+                                ev.getAllocationId(), ev.getAccountId(), ev.getQty());
+
                         var dto = StockUpdateDTO.builder()
-                                .idempotencyKey(ev.getAllocationId()) // 멱등키 = allocationId
+                                .idempotencyKey(ev.getAllocationId())
                                 .allocationId(ev.getAllocationId())
                                 .offeringId(ev.getOfferingId())
                                 .memberAccountId(ev.getAccountId())
                                 .brokerageId(ev.getBrokerageId())
                                 .ticker(t)
                                 .qtyDelta(ev.getQty())
-                                .unitPrice(price)                     // 필요 시 ev.getOfferPriceSnapshot()
+                                .unitPrice(price)
                                 .reason("IPO_ALLOCATION")
                                 .build();
+
                         try {
+                            log.info("[IPO-LISTING] ordering-service 호출 시작");
                             orderingFeign.applyStockUpdate(dto);
                             ev.markSent();
                             ok++;
+                            log.info("[IPO-LISTING] ordering-service 호출 성공");
                         } catch (Exception sendEx) {
                             ev.markFailed();
                             fail++;
+                            log.error("[IPO-LISTING] ordering-service 호출 실패. allocationId={}, error={}",
+                                    ev.getAllocationId(), sendEx.getMessage(), sendEx);
                         }
                     }
+
                     outboxRepository.saveAll(events);
+                    log.info("[IPO-LISTING] 주식 배정 완료. 성공={}, 실패={}", ok, fail);
+
                 } catch (Exception ex) {
+                    log.error("[IPO-LISTING] 상장 후 주식 배정 중 예외 발생", ex);
                 }
             }
         });

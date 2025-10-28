@@ -1,6 +1,7 @@
 package com.beyond.MKX.domain.stock.controller;
 
 import com.beyond.MKX.domain.stock.dto.StockListResDto;
+import com.beyond.MKX.domain.stock.dto.StockInfoResDTO;
 import com.beyond.MKX.domain.stock.service.StockQueryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
@@ -27,5 +28,24 @@ public class StockController {
             Pageable pageable
     ) {
         return stockQueryService.getStocks(q, status, pageable);
+    }
+
+    @GetMapping("/{ticker}")
+    public StockInfoResDTO getStockByTicker(@PathVariable String ticker) {
+        return stockQueryService.getStockByTicker(ticker);
+    }
+}
+
+@RestController
+@RequestMapping("/api/internal/stocks")
+@RequiredArgsConstructor
+@Validated
+class StockInternalController {
+
+    private final StockQueryService stockQueryService;
+
+    @GetMapping("/{ticker}")
+    public StockInfoResDTO getStockByTicker(@PathVariable String ticker) {
+        return stockQueryService.getStockByTicker(ticker);
     }
 }

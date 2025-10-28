@@ -39,6 +39,11 @@ public class IpoSubscription extends BaseIdAndTimeEntity {
     private UUID brokerageId;
     @Column(name = "account_id", nullable = false)
     private UUID accountId;
+    @Column(name = "subscriber_name")
+    private String subscriberName;
+    @Column(name = "account_number", length = 50)
+    private String accountNumber; // 개인 투자자용
+
 
     // 신청 정보
     @Column(nullable=false)

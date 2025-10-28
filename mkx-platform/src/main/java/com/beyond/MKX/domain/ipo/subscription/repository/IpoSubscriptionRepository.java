@@ -12,6 +12,7 @@ import java.util.*;
 @Repository
 public interface IpoSubscriptionRepository extends JpaRepository<IpoSubscription, UUID> {
     boolean existsByIpoOffering_IdAndAccountId(UUID ipoOfferingId, UUID accountId);
+    boolean existsByIpoOffering_IdAndAccountNumber(UUID ipoOfferingId, String accountNumber);
 
     @Query("""
                select coalesce(sum(s.appliedQuantity), 0)

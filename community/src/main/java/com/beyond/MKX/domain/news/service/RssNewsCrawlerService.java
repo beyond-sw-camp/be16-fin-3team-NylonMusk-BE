@@ -11,6 +11,7 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.jsoup.parser.Parser;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -99,6 +100,8 @@ public class RssNewsCrawlerService {
             Document doc = Jsoup.connect(feedUrl)
                     .userAgent("Mozilla/5.0")
                     .timeout(10000)
+                    // RSS는 네임스페이스(dc:creator 등)를 포함하므로 XML 파서 사용
+                    .parser(Parser.xmlParser())
                     .get();
             Elements items = doc.select("item");
             log.info("RSS [{}] 아이템: {}건", feedUrl, items.size());
@@ -362,10 +365,12 @@ public class RssNewsCrawlerService {
 
     private boolean isBrandName(String v) {
         if (v == null) return false;
-        String s = v.replace(" ", "").toLowerCase();
+        // 이름 문자열이 브랜드명 '그 자체'인 경우만 true 처리 (포함 여부는 제외)
+        String s = v.replaceAll("\\s+", "");
+        s = s.replaceAll("기자$", "");
         String[] brands = { "매일경제", "매경", "매경닷컴", "한국경제", "한경", "조선일보", "조선비즈" };
         for (String b : brands) {
-            if (s.contains(b)) return true;
+            if (s.equalsIgnoreCase(b)) return true;
         }
         return false;
     }
@@ -418,8 +423,12 @@ public class RssNewsCrawlerService {
         String a = author;
         // 이메일 제거
         a = a.replaceAll("[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}", "");
-        // 괄호 내 이메일/부가 텍스트 제거
-        a = a.replaceAll("\\(.*?@.*?\\)", "");
+        // 괄호 내 부가 텍스트 제거 (브랜드/부서 표기 등)
+        a = a.replaceAll("\\(.*?\\)", "");
+        // 브랜드 토큰 제거
+        a = a.replace("매일경제", "").replace("매경닷컴", "").replace("매경", "")
+             .replace("한국경제", "").replace("한경", "")
+             .replace("조선일보", "").replace("조선비즈", "");
         // 불필요한 구분자 제거 및 트림
         a = a.replaceAll("[|:/]", " ").replaceAll("\\s+", " ").trim();
         // '홍길동 기자' 형태 정규화

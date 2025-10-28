@@ -21,6 +21,9 @@ public abstract class BaseTimeEntity {
     @Column(nullable = false)
     protected LocalDateTime updatedAt;
 
+    @Column(name = "deleted_at")
+    protected LocalDateTime deletedAt;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
@@ -30,5 +33,20 @@ public abstract class BaseTimeEntity {
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
+    }
+
+    /** 소프트 삭제 처리 */
+    public void markDeleted() {
+        this.deletedAt = LocalDateTime.now();
+    }
+
+    /** 소프트 삭제 복구 */
+    public void restore() {
+        this.deletedAt = null;
+    }
+
+    /** 삭제 여부 확인 */
+    public boolean isDeleted() {
+        return this.deletedAt != null;
     }
 }

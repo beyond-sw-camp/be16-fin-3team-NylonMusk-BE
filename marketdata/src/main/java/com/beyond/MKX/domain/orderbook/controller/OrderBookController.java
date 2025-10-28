@@ -106,24 +106,24 @@ public class OrderBookController {
         return ApiResponse.ok(null, "호가 삭제 성공");
     }
     
-    /**
-     * WebSocket 연결 상태 확인 (디버깅용)
-     * 
-     * @param ticker 종목코드
-     * @return WebSocket 세션 수
-     */
-    @GetMapping("/{ticker}/sessions")
-    public ResponseEntity<?> getSessionCount(@PathVariable String ticker) {
-        log.info("WebSocket 세션 수 조회: ticker={}", ticker);
-        
-        int sessionCount = orderBookService.getWebSocketSessionCount(ticker);
-        
-        return ApiResponse.ok(
-            java.util.Map.of(
-                "ticker", ticker,
-                "sessionCount", sessionCount
-            ), 
-            "WebSocket 세션 수 조회 성공"
-        );
-    }
+//    /**
+//     * WebSocket 연결 상태 확인 (디버깅용)
+//     *
+//     * @param ticker 종목코드
+//     * @return WebSocket 세션 수
+//     */
+//    @GetMapping("/{ticker}/sessions")
+//    public ResponseEntity<?> getSessionCount(@PathVariable String ticker) {
+//        log.info("WebSocket 세션 수 조회: ticker={}", ticker);
+//
+//        int sessionCount = orderBookService.getWebSocketSessionCount(ticker);
+//
+//        return ApiResponse.ok(
+//            java.util.Map.of(
+//                "ticker", ticker,
+//                "sessionCount", sessionCount
+//            ),
+//            "WebSocket 세션 수 조회 성공"
+//        );
+//    }
 }

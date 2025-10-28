@@ -2,11 +2,13 @@ package com.beyond.MKX.domain.orderbook.websocket;
 
 import com.beyond.MKX.domain.websocket.listener.RedisStreamsMessageListener;
 import com.beyond.MKX.domain.orderbook.entity.OrderBook;
+import com.beyond.MKX.domain.orderbook.event.OrderBookUpdateEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -39,6 +41,9 @@ public class OrderBookWebSocketHandler extends TextWebSocketHandler {
     private final StringRedisTemplate redisTemplate;
     
     private final RedisStreamsMessageListener streamsListener;
+    
+    // ✅ 변경: EnhancedOrderBookService를 직접 주입받아 이벤트 리스너에서 사용
+    private final com.beyond.MKX.domain.orderbook.service.EnhancedOrderBookService enhancedOrderBookService;
 
     // Redis Stream key
     private static final String STREAM_KEY = "websocket:orderbook:stream";
@@ -152,10 +157,12 @@ public class OrderBookWebSocketHandler extends TextWebSocketHandler {
     }
 
     /**
-     * 특정 종목의 호가 데이터를 Redis Streams로 발행
+     * 특정 종목의 기본 호가 데이터를 Redis Streams로 발행 (하위 호환성 유지)
      * 
      * ✅ 수정사항: OrderBook 객체를 JSON 문자열로 변환 후 발행
+     * @deprecated Use {@link #broadcastEnhancedOrderBook(String)} instead
      */
+    @Deprecated
     public void broadcastOrderBook(String ticker, OrderBook orderBook) {
         try {
             // ✅ OrderBook 객체를 JSON 문자열로 변환
@@ -177,6 +184,67 @@ public class OrderBookWebSocketHandler extends TextWebSocketHandler {
             
         } catch (Exception e) {
             log.error("[ORDERBOOK-WS] ❌ Failed to publish: ticker={}", ticker, e);
+        }
+    }
+    
+    /**
+     * ✅ 이벤트 리스너: 호가 업데이트 이벤트 수신
+     * 
+     * OrderBookService에서 발행한 이벤트를 수신하여 WebSocket으로 전송
+     * 이를 통해 순환 의존성 제거
+     * 
+     * @param event 호가 업데이트 이벤트
+     */
+    @EventListener
+    public void handleOrderBookUpdateEvent(OrderBookUpdateEvent event) {
+        String ticker = event.getTicker();
+        OrderBookUpdateEvent.UpdateType updateType = event.getUpdateType();
+        
+        log.debug("[ORDERBOOK-WS] 🎧 Received event: ticker={}, type={}", ticker, updateType);
+        
+        if (updateType == OrderBookUpdateEvent.UpdateType.ENHANCED) {
+            broadcastEnhancedOrderBook(ticker);
+        } else {
+            // BASIC 타입인 경우 기존 방식 사용 (하위 호환성)
+            log.debug("[ORDERBOOK-WS] BASIC update type not implemented yet");
+        }
+    }
+    
+    /**
+     * ✅ 신규: 고도화된 호가 데이터를 Redis Streams로 발행
+     * 
+     * 기본 호가 + 시장 요약 + 통계 정보를 통합하여 전송
+     * 이제 이벤트 리스너를 통해 호출됨
+     * 
+     * @param ticker 종목코드
+     */
+    private void broadcastEnhancedOrderBook(String ticker) {
+        try {
+            // 고도화된 호가 데이터 조회
+            com.beyond.MKX.domain.orderbook.dto.enhanced.EnhancedOrderBookDTO enhancedData = 
+                    enhancedOrderBookService.getEnhancedOrderBook(ticker);
+            
+            // JSON 문자열로 변환
+            String enhancedJson = objectMapper.writeValueAsString(enhancedData);
+            
+            // 메시지 구성
+            Map<String, String> message = Map.of(
+                    "type", "orderbook-enhanced",
+                    "ticker", ticker,
+                    "data", enhancedJson,
+                    "timestamp", String.valueOf(System.currentTimeMillis())
+            );
+            
+            // Redis Streams로 발행
+            redisTemplate.opsForStream().add(STREAM_KEY, message);
+            
+            log.debug("[ORDERBOOK-WS] 📤 Published enhanced orderbook: ticker={}, dataSize={} bytes, bids={}, asks={}, midPrice={}", 
+                    ticker, enhancedJson.length(), 
+                    enhancedData.getBids().size(), enhancedData.getAsks().size(),
+                    enhancedData.getStatistics() != null ? enhancedData.getStatistics().getMidPrice() : null);
+            
+        } catch (Exception e) {
+            log.error("[ORDERBOOK-WS] ❌ Failed to publish enhanced orderbook: ticker={}", ticker, e);
         }
     }
 

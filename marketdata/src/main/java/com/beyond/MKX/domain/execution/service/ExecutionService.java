@@ -5,6 +5,7 @@ import com.beyond.MKX.domain.execution.entity.Execution;
 import com.beyond.MKX.domain.execution.repository.ExecutionInfluxRepository;
 import com.beyond.MKX.domain.execution.websocket.ExecutionWebSocketHandler;
 import com.beyond.MKX.domain.orderbook.service.OrderBookService;
+import com.beyond.MKX.domain.orderbook.service.OrderBookStatisticsService;
 import com.beyond.MKX.domain.chart.service.ChartService;
 import com.beyond.MKX.domain.price.service.CurrentPriceService;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ public class ExecutionService {
 
     private final ExecutionInfluxRepository executionInfluxRepository;
     private final OrderBookService orderBookService;
+    private final OrderBookStatisticsService orderBookStatisticsService;
     private final ChartService chartService;
     private final CurrentPriceService currentPriceService;
     private final ExecutionWebSocketHandler executionWebSocketHandler;
@@ -36,10 +38,14 @@ public class ExecutionService {
      * 3. 호가 업데이트
      * 4. 차트 업데이트
      * 5. 실시간 체결 WebSocket 브로드캐스트
+     * 6. 체결강도 업데이트 (Redis)
      */
     public void processExecution(ExecutionEventDTO executionEventDTO) {
         try {
-            log.info("Processing execution: {}", executionEventDTO);
+            log.info("[EXECUTION] Processing: execId={}, ticker={}, side={}, price={}, qty={}", 
+                    executionEventDTO.getExecId(), executionEventDTO.getTicker(), 
+                    executionEventDTO.getSide(), executionEventDTO.getPrice(), 
+                    executionEventDTO.getQuantity());
 
             // DTO를 Entity로 변환
             Execution execution = convertToEntity(executionEventDTO);
@@ -59,12 +65,19 @@ public class ExecutionService {
             // 5. 실시간 체결 WebSocket 브로드캐스트
             executionWebSocketHandler.broadcastExecution(executionEventDTO);
 
-            log.info("Successfully processed execution: execId={}, ticker={}, price={}, quantity={}",
+            // 6. 체결강도 업데이트 (Redis)
+            orderBookStatisticsService.updateExecutionVolume(
+                    executionEventDTO.getTicker(),
+                    executionEventDTO.getSide(),
+                    executionEventDTO.getQuantity()
+            );
+
+            log.info("[EXECUTION] ✅ Successfully processed: execId={}, ticker={}, price={}, quantity={}",
                     executionEventDTO.getExecId(), executionEventDTO.getTicker(),
                     executionEventDTO.getPrice(), executionEventDTO.getQuantity());
 
         } catch (Exception e) {
-            log.error("Failed to process execution: {}", executionEventDTO, e);
+            log.error("[EXECUTION] ❌ Failed to process execution: {}", executionEventDTO, e);
             throw new RuntimeException("Failed to process execution", e);
         }
     }

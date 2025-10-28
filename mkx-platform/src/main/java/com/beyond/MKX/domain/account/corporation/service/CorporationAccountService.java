@@ -24,6 +24,7 @@ public class CorporationAccountService {
 
     private final CorporationAccountRepository repository;
     private final AccountListService accountListService;
+    private final TransactionEventPublisher eventPublisher;
 
     /** 기업이 계좌 등록 요청
      *  - 스키마(FK 제약)상 corporation_account.account_number 는 account_list.account_number 를 참조하므로
@@ -105,6 +106,10 @@ public class CorporationAccountService {
             throw new IllegalStateException("기업 계좌가 승인(APPROVED) 상태가 아닙니다.");
         }
         acc.deposit(amount);
+        
+        // Kafka 이벤트 발행
+        eventPublisher.publishDepositEvent(acc.getId().toString(), acc.getAccountNumber(), amount.longValue(), "BANK_TRANSFER");
+        
         return acc.getBalance();
     }
 
@@ -115,6 +120,10 @@ public class CorporationAccountService {
             throw new IllegalStateException("기업 계좌가 승인(APPROVED) 상태가 아닙니다.");
         }
         acc.withdraw(amount);
+        
+        // Kafka 이벤트 발행
+        eventPublisher.publishWithdrawalEvent(acc.getId().toString(), acc.getAccountNumber(), amount.longValue(), "BANK_TRANSFER");
+        
         return acc.getBalance();
     }
 

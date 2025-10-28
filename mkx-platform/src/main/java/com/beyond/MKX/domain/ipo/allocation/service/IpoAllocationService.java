@@ -13,6 +13,7 @@ import com.beyond.MKX.domain.ipo.ipo.entity.IpoStatus;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOffering;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOfferingStatus;
 import com.beyond.MKX.domain.ipo.offering.repository.IpoOfferingRepository;
+import com.beyond.MKX.domain.ipo.subscription.dto.IpoSubscriptionResDTO;
 import com.beyond.MKX.domain.ipo.subscription.entity.IpoSubscription;
 import com.beyond.MKX.domain.ipo.subscription.entity.SubscriptionStatus;
 import com.beyond.MKX.domain.ipo.subscription.repository.IpoSubscriptionRepository;
@@ -25,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service

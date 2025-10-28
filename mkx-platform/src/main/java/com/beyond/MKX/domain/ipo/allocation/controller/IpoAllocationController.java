@@ -79,4 +79,5 @@ public class IpoAllocationController {
                 : IpoAllocationItemResDTO.from(latest);
         return ApiResponse.ok(dto, "해당 청약의 최신 배정 결과입니다.");
     }
+
 }

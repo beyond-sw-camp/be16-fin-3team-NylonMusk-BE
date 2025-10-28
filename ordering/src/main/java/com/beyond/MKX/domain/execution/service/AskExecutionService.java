@@ -6,6 +6,7 @@ import com.beyond.MKX.domain.assets.entity.StockHolding;
 import com.beyond.MKX.domain.assets.repository.StockHoldingRepository;
 import com.beyond.MKX.domain.execution.entity.FillLog;
 import com.beyond.MKX.domain.execution.entity.Ledger;
+import com.beyond.MKX.domain.execution.entity.TransactionType;
 import com.beyond.MKX.domain.execution.repository.FillLogRepository;
 import com.beyond.MKX.domain.execution.repository.LedgerRepository;
 import com.beyond.MKX.domain.order.dto.CommissionAndTaxData;
@@ -126,6 +127,7 @@ public class AskExecutionService {
                 .amountChange(executionEvent.getPrice())
                 .commission(commissionAndTaxData.getCommission())
                 .tax(commissionAndTaxData.getTax())
+                .transactionType(TransactionType.SELL)
                 .build();
         ledgerRepository.save(ledger);
         // TODO: 카프카 발행 및 원장 서비스 모듈 분리

@@ -30,6 +30,7 @@ public class MemberAccountService {
 
     private final MemberAccountRepository repository;
     private final AccountListClient accountListClient;
+    private final TransactionEventPublisher eventPublisher;
 
     /**
      * 수동 생성(계좌번호 지정)
@@ -128,6 +129,10 @@ public class MemberAccountService {
             throw new IllegalStateException("계좌 상태가 활성(ACTIVE)이 아닙니다.");
         }
         acc.deposit(amount);
+        
+        // Kafka 이벤트 발행
+        eventPublisher.publishDepositEvent(accountNumber, acc.getId(), amount, "BANK_TRANSFER");
+        
         return acc.getBalance();
     }
 
@@ -140,6 +145,10 @@ public class MemberAccountService {
             throw new IllegalStateException("계좌 상태가 활성(ACTIVE)이 아닙니다.");
         }
         acc.withdraw(amount);
+        
+        // Kafka 이벤트 발행
+        eventPublisher.publishWithdrawalEvent(accountNumber, acc.getId(), amount, "BANK_TRANSFER");
+        
         return acc.getBalance();
     }
 }

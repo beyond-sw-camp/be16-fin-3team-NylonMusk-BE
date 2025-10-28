@@ -20,16 +20,13 @@ import java.util.UUID;
 @Entity
 public class Ledger extends BaseIdAndTimeEntity {
 
-    @Column(nullable = false)
     private UUID orderLogId;
 
-    @Column(nullable = false)
     private UUID creditAccountId;
 
-    @Column(nullable = false)
     private UUID debitAccountId;
 
-    @Column(nullable = false, columnDefinition = "VARCHAR(6)")
+    @Column(nullable = true, columnDefinition = "VARCHAR(6)")
     private String ticker;
 
     // 정산일
@@ -42,14 +39,11 @@ public class Ledger extends BaseIdAndTimeEntity {
     private Long credit;
 
     // 거래량
-    @Column(nullable = false)
     private Long qtyChange;
 
     // 거래 가격
-    @Column(nullable = false)
     private Long amountChange;
 
-    @Column(nullable = false)
     private Long commission;
 
     private Long tax;

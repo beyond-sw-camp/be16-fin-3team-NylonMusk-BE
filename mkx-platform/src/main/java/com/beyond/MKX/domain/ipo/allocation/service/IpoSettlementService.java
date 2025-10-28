@@ -41,6 +41,8 @@ public class IpoSettlementService {
     @Value("${exchange.account-number:900-0000-00000001}") // 거래소 시스템 계좌번호 (설정에 넣으세요)
     private String exchangeAccountNumber;
 
+    private long nz(Long v) { return v == null ? 0L : v; }
+    private BigInteger bi(long v) { return BigInteger.valueOf(v); }
 
     // ================================================================
     // ① 개별 청약 정산
@@ -139,9 +141,6 @@ public class IpoSettlementService {
                 refund
         );
     }
-
-    private long nz(Long v) { return v == null ? 0L : v; }
-    private BigInteger bi(long v) { return BigInteger.valueOf(v); }
 
     // ================================================================
     // ② Batch 정산 (공모 전체)

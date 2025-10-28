@@ -194,14 +194,14 @@ public class MemberAccountInternalController {
     @PostMapping("/{accountNumber}/withdraw")
     public ResponseEntity<Long> internalWithdraw(@PathVariable String accountNumber,
                                                  @RequestBody AmountRequest req) {
-        Long balance = service.withdraw(accountNumber, req.getAmount());
+        Long balance = memberAccountService.withdraw(accountNumber, req.getAmount());
         return ResponseEntity.ok(balance);
     }
 
     @PostMapping("/{accountNumber}/deposit")
     public ResponseEntity<Long> internalDeposit(@PathVariable String accountNumber,
                                                 @RequestBody AmountRequest req) {
-        Long balance = service.deposit(accountNumber, req.getAmount());
+        Long balance = memberAccountService.deposit(accountNumber, req.getAmount());
         return ResponseEntity.ok(balance);
     }
 

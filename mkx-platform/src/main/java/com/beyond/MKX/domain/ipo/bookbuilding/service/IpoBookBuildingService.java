@@ -53,8 +53,8 @@ public class IpoBookBuildingService {
         createDTO.setParticipantType(ParticipantType.CORPORATION);
 
         // 3) 상태 가드
-        if (ipoOffering.getIpoOfferingStatus() != IpoOfferingStatus.SCHEDULED)
-            throw new IllegalArgumentException("SCHEDULED 상태에서만 수요예측 등록이 가능합니다.");
+        if (ipoOffering.getIpoOfferingStatus() != IpoOfferingStatus.BOOK_BUILDING)
+            throw new IllegalArgumentException("BOOK_BUILDING 상태에서만 수요예측 등록이 가능합니다.");
 
         // 4) 발행사 자기참여 금지 (Corporation Id로 비교)
         UUID issuerCorpId = ipoOffering.getIpo().getCorporation().getId();
@@ -136,49 +136,56 @@ public class IpoBookBuildingService {
             demandMap.put(price, 0L);
         }
 
+        // 🔹 가격 무관 응찰 → 밴드 하단(min)에 1회만 반영 (한국거래소·금융투자협회 기관청약시스템 로직과 동일)
+        //    가격 무관 참여의 경우 ( acceptAllPrices = true || 희망가 미기재 (bidPrice == null) )
         for (IpoBookBuilding bookBuilding : bookBuildings) {
-//            가격 무관 참여의 경우 ( acceptAllPrices = true || 희망가 미기재 (bidPrice == null) )
-            if (Boolean.TRUE.equals(bookBuilding.getAcceptAllPrices()) || bookBuilding.getBidPrice() == null) {
-                // 🔹 가격 무관 응찰 → 밴드 하단(min)에 1회만 반영 (한국거래소·금융투자협회 기관청약시스템 로직과 동일)
-                demandMap.put(min, demandMap.get(min) + bookBuilding.getBidQuantity());
-            } else {
-                long bidPrice = Math.max(min, Math.min(max, bookBuilding.getBidPrice())); // 범위 보정
-                demandMap.put(bidPrice, demandMap.getOrDefault(bidPrice, 0L) + bookBuilding.getBidQuantity());
-            }
+            long bid = (bookBuilding.getBidPrice() == null)
+                    ? min
+                    : Math.max(min, Math.min(max, bookBuilding.getBidPrice()));
+            demandMap.put(bid, demandMap.getOrDefault(bid, 0L) + bookBuilding.getBidQuantity());
         }
 
         /** 2) 누적 수요 기준, 경쟁률 계산 */
-        long cumulative = 0;
-        double ratio = 0.0;
-        long equilibriumPrice = min; // 추후 균형가격(시장 수요곡선의 교차지점)을 계산하여 확정공모가
+        long cumulative = bookBuildings.stream().mapToLong(IpoBookBuilding::getBidQuantity).sum();
+        double ratio = (double) cumulative / offerQuantity;
 
-        for (Map.Entry<Long, Long> entry : demandMap.entrySet()) {
-            cumulative += entry.getValue();
-            ratio = (double) cumulative / offerQuantity;
-
-            if (cumulative >= offerQuantity) {
-                equilibriumPrice = entry.getKey();
-                break; // 최초로 수요가 공급량을 초과한 시점
-            }
+        /** 3-1) 전체 수요 기반 가중 평균가격 계산 (신규 추가 부분) */
+        long totalDemand = 0L;
+        long weightedSum = 0L;
+        for (IpoBookBuilding b : bookBuildings) {
+            Long bid = (b.getBidPrice() == null)
+                    ? min // 가격 무관 참여는 하한가로 처리
+                    : Math.max(min, Math.min(max, b.getBidPrice())); // 밴드 범위 보정
+            weightedSum += bid * b.getBidQuantity();
+            totalDemand += b.getBidQuantity();
         }
+        long weightedAvgPrice = (totalDemand > 0) ? (weightedSum / totalDemand) : min;
 
-        /** 3) 경쟁률 기록 + 확정 공모가 반영 */
+        /** 3-2) 확정공모가 계산 */
         long fixedPrice;
-
         if (ratio < 1.0) {
-            // 미달 : 밴드 하단(priceBandMin)
-            fixedPrice = min;
-        } else if (ratio >= 3.0) {
-            // 과열 : 밴드 상단(priceBandMax)
+            fixedPrice = min; // 미달 — 하단 확정
+        } else if (ratio >= 10.0) {
+            // 🔥 초과 청약 (10배 이상)
+            // 상단 초과 — 상단 + (상단-하단)의 10% 추가 반영
+            long overPrice = max + Math.round((max - min) * 0.1);
+            fixedPrice = overPrice;
+        } else if (ratio >= 2.0) {
+            // 2배 이상 → 상단 확정
             fixedPrice = max;
         } else {
-            // 1.0 <= ratio < 3.0 : 밴드 내 선형 증가
-            double normalized = (ratio - 1.0) / (3.0 - 1.0); // 0 ~ 1 범위로 정규화
-            double interpolated = min + (max - min) * normalized;
-            fixedPrice = BigDecimal.valueOf(interpolated)
-                    .setScale(0, RoundingMode.HALF_UP)
-                    .longValueExact();
+            // 1.0 ≤ 경쟁률 < 2.0 구간
+            double normalized = (ratio - 1.0) / (2.0 - 1.0); // 0~1
+            double avgWeight = 1.0 - 0.8 * normalized; // 평균가 가중치 점진 감소
+            double maxWeight = 0.0 + 0.8 * normalized; // 상단가 가중치 점진 증가
+            double finalPrice = weightedAvgPrice * avgWeight + max * maxWeight;
+            fixedPrice = Math.round(finalPrice);
         }
+
+        if (ratio < 10.0) {
+            fixedPrice = Math.max(min, Math.min(max, fixedPrice));
+        }
+
         /** 4) 경쟁률 기록 + 확정 공모가 반영 */
         offering.setCompetitionRatio(BigDecimal.valueOf(ratio).setScale(2, RoundingMode.HALF_UP));
         offering.fixOfferPrice(fixedPrice, min, max, face);
@@ -191,15 +198,15 @@ public class IpoBookBuildingService {
     @Transactional(readOnly = true)
     public List<IpoBookBuildingAvailableResDTO> findAllScheduledOfferings(UUID participantId) {
         List<IpoOffering> scheduledOfferings =
-                offeringRepository.findAllByIpoOfferingStatus(IpoOfferingStatus.SCHEDULED);
+                offeringRepository.findAllByIpoOfferingStatus(IpoOfferingStatus.BOOK_BUILDING);
 
         if (scheduledOfferings.isEmpty()) {
             throw new IllegalArgumentException("현재 수요예측 가능한(SCHEDULED) 공모가 없습니다.");
         }
 
         return scheduledOfferings.stream()
-                .filter(offering -> !bookBuildingRepository
-                        .existsByIpoOffering_IdAndParticipantId(offering.getId(), participantId)) // 🔸 이미 참여한 공모 제외
+                .filter(offering ->
+                        !bookBuildingRepository.existsByIpoOffering_IdAndParticipantId(offering.getId(), participantId)) // 🔸 이미 참여한 공모 제외
                 .map(offering -> IpoBookBuildingAvailableResDTO.builder()
                         .ipoOfferingId(offering.getId())
                         .ipoId(offering.getIpo().getId())

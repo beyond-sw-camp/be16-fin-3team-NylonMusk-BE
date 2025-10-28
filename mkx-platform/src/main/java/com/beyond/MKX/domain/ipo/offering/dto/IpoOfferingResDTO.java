@@ -18,6 +18,7 @@ public class IpoOfferingResDTO {
     private UUID ipoId;
     private Integer roundNo;
     private Long offerQuantity;
+    private Long allocatedQuantity; // 배정된 수량
     private Integer lotSize;
     private Long priceBandMin;
     private Long priceBandMax;
@@ -36,6 +37,7 @@ public class IpoOfferingResDTO {
                 .ipoId(o.getIpo().getId())
                 .roundNo(o.getRoundNo())
                 .offerQuantity(o.getOfferQuantity())
+                .allocatedQuantity(o.getAllocatedQuantity())
                 .lotSize(o.getLotSize())
                 .priceBandMin(o.getPriceBandMin())
                 .priceBandMax(o.getPriceBandMax())

@@ -27,7 +27,7 @@ public class IpoOfferingStateScheduler {
      * - BOOK_BUILDING → OPEN
      * - OPEN → CLOSED
      */
-    @Scheduled(cron = "0 */1 * * * *") // 1분마다 실행
+    @Scheduled(cron = "*/10 * * * * *") // 1분마다 실행
     @Transactional
     public void autoUpdateOfferingStates() {
         LocalDateTime now = LocalDateTime.now(clock);

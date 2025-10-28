@@ -7,6 +7,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -43,4 +44,33 @@ public interface StockRepository extends JpaRepository<Stock, UUID> {
     Optional<String> findListedTickerByCorporationId(
             @Param("corpId") UUID corporationId,
             @Param("status") Stock.Status status);
+
+    /**
+     * 특정 상태의 주식 목록 조회
+     */
+    List<Stock> findByStatus(Status status);
+
+    /**
+     * 여러 상태의 주식 목록 조회 (자동화용)
+     */
+    List<Stock> findByStatusIn(List<Status> statuses);
+
+    /**
+     * 특정 상태를 제외한 주식 목록 조회
+     */
+    @Query("""
+            select s
+            from Stock s
+            where (:excludeStatus is null or s.status != :excludeStatus)
+              and (
+                   :q is null
+                or lower(s.ticker)  like lower(concat('%', :q, '%'))
+                or lower(s.nameKo)  like lower(concat('%', :q, '%'))
+              )
+            """)
+    Page<Stock> searchExcludingStatus(
+            @Param("excludeStatus") Status excludeStatus,
+            @Param("q") String q,
+            Pageable pageable
+    );
 }

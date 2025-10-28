@@ -1,10 +1,13 @@
 package com.beyond.MKX.domain.ipo.subscription.service;
 
+import com.beyond.MKX.common.dto.AmountRequest;
 import com.beyond.MKX.domain.account.brokerage.service.BrokerageDepositAccountService;
 import com.beyond.MKX.domain.account.corporation.service.CorporationAccountService;
+import com.beyond.MKX.domain.corporation.repository.CorporationRepository;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOffering;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOfferingStatus;
 import com.beyond.MKX.domain.ipo.offering.repository.IpoOfferingRepository;
+import com.beyond.MKX.domain.ipo.offering.service.MemberAccountFeign;
 import com.beyond.MKX.domain.ipo.subscription.dto.IpoSubscriptionReqDTO;
 import com.beyond.MKX.domain.ipo.subscription.dto.IpoSubscriptionResDTO;
 import com.beyond.MKX.domain.ipo.subscription.entity.InvestorType;
@@ -20,13 +23,17 @@ import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class IpoSubscriptionService {
     private final IpoOfferingRepository offeringRepository;
     private final IpoSubscriptionRepository subscriptionRepository;
+    private final CorporationRepository corporationRepository;
+    private final MemberAccountFeign memberAccountFeign;
     private final Clock clock = Clock.systemDefaultZone();
 
     private final BrokerageDepositAccountService brokerageDepositAccountService;
@@ -67,11 +74,22 @@ public class IpoSubscriptionService {
         }
 
 //        3) 중복 청약 방지 (한 계좌당 한 회차의 공모 청약 가능)
-        boolean subscriptionExist = subscriptionRepository.existsByIpoOffering_IdAndAccountId(
-                subReqDto.ipoOfferingId(), subReqDto.accountId()
-        );
+        boolean subscriptionExist = false;
+        
+        if (subReqDto.investorType() == InvestorType.CORPORATION) {
+            // 기업 투자자: accountId로 중복 체크
+            subscriptionExist = subscriptionRepository.existsByIpoOffering_IdAndAccountId(
+                    subReqDto.ipoOfferingId(), subReqDto.accountId()
+            );
+        } else if (subReqDto.investorType() == InvestorType.INDIVIDUAL) {
+            // 개인 투자자: accountNumber로 중복 체크
+            subscriptionExist = subscriptionRepository.existsByIpoOffering_IdAndAccountNumber(
+                    subReqDto.ipoOfferingId(), subReqDto.accountNumber()
+            );
+        }
+        
         if (subscriptionExist) {
-            throw new IllegalArgumentException("해당 계좌로는 이미 공모 청약 신청이 되었습니다.");
+            throw new IllegalArgumentException("동일 계좌로 이미 청약하셨습니다.");
         }
 
 //        4) 수량 제약 (필수 : 최소 1개 이상, lotSize의 배수만큼 청약 신청 가능)
@@ -113,7 +131,10 @@ public class IpoSubscriptionService {
             brokerageDepositAccountService.deposit(brokerageDepositNo, BigInteger.valueOf(requiredDeposit));
         } else {
             // TODO: MEMBER(개인) 계좌 흐름 연동
-            throw new UnsupportedOperationException("Member 투자자 청약 자금이체는 추후 구현 대상입니다.");
+            var brokerageDeposit = brokerageDepositAccountService.getRequiredByBrokerageId(subReqDto.brokerageId());
+            String brokerageDepositNo = brokerageDeposit.getAccountNumber();
+            memberAccountFeign.withdraw(subReqDto.accountNumber(), new AmountRequest(BigInteger.valueOf(requiredDeposit)));
+            brokerageDepositAccountService.deposit(brokerageDepositNo, BigInteger.valueOf(requiredDeposit));
         }
 
         // 7) 저장
@@ -123,6 +144,7 @@ public class IpoSubscriptionService {
                 .subscriberId(subReqDto.subscriberId())
                 .brokerageId(subReqDto.brokerageId())
                 .accountId(subReqDto.accountId())
+                .accountNumber(subReqDto.accountNumber())  // 👈 개인 청약 시 계좌번호 저장
                 .appliedQuantity(subReqDto.appliedQuantity())
                 .offerPriceSnapshot(priceSnapshot)
                 .depositRateSnapshot(depositRateSnapshot)
@@ -189,8 +211,13 @@ public class IpoSubscriptionService {
                 corporationAccountService.deposit(ipoSubscription.getAccountId(), BigInteger.valueOf(refundable));
             }
         } else {
+            var brokerageDeposit = brokerageDepositAccountService.getRequiredByBrokerageId(ipoSubscription.getBrokerageId());
+            String brokerageDepositNo = brokerageDeposit.getAccountNumber();
             // TODO: MEMBER(개인) 계좌 환불 흐름
-            throw new UnsupportedOperationException("Member 투자자 환불은 추후 구현 대상입니다.");
+            if (refundable > 0) {
+                brokerageDepositAccountService.withdraw(brokerageDepositNo, BigInteger.valueOf(refundable));
+                memberAccountFeign.deposit(ipoSubscription.getAccountNumber(), new AmountRequest(BigInteger.valueOf(refundable)));
+            }
         }
 
 //      5) 상태/환불 기록  long refundable = (ipoSubscription.getRequiredDeposit() == null ? 0L : ipoSubscription.getRequiredDeposit());
@@ -225,6 +252,31 @@ public class IpoSubscriptionService {
         if (offerQty <= 0) return null;
         return BigDecimal.valueOf(paidQty)
                 .divide(BigDecimal.valueOf(offerQty), 2, RoundingMode.HALF_UP); // 1.23 형태
+    }
+
+    @Transactional(readOnly = true)
+    public List<IpoSubscriptionResDTO> findAll(UUID offeringId) {
+        List<IpoSubscription> subscriptions =
+                subscriptionRepository.findAllByOfferingIdAndStatus(offeringId, SubscriptionStatus.PAID);
+
+        return subscriptions.stream()
+                .map(sub -> {
+                    IpoSubscriptionResDTO dto = IpoSubscriptionResDTO.from(sub);
+                    dto.setSubscriberName(resolveSubscriberNameForCorporationView(sub));
+                    return dto;
+                })
+                .collect(Collectors.toList());
+    }
+
+    /** 발행사 관점: 기관만 실명, 개인은 익명 처리 */
+    private String resolveSubscriberNameForCorporationView(IpoSubscription sub) {
+        if (sub.getInvestorType() == InvestorType.CORPORATION) {
+            return corporationRepository.findById(sub.getSubscriberId())
+                    .map(c -> c.getNameKo())
+                    .orElse("알 수 없음");
+        }
+        // 개인투자자는 이름 노출 금지
+        return "개인 투자자";
     }
 
     /** 향후 추가 공모 로직 시간이 된다면 쓸 예정 ... */

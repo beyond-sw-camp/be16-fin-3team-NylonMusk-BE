@@ -36,7 +36,7 @@ public class IpoAllocationController {
     }
 
     /* 1-1) 공모 전체 정산*/
-    @PostMapping("{offeringId}/allocate-all")
+    @PostMapping("/{offeringId}/allocate-all")
     private ResponseEntity<?> settleAllByOffering(@PathVariable UUID offeringId) {
         List<IpoSettlementResDTO> dto = settlementService.settleAllPaymentsByOffering(offeringId);
         return ApiResponse.ok(dto, "해당 공모의 모든 청약을 정산(SETTLED) 처리했습니다.");
@@ -79,4 +79,5 @@ public class IpoAllocationController {
                 : IpoAllocationItemResDTO.from(latest);
         return ApiResponse.ok(dto, "해당 청약의 최신 배정 결과입니다.");
     }
+
 }

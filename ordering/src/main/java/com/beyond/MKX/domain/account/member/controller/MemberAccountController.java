@@ -168,7 +168,7 @@ public class MemberAccountController {
             @PathVariable String accountNumber,
             @RequestBody AmountRequest req
     ) throws AuthenticationException {
-        if (role == null || !"MEMBER".equalsIgnoreCase(role)) {
+        if (role == null || (!"MEMBER".equalsIgnoreCase(role) && !"INTERNAL".equalsIgnoreCase(role))) {
             throw new AuthenticationException("회원만 접근 가능합니다.");
         }
         if (memberId == null || memberId.isBlank()) {
@@ -195,15 +195,17 @@ public class MemberAccountController {
             @PathVariable String accountNumber,
             @RequestBody AmountRequest req
     ) throws AuthenticationException {
-        if (role == null || !"MEMBER".equalsIgnoreCase(role)) {
+        if (role == null || (!"MEMBER".equalsIgnoreCase(role) && !"INTERNAL".equalsIgnoreCase(role))) {
             throw new AuthenticationException("회원만 접근 가능합니다.");
         }
         if (memberId == null || memberId.isBlank()) {
             throw new AuthenticationException("X-User-Id 헤더가 없습니다.");
         }
         MemberAccount acc = service.getByAccountNumber(accountNumber);
-        if (!acc.getMemberId().equals(UUID.fromString(memberId))) {
-            throw new AuthenticationException("본인 계좌가 아닙니다.");
+        if (!"INTERNAL".equalsIgnoreCase(role)) {
+            if (!acc.getMemberId().equals(UUID.fromString(memberId))) {
+                throw new AuthenticationException("본인 계좌가 아닙니다.");
+            }
         }
         Long balance = service.withdraw(accountNumber, req.getAmount());
         return ApiResponse.ok(Map.of("balance", balance), "출금 완료");

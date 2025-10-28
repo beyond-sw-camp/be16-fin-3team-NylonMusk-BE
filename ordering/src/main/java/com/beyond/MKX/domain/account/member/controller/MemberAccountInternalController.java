@@ -61,6 +61,8 @@ public class MemberAccountInternalController {
                 account.getStatus().name()
         ));
     }
+
+
     
     /**
      * memberAccountId로 계좌번호 조회
@@ -185,24 +187,36 @@ public class MemberAccountInternalController {
         ), "입금 완료");
     }
 
+    /**
+     * 내부용 회원 계좌 출금 (정산, 환불 등) - 계좌번호 기준
+     */
+    @PostMapping("/by-number/{accountNumber}/withdraw")
+    public ResponseEntity<?> withdrawByAccountNumber(
+            @PathVariable String accountNumber,
+            @RequestBody DepositInternalRequest request
+    ) {
+        MemberAccount account = repository.findByNumber(accountNumber)
+                .orElse(null);
+
+        if (account == null) {
+            log.warn("회원 계좌를 찾을 수 없음: accountNumber={}", accountNumber);
+            return ApiResponse.ok(Map.of(
+                    "success", false,
+                    "message", "회원 계좌를 찾을 수 없습니다"
+            ), "계좌 조회 실패");
+        }
+
+        Long balance = memberAccountService.withdraw(accountNumber, request.amount());
+
+        return ApiResponse.ok(Map.of(
+                "success", true,
+                "message", "출금 완료",
+                "newBalance", balance
+        ), "출금 완료");
+    }
+
     public record DepositInternalRequest(
             Long amount
     ) {}
-
-    // 내부 시스템용 자금 이동 API 추가 (mkx-platform → ordering Feign 호출용)
-
-    @PostMapping("/{accountNumber}/withdraw")
-    public ResponseEntity<Long> internalWithdraw(@PathVariable String accountNumber,
-                                                 @RequestBody AmountRequest req) {
-        Long balance = memberAccountService.withdraw(accountNumber, req.getAmount());
-        return ResponseEntity.ok(balance);
-    }
-
-    @PostMapping("/{accountNumber}/deposit")
-    public ResponseEntity<Long> internalDeposit(@PathVariable String accountNumber,
-                                                @RequestBody AmountRequest req) {
-        Long balance = memberAccountService.deposit(accountNumber, req.getAmount());
-        return ResponseEntity.ok(balance);
-    }
 
 }

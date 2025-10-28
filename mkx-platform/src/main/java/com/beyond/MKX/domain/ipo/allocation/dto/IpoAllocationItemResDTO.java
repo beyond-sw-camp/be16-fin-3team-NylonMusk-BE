@@ -28,6 +28,12 @@ public class IpoAllocationItemResDTO {
     private String brokerageId;    // IpoSubscription.brokerageId
     private String investorType;   // IpoSubscription.investorType.name()
 
+    // ▼ 추가: 청약 정보 (배정률 계산용)
+    private Long subscribedQuantity;   // IpoSubscription.appliedQuantity
+    private Long subscribedPrice;      // IpoSubscription.offerPriceSnapshot
+    private Long subscribedAmount;     // subscribedQuantity * subscribedPrice
+    private LocalDateTime subscribedAt; // IpoSubscription.appliedAt
+
     // ▼ 추가: 계산 필드
     private Long depositAmount;     // subscription.requiredDeposit (스냅샷)
     private Long finalAmount;       // allocatedQuantity * allocatedPrice
@@ -48,6 +54,15 @@ public class IpoAllocationItemResDTO {
         long additional = Math.max(finalAmt - deposit, 0L);
         long refund     = Math.max(deposit - finalAmt, 0L);
 
+        // 청약 정보 계산
+        Long subscribedQty = Optional.ofNullable(s)
+                .map(IpoSubscription::getAppliedQuantity)
+                .orElse(0L);
+        Long subscribedPrice = Optional.ofNullable(s)
+                .map(IpoSubscription::getOfferPriceSnapshot)
+                .orElse(0L);
+        long subscribedAmt = subscribedQty * subscribedPrice;
+
         return IpoAllocationItemResDTO.builder()
                 // 배정 기본
                 .subscriptionId(s.getId().toString())
@@ -62,6 +77,11 @@ public class IpoAllocationItemResDTO {
                 .accountId(nvlUUID(s.getAccountId()))
                 .brokerageId(nvlUUID(s.getBrokerageId()))
                 .investorType(s.getInvestorType() != null ? s.getInvestorType().name() : null)
+                // 청약 정보
+                .subscribedQuantity(subscribedQty)
+                .subscribedPrice(subscribedPrice)
+                .subscribedAmount(subscribedAmt)
+                .subscribedAt(s.getAppliedAt())
                 // 계산 필드
                 .depositAmount(deposit)
                 .finalAmount(finalAmt)

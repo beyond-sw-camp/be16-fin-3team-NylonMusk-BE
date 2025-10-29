@@ -2,6 +2,8 @@ package com.beyond.MKX.domain.stockfavorite.controller;
 
 import com.beyond.MKX.common.apiResponse.ApiResponse;
 import com.beyond.MKX.common.auth.security.CustomMemberPrincipal;
+import com.beyond.MKX.domain.stock.dto.StockListResDto;
+import com.beyond.MKX.domain.stock.entity.Stock;
 import com.beyond.MKX.domain.stockfavorite.service.StockFavoritesService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -30,9 +32,9 @@ public class StockFavoritesController {
         return ApiResponse.ok("즐겨찾기 삭제 완료");
     }
 
-    @GetMapping
+    @GetMapping("/all")
     public ResponseEntity<?> getFavorites(@AuthenticationPrincipal CustomMemberPrincipal principal) {
-        List<UUID> list = favoritesService.getFavoritesStockIds(principal.id());
+        List<StockListResDto> list = favoritesService.getFavoriteStocks(principal.id());
         return ApiResponse.ok(list, "즐겨찾기 목록 조회 완료");
     }
 }

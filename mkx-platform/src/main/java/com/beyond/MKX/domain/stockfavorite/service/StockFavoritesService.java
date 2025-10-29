@@ -2,6 +2,7 @@ package com.beyond.MKX.domain.stockfavorite.service;
 
 import com.beyond.MKX.domain.member.entity.Member;
 import com.beyond.MKX.domain.member.repository.MemberRepository;
+import com.beyond.MKX.domain.stock.dto.StockListResDto;
 import com.beyond.MKX.domain.stock.entity.Stock;
 import com.beyond.MKX.domain.stock.repository.StockRepository;
 import com.beyond.MKX.domain.stockfavorite.entity.StockFavorites;
@@ -42,7 +43,11 @@ public class StockFavoritesService {
     }
 
     @Transactional(readOnly = true)
-    public List<UUID> getFavoritesStockIds(UUID memberId) {
-        return favoritesRepository.findFavoriteStockIds(memberId);
+    public List<StockListResDto> getFavoriteStocks(UUID memberId) {
+        List<Stock> list = favoritesRepository.findFavoriteStocks(memberId);
+        return list.stream()
+                .map(StockListResDto::from)
+                .toList();
+
     }
 }

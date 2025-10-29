@@ -17,12 +17,12 @@ public interface StockFavoritesRepository extends JpaRepository<StockFavorites, 
     List<StockFavorites> findAllByMember_Id(UUID memberId);
 
     @Query("""
-            SELECT StockFavoritesResDTO(
-            s.id, s.nameKo, s.ticker
-            )
-            FROM StockFavorites f
-            JOIN f.stock s
-            WHERE f.member.id = :memberId
+            SELECT new com.beyond.MKX.domain.stockfavorite.dto.StockFavoritesResDTO(
+                                             s.id, s.nameKo, s.ticker
+                                         )
+                                         FROM StockFavorites f
+                                         JOIN f.stock s
+                                         WHERE f.member.id = :memberId
             """)
     List<StockFavoritesResDTO> findFavoritesWithStock(@Param("memberId") UUID memberId);
 }

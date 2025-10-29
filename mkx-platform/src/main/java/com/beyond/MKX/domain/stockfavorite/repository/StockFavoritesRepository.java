@@ -2,7 +2,7 @@ package com.beyond.MKX.domain.stockfavorite.repository;
 
 import com.beyond.MKX.domain.stockfavorite.dto.StockFavoritesResDTO;
 import com.beyond.MKX.domain.stockfavorite.entity.StockFavorites;
-import feign.Param;
+import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
@@ -14,15 +14,11 @@ public interface StockFavoritesRepository extends JpaRepository<StockFavorites, 
 
     void deleteByMember_IdAndStock_Id(UUID memberId, UUID stockId);
 
-    List<StockFavorites> findAllByMember_Id(UUID memberId);
-
+    /** 즐겨찾기 종목 ID 목록만 반환 */
     @Query("""
-            SELECT new com.beyond.MKX.domain.stockfavorite.dto.StockFavoritesResDTO(
-                                             s.id, s.nameKo, s.ticker
-                                         )
-                                         FROM StockFavorites f
-                                         JOIN f.stock s
-                                         WHERE f.member.id = :memberId
-            """)
-    List<StockFavoritesResDTO> findFavoritesWithStock(@Param("memberId") UUID memberId);
+        SELECT f.stock.id
+        FROM StockFavorites f
+        WHERE f.member.id = :memberId
+    """)
+    List<UUID> findFavoriteStockIds(@Param("memberId") UUID memberId);
 }

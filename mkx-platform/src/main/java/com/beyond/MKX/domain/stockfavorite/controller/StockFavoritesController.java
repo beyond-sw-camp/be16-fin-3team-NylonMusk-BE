@@ -2,8 +2,6 @@ package com.beyond.MKX.domain.stockfavorite.controller;
 
 import com.beyond.MKX.common.apiResponse.ApiResponse;
 import com.beyond.MKX.common.auth.security.CustomMemberPrincipal;
-import com.beyond.MKX.domain.stockfavorite.dto.StockFavoritesResDTO;
-import com.beyond.MKX.domain.stockfavorite.entity.StockFavorites;
 import com.beyond.MKX.domain.stockfavorite.service.StockFavoritesService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -22,8 +20,8 @@ public class StockFavoritesController {
 
     @PostMapping("{stockId}")
     public ResponseEntity<?> addFavorite(@PathVariable UUID stockId, @AuthenticationPrincipal CustomMemberPrincipal principal) {
-        StockFavoritesResDTO dto = favoritesService.addFavorite(principal.id(), stockId);
-        return ApiResponse.ok(dto, "종목 즐겨찾기 완료");
+        favoritesService.addFavorite(principal.id(), stockId);
+        return ApiResponse.ok("종목 즐겨찾기 완료");
     }
 
     @DeleteMapping("{stockId}")
@@ -34,7 +32,7 @@ public class StockFavoritesController {
 
     @GetMapping
     public ResponseEntity<?> getFavorites(@AuthenticationPrincipal CustomMemberPrincipal principal) {
-        List<StockFavoritesResDTO> list = favoritesService.getFavorites(principal.id());
+        List<UUID> list = favoritesService.getFavoritesStockIds(principal.id());
         return ApiResponse.ok(list, "즐겨찾기 목록 조회 완료");
     }
 }

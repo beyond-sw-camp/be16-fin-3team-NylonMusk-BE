@@ -51,6 +51,38 @@ public class FinancialRatiosAutoCalculator {
         return toPercentage(safeDivide(toDouble(cf.getTotalLiabilities()), equity));
     }
 
+    /**
+     * 영업이익률 = 영업이익 / 매출액 * 100
+     * - 매출액이 0이면 0.00%
+     */
+    public BigDecimal calculateOperatingMargin(CompanyFinancials cf) {
+        return toPercentage(safeDivide(toDouble(cf.getOperatingIncome()), toDouble(cf.getRevenue())));
+    }
+
+    /**
+     * 순이익률 = 당기순이익 / 매출액 * 100
+     * - 매출액이 0이면 0.00%
+     */
+    public BigDecimal calculateNetMargin(CompanyFinancials cf) {
+        return toPercentage(safeDivide(toDouble(cf.getNetIncome()), toDouble(cf.getRevenue())));
+    }
+
+    /**
+     * 유동비율 = 유동자산 / 유동부채 * 100
+     * - 유동부채가 0이면 0.00%
+     */
+    public BigDecimal calculateCurrentRatio(CompanyFinancials cf) {
+        return toPercentage(safeDivide(toDouble(cf.getCurrentAssets()), toDouble(cf.getCurrentLiabilities())));
+    }
+
+    /**
+     * 이자보상배수 = 영업이익 / 이자비용 (배수)
+     * - 이자비용이 0이면 0.00배
+     */
+    public BigDecimal calculateInterestCoverage(CompanyFinancials cf) {
+        return toRatio(safeDivide(toDouble(cf.getOperatingIncome()), toDouble(cf.getInterestExpense())));
+    }
+
     /** Long → double null-safe 변환 */
     private static double toDouble(Long v) { return v == null ? 0.0 : v.doubleValue(); }
 
@@ -60,5 +92,10 @@ public class FinancialRatiosAutoCalculator {
     /** 배율을 %로 환산하고 소수 둘째 자리까지 반올림 */
     private static BigDecimal toPercentage(double ratio) {
         return BigDecimal.valueOf(ratio * 100.0).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    /** 배수(%)가 아닌 지표용 스케일 2 고정 반올림 */
+    private static BigDecimal toRatio(double value) {
+        return BigDecimal.valueOf(value).setScale(2, RoundingMode.HALF_UP);
     }
 }

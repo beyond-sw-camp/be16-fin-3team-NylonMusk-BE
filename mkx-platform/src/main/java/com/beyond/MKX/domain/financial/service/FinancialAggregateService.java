@@ -117,6 +117,10 @@ public class FinancialAggregateService {
         BigDecimal roe = calculator.calculateROE(cf);
         BigDecimal roa = calculator.calculateROA(cf);
         BigDecimal debt = calculator.calculateDebtRatio(cf);
+        BigDecimal opMargin = calculator.calculateOperatingMargin(cf);
+        BigDecimal netMargin = calculator.calculateNetMargin(cf);
+        BigDecimal currRatio = calculator.calculateCurrentRatio(cf);
+        BigDecimal intCov = calculator.calculateInterestCoverage(cf);
 
         Optional<FinancialRatios> existingRecord =
                 financialRatiosRepository.findByStockIdAndFiscalYearAndFiscalQuarter(
@@ -128,6 +132,10 @@ public class FinancialAggregateService {
             existing.setRoe(roe);
             existing.setRoa(roa);
             existing.setDebtRatio(debt);
+            existing.setOperatingMargin(opMargin);
+            existing.setNetMargin(netMargin);
+            existing.setCurrentRatio(currRatio);
+            existing.setInterestCoverage(intCov);
         } else {
             FinancialRatios created = FinancialRatios.builder()
                     .stockId(cf.getStockId())
@@ -136,6 +144,10 @@ public class FinancialAggregateService {
                     .roe(roe)
                     .roa(roa)
                     .debtRatio(debt)
+                    .operatingMargin(opMargin)
+                    .netMargin(netMargin)
+                    .currentRatio(currRatio)
+                    .interestCoverage(intCov)
                     .build();
             financialRatiosRepository.save(created);
         }

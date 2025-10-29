@@ -151,4 +151,34 @@ public class MemberAccountService {
         
         return acc.getBalance();
     }
+
+    /**
+     * 계좌 이체: MEMBER 계좌 간 이체
+     * - 송금인 계좌에서 출금
+     * - 수취인 계좌로 입금
+     * - 트랜잭션으로 묶어서 처리
+     */
+    public void transfer(String fromAccountNumber, String toAccountNumber, Long amount) {
+        // 송금인 계좌 검증 및 출금
+        MemberAccount fromAcc = getByAccountNumber(fromAccountNumber);
+        if (fromAcc.getStatus() != AccountStatus.ACTIVE) {
+            throw new IllegalStateException("송금인 계좌 상태가 활성(ACTIVE)이 아닙니다.");
+        }
+        
+        // 수취인 계좌 검증
+        MemberAccount toAcc = getByAccountNumber(toAccountNumber);
+        if (toAcc.getStatus() != AccountStatus.ACTIVE) {
+            throw new IllegalStateException("수취인 계좌 상태가 활성(ACTIVE)이 아닙니다.");
+        }
+        
+        // 송금인 출금
+        fromAcc.withdraw(amount);
+        
+        // 수취인 입금
+        toAcc.deposit(amount);
+        
+        // Kafka 이벤트 발행 (출금/입금 각각)
+        eventPublisher.publishWithdrawalEvent(fromAccountNumber, fromAcc.getId(), amount, "TRANSFER");
+        eventPublisher.publishDepositEvent(toAccountNumber, toAcc.getId(), amount, "TRANSFER");
+    }
 }

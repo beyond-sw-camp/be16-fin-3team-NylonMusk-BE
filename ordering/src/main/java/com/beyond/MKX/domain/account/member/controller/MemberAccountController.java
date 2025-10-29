@@ -4,6 +4,8 @@ import com.beyond.MKX.common.apiResponse.ApiResponse;
 import com.beyond.MKX.domain.account.member.service.IdempotencyService;
 import com.beyond.MKX.domain.account.member.dto.MemberAccountCreateRes;
 import com.beyond.MKX.domain.account.member.dto.AmountRequest;
+import com.beyond.MKX.domain.account.member.dto.TransferRequest;
+import com.beyond.MKX.domain.account.member.dto.AccountInfoResponse;
 import com.beyond.MKX.domain.account.member.dto.MemberContextRes;
 import com.beyond.MKX.domain.account.member.service.MemberAccountService;
 import com.beyond.MKX.domain.account.member.client.MemberInternalClient;
@@ -209,5 +211,61 @@ public class MemberAccountController {
         }
         Long balance = service.withdraw(accountNumber, req.getAmount());
         return ApiResponse.ok(Map.of("balance", balance), "출금 완료");
+    }
+
+    /**
+     * 계좌 이체 (회원 본인만)
+     * 헤더 요구: X-User-Role=MEMBER, X-User-Id=<회원 UUID>
+     * - 송금인 본인 계좌 여부 검증
+     * - 수취인 계좌 존재 여부 자동 검증
+     */
+    @PostMapping("/{fromAccountNumber}/transfer")
+    public ResponseEntity<?> transfer(
+            @RequestHeader(value = "X-User-Role", required = false) String role,
+            @RequestHeader(value = "X-User-Id", required = false) String memberId,
+            @PathVariable String fromAccountNumber,
+            @RequestBody TransferRequest req
+    ) throws AuthenticationException {
+        if (role == null || !"MEMBER".equalsIgnoreCase(role)) {
+            throw new AuthenticationException("회원만 접근 가능합니다.");
+        }
+        if (memberId == null || memberId.isBlank()) {
+            throw new AuthenticationException("X-User-Id 헤더가 없습니다.");
+        }
+        
+        // 송금인 본인 계좌 여부 검증
+        MemberAccount fromAcc = service.getByAccountNumber(fromAccountNumber);
+        if (!fromAcc.getMemberId().equals(UUID.fromString(memberId))) {
+            throw new AuthenticationException("본인 계좌가 아닙니다.");
+        }
+        
+        // 이체 실행
+        service.transfer(fromAccountNumber, req.getToAccountNumber(), req.getAmount());
+        
+        // 이체 후 잔액 조회
+        MemberAccount updatedAcc = service.getByAccountNumber(fromAccountNumber);
+        return ApiResponse.ok(Map.of("balance", updatedAcc.getBalance()), "이체 완료");
+    }
+
+    /**
+     * 계좌 정보 조회 (계좌번호로 소유자 확인)
+     * - 모든 로그인 사용자가 조회 가능 (이체 시 수취인 확인용)
+     * - 현재는 계좌 존재 여부만 확인 (추후 이름 조회 기능 추가 가능)
+     */
+    @GetMapping("/info/{accountNumber}")
+    public ResponseEntity<?> getAccountInfo(@PathVariable String accountNumber) {
+        MemberAccount acc = service.getByAccountNumber(accountNumber);
+        
+        // 회원 ID를 마스킹하여 일부만 표시
+        String memberId = acc.getMemberId().toString();
+        String maskedMemberId = memberId.substring(0, 8) + "****";
+        
+        AccountInfoResponse response = new AccountInfoResponse(
+            accountNumber,
+            "회원 (" + maskedMemberId + ")",  // 임시: 회원 ID 일부만 표시
+            "MEMBER"
+        );
+        
+        return ApiResponse.ok(response, "계좌 정보 조회 성공");
     }
 }

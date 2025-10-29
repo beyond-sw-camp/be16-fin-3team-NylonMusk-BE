@@ -1,6 +1,5 @@
 package com.beyond.MKX.domain.stockfavorite.repository;
 
-import com.beyond.MKX.domain.stockfavorite.dto.StockFavoritesResDTO;
 import com.beyond.MKX.domain.stockfavorite.entity.StockFavorites;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaRepository;

@@ -8,6 +8,7 @@ import com.beyond.MKX.domain.assets.entity.AccountStatus;
 import com.beyond.MKX.domain.assets.entity.MemberAccount;
 import com.beyond.MKX.domain.assets.repository.MemberAccountRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
@@ -23,6 +24,7 @@ import java.util.UUID;
  * - 생성 후 mkx-platform(account_list)에 MEMBER 유형으로 메타 등록 요청(Feign)
  * - 계좌번호 충돌 회피(여러 번 시도)
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -159,26 +161,48 @@ public class MemberAccountService {
      * - 트랜잭션으로 묶어서 처리
      */
     public void transfer(String fromAccountNumber, String toAccountNumber, Long amount) {
+        log.info(">>> Service.transfer 시작");
+        log.info("fromAccountNumber: {}, toAccountNumber: {}, amount: {}", 
+                fromAccountNumber, toAccountNumber, amount);
+        
         // 송금인 계좌 검증 및 출금
         MemberAccount fromAcc = getByAccountNumber(fromAccountNumber);
+        log.info("송금인 계좌 조회 완료 - status: {}, balance: {}", 
+                fromAcc.getStatus(), fromAcc.getBalance());
+        
         if (fromAcc.getStatus() != AccountStatus.ACTIVE) {
+            log.error("송금인 계좌 상태 불일치: {}", fromAcc.getStatus());
             throw new IllegalStateException("송금인 계좌 상태가 활성(ACTIVE)이 아닙니다.");
         }
         
         // 수취인 계좌 검증
         MemberAccount toAcc = getByAccountNumber(toAccountNumber);
+        log.info("수취인 계좌 조회 완료 - status: {}, balance: {}", 
+                toAcc.getStatus(), toAcc.getBalance());
+        
         if (toAcc.getStatus() != AccountStatus.ACTIVE) {
+            log.error("수취인 계좌 상태 불일치: {}", toAcc.getStatus());
             throw new IllegalStateException("수취인 계좌 상태가 활성(ACTIVE)이 아닙니다.");
         }
         
         // 송금인 출금
+        log.info("송금인 출금 시작: {} 원", amount);
         fromAcc.withdraw(amount);
+        log.info("송금인 출금 완료 - 남은 잔액: {}", fromAcc.getBalance());
         
         // 수취인 입금
+        log.info("수취인 입금 시작: {} 원", amount);
         toAcc.deposit(amount);
+        log.info("수취인 입금 완료 - 현재 잔액: {}", toAcc.getBalance());
         
         // Kafka 이벤트 발행 (출금/입금 각각)
+        log.info("Kafka 이벤트 발행 시작");
         eventPublisher.publishWithdrawalEvent(fromAccountNumber, fromAcc.getId(), amount, "TRANSFER");
+        log.info("출금 이벤트 발행 완료");
+        
         eventPublisher.publishDepositEvent(toAccountNumber, toAcc.getId(), amount, "TRANSFER");
+        log.info("입금 이벤트 발행 완료");
+        
+        log.info(">>> Service.transfer 완료");
     }
 }

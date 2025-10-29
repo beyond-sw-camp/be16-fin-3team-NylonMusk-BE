@@ -11,6 +11,7 @@ import com.beyond.MKX.domain.account.member.service.MemberAccountService;
 import com.beyond.MKX.domain.account.member.client.MemberInternalClient;
 import com.beyond.MKX.domain.assets.entity.MemberAccount;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -32,6 +33,7 @@ import java.util.UUID;
  * - 멱등성: 회원ID + 증권사ID로 서버가 결정적 키(SHA-256)를 생성해 동시/중복 제출을 흡수한다.
  * - 실제 생성 후 "플랫폼"의 account_list에 메타 데이터를 등록한다.
  */
+@Slf4j
 @RestController
 @RequestMapping("/api/accounts/member")
 @RequiredArgsConstructor
@@ -226,43 +228,79 @@ public class MemberAccountController {
             @PathVariable String fromAccountNumber,
             @RequestBody TransferRequest req
     ) throws AuthenticationException {
-        if (role == null || !"MEMBER".equalsIgnoreCase(role)) {
-            throw new AuthenticationException("회원만 접근 가능합니다.");
-        }
-        if (memberId == null || memberId.isBlank()) {
-            throw new AuthenticationException("X-User-Id 헤더가 없습니다.");
-        }
+        log.info("=== 이체 요청 시작 ===");
+        log.info("fromAccountNumber: {}, toAccountNumber: {}, amount: {}", 
+                fromAccountNumber, req.getToAccountNumber(), req.getAmount());
+        log.info("role: {}, memberId: {}", role, memberId);
         
-        // 송금인 본인 계좌 여부 검증
-        MemberAccount fromAcc = service.getByAccountNumber(fromAccountNumber);
-        if (!fromAcc.getMemberId().equals(UUID.fromString(memberId))) {
-            throw new AuthenticationException("본인 계좌가 아닙니다.");
+        try {
+            if (role == null || !"MEMBER".equalsIgnoreCase(role)) {
+                log.error("권한 불일치: {}", role);
+                throw new AuthenticationException("회원만 접근 가능합니다.");
+            }
+            if (memberId == null || memberId.isBlank()) {
+                log.error("memberId 누락");
+                throw new AuthenticationException("X-User-Id 헤더가 없습니다.");
+            }
+            
+            // 송금인 본인 계좌 여부 검증
+            MemberAccount fromAcc = service.getByAccountNumber(fromAccountNumber);
+            log.info("fromAcc 정보 - memberId: {}, balance: {}, status: {}", 
+                    fromAcc.getMemberId(), fromAcc.getBalance(), fromAcc.getStatus());
+            
+            if (!fromAcc.getMemberId().equals(UUID.fromString(memberId))) {
+                log.error("계좌 소유자 불일치. 계좌 소유자: {}, 요청자: {}", 
+                        fromAcc.getMemberId(), memberId);
+                throw new AuthenticationException("본인 계좌가 아닙니다.");
+            }
+            
+            // 수취인 계좌 확인
+            MemberAccount toAcc = service.getByAccountNumber(req.getToAccountNumber());
+            log.info("toAcc 정보 - memberId: {}, balance: {}, status: {}", 
+                    toAcc.getMemberId(), toAcc.getBalance(), toAcc.getStatus());
+            
+            // 이체 실행
+            log.info("이체 실행 시작...");
+            service.transfer(fromAccountNumber, req.getToAccountNumber(), req.getAmount());
+            log.info("이체 실행 완료");
+            
+            // 이체 후 잔액 조회
+            MemberAccount updatedAcc = service.getByAccountNumber(fromAccountNumber);
+            log.info("이체 후 잔액: {}", updatedAcc.getBalance());
+            log.info("=== 이체 요청 성공 ===");
+            
+            return ApiResponse.ok(Map.of("balance", updatedAcc.getBalance()), "이체 완료");
+        } catch (Exception e) {
+            log.error("=== 이체 실패 ===");
+            log.error("에러 메시지: {}", e.getMessage());
+            log.error("에러 타입: {}", e.getClass().getName());
+            log.error("스택 트레이스:", e);
+            throw e;
         }
-        
-        // 이체 실행
-        service.transfer(fromAccountNumber, req.getToAccountNumber(), req.getAmount());
-        
-        // 이체 후 잔액 조회
-        MemberAccount updatedAcc = service.getByAccountNumber(fromAccountNumber);
-        return ApiResponse.ok(Map.of("balance", updatedAcc.getBalance()), "이체 완료");
     }
 
     /**
      * 계좌 정보 조회 (계좌번호로 소유자 확인)
      * - 모든 로그인 사용자가 조회 가능 (이체 시 수취인 확인용)
-     * - 현재는 계좌 존재 여부만 확인 (추후 이름 조회 기능 추가 가능)
+     * - 회원 이름을 mkx-platform에서 조회하여 반환
      */
     @GetMapping("/info/{accountNumber}")
     public ResponseEntity<?> getAccountInfo(@PathVariable String accountNumber) {
         MemberAccount acc = service.getByAccountNumber(accountNumber);
         
-        // 회원 ID를 마스킹하여 일부만 표시
-        String memberId = acc.getMemberId().toString();
-        String maskedMemberId = memberId.substring(0, 8) + "****";
+        // 회원 이름 조회
+        String memberName;
+        try {
+            Map<String, String> nameResponse = memberInternalClient.getMemberName(acc.getMemberId());
+            memberName = nameResponse.get("name");
+        } catch (Exception e) {
+            // Feign 호출 실패 시 fallback
+            memberName = "회원";
+        }
         
         AccountInfoResponse response = new AccountInfoResponse(
             accountNumber,
-            "회원 (" + maskedMemberId + ")",  // 임시: 회원 ID 일부만 표시
+            memberName,
             "MEMBER"
         );
         

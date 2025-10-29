@@ -64,4 +64,19 @@ public class MemberInternalController {
                 brokerage.getStatus().name()
         ));
     }
+
+    /**
+     * 회원 이름 조회
+     *
+     * 계좌 이체 등에서 계좌 소유자의 이름을 확인할 때 사용합니다.
+     *
+     * @param memberId 회원 UUID
+     * @return { "name": "회원 이름" }
+     */
+    @GetMapping("/{memberId}/name")
+    public ResponseEntity<?> getMemberName(@PathVariable UUID memberId) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("회원 없음"));
+        return ResponseEntity.ok(Map.of("name", member.getName()));
+    }
 }

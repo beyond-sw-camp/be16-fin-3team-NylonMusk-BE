@@ -279,6 +279,20 @@ public class IpoSubscriptionService {
         return "개인 투자자";
     }
 
+    @Transactional(readOnly = true)
+    public List<IpoSubscriptionResDTO> findAllBySubscriber(UUID subscriberId, InvestorType type) {
+        List<IpoSubscription> list = subscriptionRepository.findAllBySubscriberIdAndInvestorType(subscriberId, type);
+
+        return list.stream()
+                .map(sub -> {
+                    IpoSubscriptionResDTO dto = IpoSubscriptionResDTO.from(sub);
+                    dto.setCompetitionRatioX(computeCompetitionRatioX(sub.getIpoOffering()));
+                    return dto;
+                })
+                .collect(Collectors.toList());
+    }
+
+
     /** 향후 추가 공모 로직 시간이 된다면 쓸 예정 ... */
 //    @Transactional
 //    public IpoSubscriptionResDTO deposit(UUID subscriptionId, long depositAmount) {

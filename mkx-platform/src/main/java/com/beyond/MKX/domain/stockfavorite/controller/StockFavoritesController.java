@@ -34,15 +34,7 @@ public class StockFavoritesController {
 
     @GetMapping
     public ResponseEntity<?> getFavorites(@AuthenticationPrincipal CustomMemberPrincipal principal) {
-        List<StockFavoritesResDTO> list = favoritesService.getFavorites(principal.id())
-                .stream()
-                .map(f -> StockFavoritesResDTO.builder()
-                        .stockId(f.getStock().getId())
-                        .nameKo(f.getStock().getNameKo())
-                        .ticker(f.getStock().getTicker())
-                        .build())
-                .toList();
-
+        List<StockFavoritesResDTO> list = favoritesService.getFavorites(principal.id());
         return ApiResponse.ok(list, "즐겨찾기 목록 조회 완료");
     }
 }

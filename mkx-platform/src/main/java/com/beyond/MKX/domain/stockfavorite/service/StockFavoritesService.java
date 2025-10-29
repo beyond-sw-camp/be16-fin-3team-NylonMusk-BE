@@ -49,7 +49,7 @@ public class StockFavoritesService {
     }
 
     @Transactional(readOnly = true)
-    public List<StockFavorites> getFavorites(UUID memberId) {
-        return favoritesRepository.findAllByMember_Id(memberId);
+    public List<StockFavoritesResDTO> getFavorites(UUID memberId) {
+        return favoritesRepository.findFavoritesWithStock(memberId);
     }
 }

@@ -4,6 +4,7 @@ import com.beyond.MKX.domain.member.entity.Member;
 import com.beyond.MKX.domain.member.repository.MemberRepository;
 import com.beyond.MKX.domain.stock.entity.Stock;
 import com.beyond.MKX.domain.stock.repository.StockRepository;
+import com.beyond.MKX.domain.stockfavorite.dto.StockFavoritesResDTO;
 import com.beyond.MKX.domain.stockfavorite.entity.StockFavorites;
 import com.beyond.MKX.domain.stockfavorite.repository.StockFavoritesRepository;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +22,7 @@ public class StockFavoritesService {
     private final StockRepository stockRepository;
     private final MemberRepository memberRepository;
 
-    public void addFavorite(UUID memberId, UUID stockId) {
+    public StockFavoritesResDTO addFavorite(UUID memberId, UUID stockId) {
         if (favoritesRepository.existsByMember_IdAndStock_Id(memberId, stockId)) {
             throw new IllegalArgumentException("이미 즐겨찾기 되어 있는 종목입니다.");
         }
@@ -31,10 +32,16 @@ public class StockFavoritesService {
         Stock stock = stockRepository.findById(stockId)
                 .orElseThrow(() -> new IllegalArgumentException("종목 없음"));
 
-        favoritesRepository.save(StockFavorites.builder()
+        StockFavorites saved = favoritesRepository.save(StockFavorites.builder()
                 .member(member)
                 .stock(stock)
                 .build());
+
+        return StockFavoritesResDTO.builder()
+                .stockId(saved.getStock().getId())
+                .nameKo(saved.getStock().getNameKo())
+                .ticker(saved.getStock().getTicker())
+                .build();
     }
 
     public void removeFavorite(UUID memberId, UUID stockId) {

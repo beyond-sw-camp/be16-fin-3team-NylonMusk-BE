@@ -73,15 +73,42 @@ public class TransactionEventConsumer {
 
                 // 입금(DEPOSIT): null(시스템) → account (시스템에서 회원 계좌로 입금)
                 // 출금(WITHDRAWAL): account → null(시스템) (회원 계좌에서 시스템으로 출금)
+                // 이체(TRANSFER): 계좌간 이체 (상대방 정보 포함)
                 UUID creditAccountId;
                 UUID debitAccountId;
+                Long debitAmount;
+                Long creditAmount;
                 
                 if (transactionType == TransactionType.DEPOSIT) {
                     creditAccountId = accountId;    // 입금 받는 쪽: 회원 계좌
                     debitAccountId = null;           // 입금 보내는 쪽: 시스템(null)
-                } else {
+                    debitAmount = 0L;
+                    creditAmount = event.getAmount();
+                } else if (transactionType == TransactionType.WITHDRAWAL) {
                     creditAccountId = null;          // 출금 받는 쪽: 시스템(null)
                     debitAccountId = accountId;      // 출금 보내는 쪽: 회원 계좌
+                    debitAmount = event.getAmount();
+                    creditAmount = 0L;
+                } else if (transactionType == TransactionType.TRANSFER) {
+                    // 이체는 method로 입금/출금 구분 (publishTransferDepositEvent는 입금, publishTransferWithdrawalEvent는 출금)
+                    if ("TRANSFER_DEPOSIT".equals(event.getMethod()) || event.getMethod() == null) {
+                        // 이체 입금: 다른 계좌 → 내 계좌
+                        creditAccountId = accountId;
+                        debitAccountId = null;
+                        debitAmount = 0L;
+                        creditAmount = event.getAmount();
+                    } else {
+                        // 이체 출금: 내 계좌 → 다른 계좌
+                        creditAccountId = null;
+                        debitAccountId = accountId;
+                        debitAmount = event.getAmount();
+                        creditAmount = 0L;
+                    }
+                } else {
+                    creditAccountId = null;
+                    debitAccountId = accountId;
+                    debitAmount = event.getAmount();
+                    creditAmount = 0L;
                 }
 
                 // Ledger 기록
@@ -90,18 +117,21 @@ public class TransactionEventConsumer {
                         .creditAccountId(creditAccountId)
                         .debitAccountId(debitAccountId)
                         .ticker("")  // 입출금은 ticker 없음 (빈 문자열)
-                        .debit(event.getAmount())
-                        .credit(event.getAmount())
+                        .debit(debitAmount)
+                        .credit(creditAmount)
                         .qtyChange(0L)  // 입출금은 거래량 없음
                         .amountChange(event.getAmount())  // 입출금 금액 = amountChange
                         .commission(0L)
                         .tax(0L)
                         .transactionType(transactionType)
+                        .counterpartyAccountNumber(event.getCounterpartyAccountNumber())
+                        .counterpartyName(event.getCounterpartyName())
                         .build();
                 
                 ledgerRepository.save(ledger);
-                log.info("MEMBER Ledger 기록 완료: eventId={}, type={}, amount={}", 
-                        event.getEventId(), transactionType, event.getAmount());
+                log.info("MEMBER Ledger 기록 완료: eventId={}, type={}, amount={}, counterparty={}", 
+                        event.getEventId(), transactionType, event.getAmount(), 
+                        event.getCounterpartyName() != null ? event.getCounterpartyName() : "N/A");
             } 
             // CORPORATION 계좌 처리
             else if ("CORPORATION".equals(event.getAccountType())) {

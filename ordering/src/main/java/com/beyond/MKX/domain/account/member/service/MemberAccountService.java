@@ -1,6 +1,7 @@
 package com.beyond.MKX.domain.account.member.service;
 
 import com.beyond.MKX.domain.account.member.client.AccountListClient;
+import com.beyond.MKX.domain.account.member.client.MemberInternalClient;
 import com.beyond.MKX.domain.account.member.dto.AccountListRegisterReq;
 import com.beyond.MKX.domain.account.member.dto.AccountStatusUpdateReq;
 import com.beyond.MKX.domain.account.member.util.MemberAccountNumberGenerator;
@@ -33,6 +34,7 @@ public class MemberAccountService {
     private final MemberAccountRepository repository;
     private final AccountListClient accountListClient;
     private final TransactionEventPublisher eventPublisher;
+    private final MemberInternalClient memberInternalClient;
 
     /**
      * 수동 생성(계좌번호 지정)
@@ -185,6 +187,11 @@ public class MemberAccountService {
             throw new IllegalStateException("수취인 계좌 상태가 활성(ACTIVE)이 아닙니다.");
         }
         
+        // 송금인/수취인 이름 조회
+        String fromName = getMemberName(fromAcc.getMemberId());
+        String toName = getMemberName(toAcc.getMemberId());
+        log.info("이름 조회 완료 - 송금인: {}, 수취인: {}", fromName, toName);
+        
         // 송금인 출금
         log.info("송금인 출금 시작: {} 원", amount);
         fromAcc.withdraw(amount);
@@ -195,14 +202,28 @@ public class MemberAccountService {
         toAcc.deposit(amount);
         log.info("수취인 입금 완료 - 현재 잔액: {}", toAcc.getBalance());
         
-        // Kafka 이벤트 발행 (출금/입금 각각)
+        // Kafka 이벤트 발행 (이체 전용 이벤트, 상대방 정보 포함)
         log.info("Kafka 이벤트 발행 시작");
-        eventPublisher.publishWithdrawalEvent(fromAccountNumber, fromAcc.getId(), amount, "TRANSFER");
-        log.info("출금 이벤트 발행 완료");
+        eventPublisher.publishTransferWithdrawalEvent(
+            fromAccountNumber, fromAcc.getId(), amount, toAccountNumber, toName);
+        log.info("이체 출금 이벤트 발행 완료");
         
-        eventPublisher.publishDepositEvent(toAccountNumber, toAcc.getId(), amount, "TRANSFER");
-        log.info("입금 이벤트 발행 완료");
+        eventPublisher.publishTransferDepositEvent(
+            toAccountNumber, toAcc.getId(), amount, fromAccountNumber, fromName);
+        log.info("이체 입금 이벤트 발행 완료");
         
         log.info(">>> Service.transfer 완료");
+    }
+    
+    /**
+     * 회원 이름 조회 (Feign 호출)
+     */
+    private String getMemberName(UUID memberId) {
+        try {
+            return memberInternalClient.getMemberName(memberId).get("name");
+        } catch (Exception e) {
+            log.warn("회원 이름 조회 실패: memberId={}, error={}", memberId, e.getMessage());
+            return "회원";
+        }
     }
 }

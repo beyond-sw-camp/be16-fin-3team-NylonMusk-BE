@@ -27,6 +27,14 @@ public class LedgerResponseDTO {
     private Long tax;
     private Long netAmount;
     private LocalDateTime transactionDate;
+    
+    // 차변/대변 (이체 입출금 구분용)
+    private Long debit;
+    private Long credit;
+    
+    // 계좌이체 시 상대방 정보
+    private String counterpartyAccountNumber;
+    private String counterpartyName;
 
     /**
      * Ledger 엔티티를 LedgerResponseDTO로 변환합니다.
@@ -52,6 +60,10 @@ public class LedgerResponseDTO {
                 .tax(ledger.getTax() != null ? ledger.getTax() : 0L)
                 .netAmount(netAmount)
                 .transactionDate(ledger.getCreatedAt())
+                .debit(ledger.getDebit())
+                .credit(ledger.getCredit())
+                .counterpartyAccountNumber(ledger.getCounterpartyAccountNumber())
+                .counterpartyName(ledger.getCounterpartyName())
                 .build();
     }
 }

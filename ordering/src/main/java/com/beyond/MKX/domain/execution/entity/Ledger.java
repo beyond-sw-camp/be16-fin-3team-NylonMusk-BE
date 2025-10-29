@@ -53,4 +53,12 @@ public class Ledger extends BaseIdAndTimeEntity {
     @Column(name = "transaction_type", length = 20)
     private TransactionType transactionType;
 
+    // 계좌이체 시 상대방 계좌번호
+    @Column(name = "counterparty_account_number", length = 50)
+    private String counterpartyAccountNumber;
+
+    // 계좌이체 시 상대방 이름 (회원명 또는 기업명)
+    @Column(name = "counterparty_name", length = 100)
+    private String counterpartyName;
+
 }

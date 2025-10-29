@@ -12,7 +12,8 @@ public enum TransactionType {
     IPO_REFUND("공모 환불"),
     IPO_ADDITIONAL("공모 추가 납입"),
     DEPOSIT("입금"),
-    WITHDRAWAL("출금");
+    WITHDRAWAL("출금"),
+    TRANSFER("계좌이체");
 
     private final String koreanName;
 

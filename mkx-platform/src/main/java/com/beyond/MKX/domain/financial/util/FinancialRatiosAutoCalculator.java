@@ -83,6 +83,19 @@ public class FinancialRatiosAutoCalculator {
         return toRatio(safeDivide(toDouble(cf.getOperatingIncome()), toDouble(cf.getInterestExpense())));
     }
 
+    /**
+     * BPS(주당순자산가치) = 자기자본 / 총발행주식수
+     * - 총발행주식수가 0이면 0.00 반환
+     */
+    public BigDecimal calculateBPS(CompanyFinancials cf, Long totalSharesOutstanding) {
+        if (totalSharesOutstanding == null || totalSharesOutstanding == 0) {
+            return BigDecimal.ZERO;
+        }
+        double equity = toDouble(cf.getTotalEquity());
+        return BigDecimal.valueOf(equity / totalSharesOutstanding)
+            .setScale(2, RoundingMode.HALF_UP);
+    }
+
     /** Long → double null-safe 변환 */
     private static double toDouble(Long v) { return v == null ? 0.0 : v.doubleValue(); }
 

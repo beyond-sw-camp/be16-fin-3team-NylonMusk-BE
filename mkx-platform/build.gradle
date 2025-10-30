@@ -53,6 +53,10 @@ dependencies {
 
 	// msa간에 통신을 위한 openfeign의존성 추가
 	implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+	
+	// Kafka 의존성
+	implementation 'org.springframework.kafka:spring-kafka'
+	implementation 'org.apache.kafka:kafka-clients'
 
 	// 401처리 위함
 	implementation 'org.springframework.boot:spring-boot-starter-security'

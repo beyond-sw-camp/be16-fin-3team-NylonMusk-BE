@@ -3,6 +3,9 @@ package com.beyond.MKX.domain.ipo.subscription.controller;
 import com.beyond.MKX.common.apiResponse.ApiResponse;
 import com.beyond.MKX.common.auth.security.CustomAdminPrincipal;
 import com.beyond.MKX.common.auth.security.CustomMemberPrincipal;
+import com.beyond.MKX.domain.admin.entity.Admin;
+import com.beyond.MKX.domain.admin.repository.AdminRepository;
+import com.beyond.MKX.domain.corporation.entity.Corporation;
 import com.beyond.MKX.domain.ipo.subscription.dto.IpoSubscriptionReqDTO;
 import com.beyond.MKX.domain.ipo.subscription.dto.IpoSubscriptionResDTO;
 import com.beyond.MKX.domain.ipo.subscription.dto.DepositReqDTO;
@@ -21,6 +24,7 @@ import java.util.*;
 @RequiredArgsConstructor
 public class IpoSubscriptionController {
     private final IpoSubscriptionService subscriptionService;
+    private final AdminRepository adminRepository;
 
     /* 청약 신청(APPLY) & 증거금 납입 (PAID) 원큐 */
     @PostMapping
@@ -58,15 +62,22 @@ public class IpoSubscriptionController {
     @GetMapping("/member")
     public ResponseEntity<?> getMySubscriptionsForMember(@AuthenticationPrincipal CustomMemberPrincipal principal) {
         UUID memberId = principal.id();
-        List<IpoSubscriptionResDTO> res = subscriptionService.findAllBySubscriber(memberId, InvestorType.INDIVIDUAL);
+        List<IpoSubscriptionResDTO> res = subscriptionService.findAllByMember(memberId, InvestorType.INDIVIDUAL);
         return ApiResponse.ok(res, "개인 투자자의 청약 내역입니다.");
     }
 
     /** 기업 투자자 본인 청약 내역 조회 */
     @GetMapping("/corporation")
     public ResponseEntity<?> getMySubscriptionsForCorporation(@AuthenticationPrincipal CustomAdminPrincipal principal) {
-        UUID corporationId = principal.id();
-        List<IpoSubscriptionResDTO> res = subscriptionService.findAllBySubscriber(corporationId, InvestorType.CORPORATION);
+        Admin admin = adminRepository.findById(principal.id()).orElseThrow(() -> new IllegalArgumentException("관리자 없음"));
+        Corporation corporation = admin.getCorporation();
+        UUID corporationId = corporation.getId();
+
+        if (principal == null) {
+            throw new IllegalArgumentException("인증되지 않은 요청입니다.");
+        }
+
+        List<IpoSubscriptionResDTO> res = subscriptionService.findAllByCorporation(corporationId, InvestorType.CORPORATION);
         return ApiResponse.ok(res, "기업 투자자의 청약 내역입니다.");
     }
 

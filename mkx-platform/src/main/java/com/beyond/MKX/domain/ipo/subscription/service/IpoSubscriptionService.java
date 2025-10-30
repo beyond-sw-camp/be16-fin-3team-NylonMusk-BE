@@ -75,7 +75,7 @@ public class IpoSubscriptionService {
 
 //        3) 중복 청약 방지 (한 계좌당 한 회차의 공모 청약 가능)
         boolean subscriptionExist = false;
-        
+
         if (subReqDto.investorType() == InvestorType.CORPORATION) {
             // 기업 투자자: accountId로 중복 체크
             subscriptionExist = subscriptionRepository.existsByIpoOffering_IdAndAccountId(
@@ -87,7 +87,7 @@ public class IpoSubscriptionService {
                     subReqDto.ipoOfferingId(), subReqDto.accountNumber()
             );
         }
-        
+
         if (subscriptionExist) {
             throw new IllegalArgumentException("동일 계좌로 이미 청약하셨습니다.");
         }
@@ -163,6 +163,7 @@ public class IpoSubscriptionService {
         return dto; // ✅ 계산된 경쟁RatioX 포함하여 반환
 
     }
+
     // 확정가가 있으면 그 값을, 없으면 밴드 상단을 사용(보수적 증거금).
     private long resolveEffectivePrice(IpoOffering ipoOffering) {
         Long price = ipoOffering.getOfferPrice();
@@ -244,7 +245,7 @@ public class IpoSubscriptionService {
         return dto;
     }
 
-//    경쟁률 계산기
+    //    경쟁률 계산기
     private BigDecimal computeCompetitionRatioX(IpoOffering o) {
         long paidQty = subscriptionRepository
                 .sumAppliedQuantityByOffering(o.getId(), SubscriptionStatus.PAID);
@@ -268,7 +269,9 @@ public class IpoSubscriptionService {
                 .collect(Collectors.toList());
     }
 
-    /** 발행사 관점: 기관만 실명, 개인은 익명 처리 */
+    /**
+     * 발행사 관점: 기관만 실명, 개인은 익명 처리
+     */
     private String resolveSubscriberNameForCorporationView(IpoSubscription sub) {
         if (sub.getInvestorType() == InvestorType.CORPORATION) {
             return corporationRepository.findById(sub.getSubscriberId())
@@ -279,8 +282,9 @@ public class IpoSubscriptionService {
         return "개인 투자자";
     }
 
+    //    개인 투자자 청약 조회
     @Transactional(readOnly = true)
-    public List<IpoSubscriptionResDTO> findAllBySubscriber(UUID subscriberId, InvestorType type) {
+    public List<IpoSubscriptionResDTO> findAllByMember(UUID subscriberId, InvestorType type) {
         List<IpoSubscription> list = subscriptionRepository.findAllBySubscriberIdAndInvestorType(subscriberId, type);
 
         return list.stream()
@@ -292,6 +296,19 @@ public class IpoSubscriptionService {
                 .collect(Collectors.toList());
     }
 
+    //    기업 투자자 청약 조회
+    @Transactional(readOnly = true)
+    public List<IpoSubscriptionResDTO> findAllByCorporation(UUID subscriberId, InvestorType type) {
+        List<IpoSubscription> list = subscriptionRepository.findAllBySubscriberIdAndInvestorType(subscriberId, type);
+
+        return list.stream()
+                .map(sub -> {
+                    IpoSubscriptionResDTO dto = IpoSubscriptionResDTO.from(sub);
+                    dto.setCompetitionRatioX(computeCompetitionRatioX(sub.getIpoOffering()));
+                    return dto;
+                })
+                .collect(Collectors.toList());
+    }
 
     /** 향후 추가 공모 로직 시간이 된다면 쓸 예정 ... */
 //    @Transactional

@@ -202,7 +202,7 @@ public class RssNewsCrawlerService {
                     }
                 }
 
-                // OpenAI 분석 (요약/감정) - 실패 시 무시
+                // OpenAI 분석 (요약) - 실패 시 무시
                 analyzeWithOpenAI(article);
 
             }
@@ -304,9 +304,7 @@ public class RssNewsCrawlerService {
             if (content.isBlank()) return;
             JsonNode root = objectMapper.readTree(content);
             String summary = root.path("summary").asText(null);
-            String sentiment = root.path("sentiment").asText(null);
             if (summary != null && !summary.isBlank()) article.setSummary(summary);
-            if (sentiment != null && !sentiment.isBlank()) article.setSentiment(sentiment.toUpperCase());
             // JPA dirty checking으로 저장됨(@Transactional)
         } catch (WebClientResponseException e) {
             // 429/4xx/5xx 무시
@@ -319,7 +317,6 @@ public class RssNewsCrawlerService {
                 다음 한국 경제 기사에 대해 JSON으로만 답하세요.
                 필드:
                 - summary: 2문장 요약
-                - sentiment: POSITIVE|NEGATIVE|NEUTRAL 중 하나
 
                 제목: %s
                 언론사: %s

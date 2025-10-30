@@ -44,4 +44,19 @@ public interface NewsArticleRepository extends JpaRepository<NewsArticle, UUID> 
             @Param("q") String q,
             Pageable pageable
     );
+
+    @Query("""
+            select n from NewsArticle n
+            where (:tickers is null or n.ticker in :tickers)
+              and (
+                    :q is null or lower(n.title) like lower(concat('%', :q, '%'))
+                 or lower(n.description) like lower(concat('%', :q, '%'))
+              )
+            order by n.publishedAt desc
+            """)
+    Page<NewsArticle> searchByTickers(
+            @Param("tickers") java.util.List<String> tickers,
+            @Param("q") String q,
+            Pageable pageable
+    );
 }

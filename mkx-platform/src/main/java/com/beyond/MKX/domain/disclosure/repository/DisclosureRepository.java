@@ -148,4 +148,22 @@ public interface DisclosureRepository extends JpaRepository<Disclosure, UUID> {
             """)
     List<Disclosure> findAdditionalsByPreviousIds(@Param("relationType") DisclosureRelationType relationType,
                                                   @Param("previousIds") List<UUID> previousIds);
+
+    /** 공개 조회 배치: 다중 티커 스냅샷 기준 */
+    @Query("""
+            select d
+            from Disclosure d
+            where d.status = :approved
+              and d.publishedAt is not null
+              and d.isLatest = true
+              and (:type is null or d.disclosureType = :type)
+              and d.tickerSnapshot in :tickers
+            order by d.publishedAt desc
+            """)
+    Page<Disclosure> searchApprovedByTickers(
+            @Param("approved") DisclosureStatus approved,
+            @Param("type") DisclosureType type,
+            @Param("tickers") List<String> tickers,
+            Pageable pageable
+    );
 }

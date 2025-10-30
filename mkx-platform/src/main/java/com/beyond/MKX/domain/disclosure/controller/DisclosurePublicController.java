@@ -45,6 +45,17 @@ public class DisclosurePublicController {
         return ApiResponse.ok(page, "승인 공시 조회 완료");
     }
 
+    /** 공개용 목록 배치: 다중 티커 */
+    @GetMapping("/batch")
+    public ResponseEntity<?> listBatch(
+            @RequestParam List<String> tickers,
+            @RequestParam(required = false) DisclosureType type,
+            @PageableDefault(size = 20, sort = "publishedAt", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        Page<DisclosureResDto> page = disclosureQueryService.listApprovedByTickers(tickers, type, pageable);
+        return ApiResponse.ok(page, "승인 공시 배치 조회 완료");
+    }
+
     /** 공개용 상세: 특정 공시번호의 최신 승인본 */
     @GetMapping("/{displayNo}")
     public ResponseEntity<?> latestByDisplayNo(@PathVariable String displayNo) {

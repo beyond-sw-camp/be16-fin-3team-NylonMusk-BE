@@ -6,6 +6,7 @@ import com.beyond.MKX.domain.news.entity.NewsArticle;
 import com.beyond.MKX.domain.news.repository.NewsArticleRepository;
 import com.beyond.MKX.domain.news.repository.NewsArticleStockRepository;
 import lombok.RequiredArgsConstructor;
+import com.beyond.MKX.domain.news.service.NewsArticleQueryService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -22,6 +23,7 @@ public class NewsArticleController {
 
     private final NewsArticleRepository repository;
     private final NewsArticleStockRepository stockRepository;
+    private final NewsArticleQueryService newsArticleQueryService;
 
     @GetMapping
     public Page<NewsArticleResDto> list(
@@ -50,6 +52,16 @@ public class NewsArticleController {
         UUID id = UUID.fromString(stockId);
         return repository.searchByStockId(id, emptyToNull(q), pageable)
                 .map(NewsArticleResDto::from);
+    }
+
+    /** 여러 티커 배치 조회 */
+    @GetMapping("/batch")
+    public Page<NewsArticleResDto> batch(
+            @RequestParam("tickers") java.util.List<String> tickers,
+            @RequestParam(required = false) String q,
+            @PageableDefault(size = 20) Pageable pageable
+    ) {
+        return newsArticleQueryService.getByTickers(tickers, q, pageable);
     }
 
     private String emptyToNull(String s) { return (s == null || s.isBlank()) ? null : s; }

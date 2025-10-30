@@ -73,4 +73,7 @@ public interface StockRepository extends JpaRepository<Stock, UUID> {
             @Param("q") String q,
             Pageable pageable
     );
+
+    // 거래정지 해제 스케줄러용 (TradingLockService에서 사용)
+    List<Stock> findAllByStatus(Stock.Status status);
 }

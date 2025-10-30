@@ -110,14 +110,15 @@ public class IpoBookBuildingService {
 
     @Transactional
     public IpoOffering fixOfferPriceByBookBuilding(UUID offeringId) {
+
+        /** 0️⃣ 사전 검증 — 상태 및 데이터 확인 */
         IpoOffering offering = offeringRepository.findByIdForUpdate(offeringId)
                 .orElseThrow(() -> new IllegalArgumentException("공모 없음."));
         if (offering.getIpoOfferingStatus() == IpoOfferingStatus.PRICE_FIXED) {
             throw new IllegalStateException("이미 확정된 공모입니다.");
         }
-
         if (offering.getIpoOfferingStatus() != IpoOfferingStatus.BOOK_BUILDING) {
-            throw new IllegalArgumentException("BOOK_BUILDING 상태에서만 수요예측 결과 ' 확정 ' 이 가능합니다.");
+            throw new IllegalArgumentException("BOOK_BUILDING 상태에서만 확정 가능합니다.");
         }
 
         List<IpoBookBuilding> bookBuildings = bookBuildingRepository.findAllByIpoOffering_Id(offeringId);
@@ -130,66 +131,86 @@ public class IpoBookBuildingService {
         long min = offering.getPriceBandMin();
         long max = offering.getPriceBandMax();
 
-        /** 1) 가격대별 수요량 집계 */
+        /** 1️⃣ 가격대별 수요량 초기화 */
         Map<Long, Long> demandMap = new TreeMap<>();
         for (long price = min; price <= max; price += 100) {
             demandMap.put(price, 0L);
         }
 
-        // 🔹 가격 무관 응찰 → 밴드 하단(min)에 1회만 반영 (한국거래소·금융투자협회 기관청약시스템 로직과 동일)
-        //    가격 무관 참여의 경우 ( acceptAllPrices = true || 희망가 미기재 (bidPrice == null) )
-        for (IpoBookBuilding bookBuilding : bookBuildings) {
-            long bid = (bookBuilding.getBidPrice() == null)
-                    ? min
-                    : Math.max(min, Math.min(max, bookBuilding.getBidPrice()));
-            demandMap.put(bid, demandMap.getOrDefault(bid, 0L) + bookBuilding.getBidQuantity());
+        /** 2️⃣ 참여자별 응찰 가격·수량 반영 */
+        for (IpoBookBuilding bb : bookBuildings) {
+            long bid = (bb.getBidPrice() == null)
+                    ? min   // 가격무관 응찰은 밴드 하단으로 처리
+                    : Math.max(min, Math.min(max, bb.getBidPrice())); // 밴드 내로 보정
+            demandMap.put(bid, demandMap.getOrDefault(bid, 0L) + bb.getBidQuantity());
         }
 
-        /** 2) 누적 수요 기준, 경쟁률 계산 */
+        /** 3️⃣ 전체 수요 및 경쟁률 계산 */
         long cumulative = bookBuildings.stream().mapToLong(IpoBookBuilding::getBidQuantity).sum();
         double ratio = (double) cumulative / offerQuantity;
 
-        /** 3-1) 전체 수요 기반 가중 평균가격 계산 (신규 추가 부분) */
+        /** 4️⃣ 가중평균 희망가격 계산 (시장 기대치 반영) */
         long totalDemand = 0L;
         long weightedSum = 0L;
         for (IpoBookBuilding b : bookBuildings) {
-            Long bid = (b.getBidPrice() == null)
-                    ? min // 가격 무관 참여는 하한가로 처리
-                    : Math.max(min, Math.min(max, b.getBidPrice())); // 밴드 범위 보정
+            long bid = (b.getBidPrice() == null)
+                    ? min
+                    : Math.max(min, Math.min(max, b.getBidPrice()));
             weightedSum += bid * b.getBidQuantity();
             totalDemand += b.getBidQuantity();
         }
         long weightedAvgPrice = (totalDemand > 0) ? (weightedSum / totalDemand) : min;
 
-        /** 3-2) 확정공모가 계산 */
+        /** 5️⃣ 확정공모가 산정 로직 */
         long fixedPrice;
-        if (ratio < 1.0) {
-            fixedPrice = min; // 미달 — 하단 확정
-        } else if (ratio >= 10.0) {
-            // 🔥 초과 청약 (10배 이상)
-            // 상단 초과 — 상단 + (상단-하단)의 10% 추가 반영
-            long overPrice = max + Math.round((max - min) * 0.1);
-            fixedPrice = overPrice;
-        } else if (ratio >= 2.0) {
-            // 2배 이상 → 상단 확정
-            fixedPrice = max;
-        } else {
-            // 1.0 ≤ 경쟁률 < 2.0 구간
-            double normalized = (ratio - 1.0) / (2.0 - 1.0); // 0~1
-            double avgWeight = 1.0 - 0.8 * normalized; // 평균가 가중치 점진 감소
-            double maxWeight = 0.0 + 0.8 * normalized; // 상단가 가중치 점진 증가
+        final double X1 = 1.0;  // 경쟁률 하한 (미달)
+        final double X2 = 2.0;  // 경쟁률 상한 (과열)
+        final double X3 = 10.0; // 초과수요 기준
+        final double alpha = 0.5; // 미달구간 희망가 반영비율
+
+        if (ratio < X1) {
+            // 미달구간 — 밴드 하단가 + 희망가 평균 50% 반영
+            fixedPrice = Math.round(min + alpha * (weightedAvgPrice - min));
+        } else if (ratio < X2) {
+            // 적정수요구간 — 가중평균가와 상단가 혼합
+            double normalized = (ratio - X1) / (X2 - X1); // 1.0→0, 2.0→1
+            double avgWeight = 1.0 - 0.8 * normalized;
+            double maxWeight = 0.8 * normalized;
             double finalPrice = weightedAvgPrice * avgWeight + max * maxWeight;
             fixedPrice = Math.round(finalPrice);
+        } else if (ratio < X3) {
+            // 과수요구간 — 상단가와 상위10% 희망가 평균 중 큰 값
+            long topPrice = calculateTopPercentilePrice(bookBuildings, 0.10);
+            fixedPrice = Math.max(max, topPrice);
+        } else {
+            // 초과수요구간 — 밴드 초과 10% 허용
+            long overPrice = max + Math.round((max - min) * 0.1);
+            fixedPrice = overPrice;
         }
 
-        if (ratio < 10.0) {
+        /** 6️⃣ 밴드 내 클램프 + 10원 단위 반올림 */
+        if (ratio < X3) {
             fixedPrice = Math.max(min, Math.min(max, fixedPrice));
         }
+        fixedPrice = Math.round(fixedPrice / 10.0) * 10; // 💰 10원 단위로 조정
 
-        /** 4) 경쟁률 기록 + 확정 공모가 반영 */
+        /** 7️⃣ 결과 저장 */
         offering.setCompetitionRatio(BigDecimal.valueOf(ratio).setScale(2, RoundingMode.HALF_UP));
         offering.fixOfferPrice(fixedPrice, min, max, face);
+
         return offeringRepository.save(offering);
+    }
+    /** 상위 N% 가격 평균 계산 헬퍼 (optional) */
+    private long calculateTopPercentilePrice(List<IpoBookBuilding> list, double percentile) {
+        if (list.isEmpty()) return 0L;
+        int cutoff = (int) Math.ceil(list.size() * (1 - percentile));
+        List<Long> sorted = list.stream()
+                .map(b -> b.getBidPrice() == null ? 0L : b.getBidPrice())
+                .sorted()
+                .toList();
+        return Math.round(sorted.subList(cutoff, sorted.size()).stream()
+                .mapToLong(Long::longValue)
+                .average().orElse(0.0));
     }
 
     /**

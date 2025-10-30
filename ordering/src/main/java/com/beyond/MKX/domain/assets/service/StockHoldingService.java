@@ -86,6 +86,33 @@ public class StockHoldingService {
                 .toList();
     }
 
+    /**
+     * 특정 ticker의 모든 stock holdings 삭제 (상장폐지용)
+     * 
+     * @param ticker 주식 티커
+     * @return 삭제된 개수
+     */
+    @org.springframework.transaction.annotation.Transactional
+    public int deleteAllByTicker(String ticker) {
+        List<StockHolding> holdings = stockHoldingRepository.findAllByTicker(ticker);
+        int count = holdings.size();
+        
+        if (count == 0) {
+            return 0;
+        }
+        
+        // Soft delete (SQLDelete 어노테이션으로 자동 처리됨)
+        holdings.forEach(holding -> {
+            stockHoldingRepository.delete(holding);
+            System.out.println("📊 Stock holding 삭제: accountId=" + holding.getMemberAccountId() + 
+                    ", ticker=" + ticker + 
+                    ", quantity=" + holding.getTotalQuantity());
+        });
+        
+        System.out.println("✅ 상장폐지로 인한 stock holdings 삭제 완료: ticker=" + ticker + ", count=" + count);
+        return count;
+    }
+
     public AccountIdResDTO getCorporationAccountId(UUID corpId) {
         return accountFeign.getAccountId(corpId);
     }

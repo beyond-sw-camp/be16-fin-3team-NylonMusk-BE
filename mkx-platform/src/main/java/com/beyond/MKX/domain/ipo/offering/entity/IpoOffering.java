@@ -93,7 +93,7 @@ public class IpoOffering extends BaseIdAndTimeEntity {
     private IpoOffering baseOffering; // N차 공모의 모체
 
     @Column(name = "record_date")
-    private LocalDate recordDate; // 기준일 (거래정지·권리락용)
+    private LocalDateTime recordDate; // 기준일 (거래정지·권리락용)
 
     public void offeringOpen(java.time.LocalDateTime now) {
         if (this.ipoOfferingStatus != IpoOfferingStatus.PRICE_FIXED) {

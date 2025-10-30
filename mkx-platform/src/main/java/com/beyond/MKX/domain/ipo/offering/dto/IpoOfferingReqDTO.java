@@ -64,7 +64,7 @@ public class IpoOfferingReqDTO {
 
     private IpoOfferingType offeringType;
 
-    private LocalDate recordDate; // Follow-on(상장 후 추가 공모) || Rights_Issue(증자)일 때만 필요
+    private LocalDateTime recordDate; // Follow-on(상장 후 추가 공모) || Rights_Issue(증자)일 때만 필요
 
     @Builder.Default
     private boolean rightsIssue = false; // 유상증자 여부

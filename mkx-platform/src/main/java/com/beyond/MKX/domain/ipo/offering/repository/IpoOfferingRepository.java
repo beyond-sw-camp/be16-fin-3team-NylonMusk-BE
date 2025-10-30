@@ -86,6 +86,13 @@ public interface IpoOfferingRepository extends JpaRepository<IpoOffering, UUID> 
     List<IpoOffering> findAllByIpoOfferingStatusAndSubscriptionStartBefore(IpoOfferingStatus status, LocalDateTime now);
     List<IpoOffering> findAllByIpoOfferingStatusAndSubscriptionEndBefore(IpoOfferingStatus status, LocalDateTime now);
 
-
+    @Query("""
+        select o
+        from IpoOffering o
+        join o.ipo i
+        where i.stockId = :stockId
+        order by o.createdAt desc
+        """)
+    Optional<IpoOffering> findLatestByStockId(@Param("stockId") UUID stockId);
 
 }

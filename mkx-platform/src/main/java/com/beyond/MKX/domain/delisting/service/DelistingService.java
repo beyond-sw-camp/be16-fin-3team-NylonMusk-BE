@@ -1082,6 +1082,44 @@ public void scheduledRetryFailedCompensations() {
     }
 
     /**
+     * 공시 승인 후 재평가: 미해결 위반 해지 처리 및 상태 정상화
+     */
+    @Transactional
+    public void onDisclosureApproved(UUID stockId, UUID adminId) {
+        log.info("공시 승인 후 재평가 수행: stockId={}", stockId);
+
+        // 1) 미해결 위반 모두 해지 처리 (근거: 최신 공시 반영)
+        List<DelistingViolation> unresolved = violationRepo.findByStockIdAndUnresolved(stockId);
+        if (!unresolved.isEmpty()) {
+            for (DelistingViolation v : unresolved) {
+                v.setIsResolved(true);
+                v.setResolvedDate(java.time.LocalDateTime.now());
+                v.setResolvedBy(adminId);
+                String prev = v.getDescription() != null ? v.getDescription() + "\n" : "";
+                v.setDescription(prev + "[AUTO] 공시 승인 반영: 위반 해지");
+                violationRepo.save(v);
+            }
+            // 위반 해지 이력
+            String ids = unresolved.stream().map(x -> x.getId().toString()).reduce((a,b)->a+","+b).orElse("");
+            recordHistory(stockId, ActionType.CRITERIA_VIOLATION, null, null,
+                "공시 승인 반영으로 미해결 위반 해지", ids, adminId);
+        }
+
+        // 2) 주식 상태 정상화
+        Stock stock = stockRepo.findById(stockId)
+                .orElseThrow(() -> new IllegalArgumentException("Stock not found: " + stockId));
+        DelistingStage fromStage = stock.getDelistingStage();
+        Stock.Status prevStatus = stock.getStatus();
+        stock.updateStatus(Stock.Status.LISTED);
+        stock.setDelistingStage(DelistingStage.NORMAL);
+        stockRepo.save(stock);
+
+        log.info("주식 상태 정상화: stockId={}, {}→LISTED, stage {}→NORMAL", stockId, prevStatus, fromStage);
+        recordHistory(stockId, ActionType.STAGE_CHANGE, fromStage, DelistingStage.NORMAL,
+            "공시 승인 반영으로 상태 정상화", null, adminId);
+    }
+
+    /**
      * 위반 여부 확인
      */
     private boolean isViolation(DelistingCriteria criteria, BigDecimal currentValue) {

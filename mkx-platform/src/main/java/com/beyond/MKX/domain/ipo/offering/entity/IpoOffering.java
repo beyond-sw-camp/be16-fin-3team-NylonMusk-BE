@@ -83,6 +83,17 @@ public class IpoOffering extends BaseIdAndTimeEntity {
     @Column(nullable = true)
     private LocalDateTime bookBuildingEnd;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private IpoOfferingType offeringType = IpoOfferingType.INITIAL;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "base_offering_id")
+    private IpoOffering baseOffering; // N차 공모의 모체
+
+    @Column(name = "record_date")
+    private LocalDate recordDate; // 기준일 (거래정지·권리락용)
 
     public void offeringOpen(java.time.LocalDateTime now) {
         if (this.ipoOfferingStatus != IpoOfferingStatus.PRICE_FIXED) {

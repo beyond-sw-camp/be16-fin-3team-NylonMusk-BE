@@ -29,4 +29,13 @@ public interface MemberInternalClient {
      */
     @GetMapping("/api/internal/members/{memberId}/context")
     MemberContextRes getContext(@PathVariable("memberId") UUID memberId);
+
+    /**
+     * 회원 이름 조회
+     *
+     * @param memberId 회원 UUID
+     * @return Map { "name": "회원 이름" }
+     */
+    @GetMapping("/api/internal/members/{memberId}/name")
+    java.util.Map<String, String> getMemberName(@PathVariable("memberId") UUID memberId);
 }

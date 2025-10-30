@@ -1,5 +1,6 @@
 package com.beyond.MKX.domain.stock.controller;
 
+import com.beyond.MKX.domain.stock.dto.StockDetailResDTO;
 import com.beyond.MKX.domain.stock.dto.StockListResDto;
 import com.beyond.MKX.domain.stock.dto.StockInfoResDTO;
 import com.beyond.MKX.domain.stock.service.StockQueryService;
@@ -33,6 +34,15 @@ public class StockController {
     @GetMapping("/{ticker}")
     public StockInfoResDTO getStockByTicker(@PathVariable String ticker) {
         return stockQueryService.getStockByTicker(ticker);
+    }
+
+    /**
+     * 종목 상세 정보 조회 (Corporation 정보 포함)
+     * GET /api/stocks/{ticker}/detail
+     */
+    @GetMapping("/{ticker}/detail")
+    public StockDetailResDTO getStockDetail(@PathVariable String ticker) {
+        return stockQueryService.getStockDetail(ticker);
     }
 }
 

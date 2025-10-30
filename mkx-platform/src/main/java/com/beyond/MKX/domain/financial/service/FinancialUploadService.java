@@ -213,6 +213,155 @@ public class FinancialUploadService {
         return new FinancialBundleReqDto(cf, cfs, in.financialRatios());
     }
 
+    /**
+     * IPO 상장 시 제출된 재무제표 파일을 "연간" 기준으로만 저장
+     * - 분기 데이터는 생성하지 않음
+     * - 연간 표식은 fiscalQuarter=4 로 강제 저장하여 고유키 충돌/조회 일관성 확보
+     */
+    @Transactional
+    public void uploadAnnualFromUrl(UUID stockId, String fileUrl) {
+        if (stockId == null || fileUrl == null || fileUrl.isBlank()) {
+            log.warn("[IPO-ANNUAL-UPLOAD] 입력값 누락: stockId={}, fileUrl={}", stockId, fileUrl);
+            return;
+        }
+        try {
+            byte[] bytes = s3Manager.download(fileUrl);
+            String filename = extractFilename(fileUrl);
+            String contentType = guessContentType(filename);
+            MultipartFile file = new SimpleBytesMultipartFile(bytes, contentType, filename == null ? "file" : filename);
+
+            FinancialBundleReqDto bundle = null;
+            // Earnings 검증 시트 우선 시도 → CompanyFinancials만 생성
+            if (parser.validateEarningsStructure(file)) {
+                var rows = parser.parseEarningsValidation(file);
+                var cfList = rows.stream().map(r -> new CompanyFinancialsReqDto(
+                        stockId,
+                        r.getFiscalYear(),
+                        4, // annual
+                        r.getRevenue(), r.getOperatingIncome(), r.getNetIncome(), r.getEps(),
+                        r.getTotalAssets(), r.getTotalLiabilities(), null,
+                        r.getCurrentAssets(), r.getCurrentLiabilities(), r.getInterestExpense()
+                )).toList();
+                bundle = new FinancialBundleReqDto(cfList, List.of(), null);
+            } else if (parser.validateStructure(file)) {
+                // 2시트 템플릿 → 파싱 후 모든 항목을 annual(분기=4)로 강제 세팅
+                FinancialBundleReqDto parsed = parser.parse(file);
+                var cfList = (parsed.companyFinancials() == null ? List.<CompanyFinancialsReqDto>of() : parsed.companyFinancials()).stream()
+                        .map(d -> new CompanyFinancialsReqDto(stockId, d.fiscalYear(), 4, d.revenue(), d.operatingIncome(), d.netIncome(), d.eps(),
+                                d.totalAssets(), d.totalLiabilities(), d.totalEquity(), d.currentAssets(), d.currentLiabilities(), d.interestExpense()))
+                        .toList();
+                var cfsList = (parsed.cashFlowStatements() == null ? List.<CashFlowStatementReqDto>of() : parsed.cashFlowStatements()).stream()
+                        .map(d -> new CashFlowStatementReqDto(stockId, d.fiscalYear(), 4, d.operatingCashFlow(), d.investingCashFlow(), d.financingCashFlow(), d.freeCashFlow()))
+                        .toList();
+                bundle = new FinancialBundleReqDto(cfList, cfsList, parsed.financialRatios());
+            } else {
+                log.warn("[IPO-ANNUAL-UPLOAD] 템플릿 불일치로 파싱 스킵: filename={}", filename);
+                return;
+            }
+
+            aggregateService.saveBundle(bundle);
+            log.info("[IPO-ANNUAL-UPLOAD] 연간 재무제표 저장 완료: stockId={}, years(cf)={}, years(cfs)={}",
+                    stockId,
+                    bundle.companyFinancials() == null ? 0 : bundle.companyFinancials().size(),
+                    bundle.cashFlowStatements() == null ? 0 : bundle.cashFlowStatements().size());
+        } catch (Exception e) {
+            log.error("[IPO-ANNUAL-UPLOAD] 업로드 실패: stockId={}, url={}, error={}", stockId, fileUrl, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * IPO 상장용 업로드: "연간 5개년 + 직전 분기 1개" 저장
+     * - 템플릿에는 연간(quarter=4) 다섯 줄과, 최신 분기(1~3 중 하나) 한 줄이 함께 존재한다고 가정
+     * - PER/PBR 등 시세 필요 지표는 제외, 저장 시 자동 계산 비율은 기존 로직대로 반영
+     */
+    @Transactional
+    public void uploadIpoFinancials(UUID stockId, String fileUrl) {
+        if (stockId == null || fileUrl == null || fileUrl.isBlank()) {
+            log.warn("[IPO-UPLOAD] 입력값 누락: stockId={}, fileUrl={}", stockId, fileUrl);
+            return;
+        }
+        try {
+            byte[] bytes = s3Manager.download(fileUrl);
+            String filename = extractFilename(fileUrl);
+            String contentType = guessContentType(filename);
+            MultipartFile file = new SimpleBytesMultipartFile(bytes, contentType, filename == null ? "file" : filename);
+
+            // 파싱 (2시트 템플릿 권장, Earnings 검증 시트도 허용)
+            FinancialBundleReqDto parsed;
+            if (parser.validateStructure(file)) {
+                parsed = parser.parse(file);
+            } else if (parser.validateEarningsStructure(file)) {
+                var rows = parser.parseEarningsValidation(file);
+                var cfList = rows.stream().map(r -> new CompanyFinancialsReqDto(
+                        null,
+                        r.getFiscalYear(), r.getFiscalQuarter(),
+                        r.getRevenue(), r.getOperatingIncome(), r.getNetIncome(), r.getEps(),
+                        r.getTotalAssets(), r.getTotalLiabilities(), null,
+                        r.getCurrentAssets(), r.getCurrentLiabilities(), r.getInterestExpense()
+                )).toList();
+                parsed = new FinancialBundleReqDto(cfList, List.of(), null);
+            } else {
+                log.warn("[IPO-UPLOAD] 템플릿 불일치: filename={}", filename);
+                return;
+            }
+
+            // 분리: 연간(quarter=4) 중 최신 5개 연도 + 최신 분기(quarter in 1..3) 1개
+            List<CompanyFinancialsReqDto> allCf = parsed.companyFinancials() == null ? List.of() : parsed.companyFinancials();
+            List<CashFlowStatementReqDto> allCfs = parsed.cashFlowStatements() == null ? List.of() : parsed.cashFlowStatements();
+
+            // 연간 5개년
+            var annualFive = allCf.stream()
+                    .filter(d -> d.fiscalQuarter() != null && d.fiscalQuarter() == 4)
+                    .sorted(java.util.Comparator.comparingInt(CompanyFinancialsReqDto::fiscalYear).reversed())
+                    .limit(5)
+                    .map(d -> new CompanyFinancialsReqDto(stockId, d.fiscalYear(), 4,
+                            d.revenue(), d.operatingIncome(), d.netIncome(), d.eps(),
+                            d.totalAssets(), d.totalLiabilities(), d.totalEquity(), d.currentAssets(), d.currentLiabilities(), d.interestExpense()))
+                    .toList();
+
+            var annualCfsFive = allCfs.stream()
+                    .filter(d -> d.fiscalQuarter() != null && d.fiscalQuarter() == 4)
+                    .sorted(java.util.Comparator.comparingInt(CashFlowStatementReqDto::fiscalYear).reversed())
+                    .limit(5)
+                    .map(d -> new CashFlowStatementReqDto(stockId, d.fiscalYear(), 4,
+                            d.operatingCashFlow(), d.investingCashFlow(), d.financingCashFlow(), d.freeCashFlow()))
+                    .toList();
+
+            // 최신 분기 1개 (quarter in 1..3)
+            var latestQuarterOpt = allCf.stream()
+                    .filter(d -> d.fiscalQuarter() != null && d.fiscalQuarter() != 4)
+                    .max((a, b) -> {
+                        int c = Integer.compare(a.fiscalYear(), b.fiscalYear());
+                        if (c != 0) return c;
+                        return Integer.compare(a.fiscalQuarter(), b.fiscalQuarter());
+                    });
+
+            var latestCfsOpt = allCfs.stream()
+                    .filter(d -> d.fiscalQuarter() != null && d.fiscalQuarter() != 4)
+                    .max((a, b) -> {
+                        int c = Integer.compare(a.fiscalYear(), b.fiscalYear());
+                        if (c != 0) return c;
+                        return Integer.compare(a.fiscalQuarter(), b.fiscalQuarter());
+                    });
+
+            List<CompanyFinancialsReqDto> finalCf = new java.util.ArrayList<>(annualFive);
+            latestQuarterOpt.ifPresent(d -> finalCf.add(new CompanyFinancialsReqDto(stockId, d.fiscalYear(), d.fiscalQuarter(),
+                    d.revenue(), d.operatingIncome(), d.netIncome(), d.eps(),
+                    d.totalAssets(), d.totalLiabilities(), d.totalEquity(), d.currentAssets(), d.currentLiabilities(), d.interestExpense())));
+
+            List<CashFlowStatementReqDto> finalCfs = new java.util.ArrayList<>(annualCfsFive);
+            latestCfsOpt.ifPresent(d -> finalCfs.add(new CashFlowStatementReqDto(stockId, d.fiscalYear(), d.fiscalQuarter(),
+                    d.operatingCashFlow(), d.investingCashFlow(), d.financingCashFlow(), d.freeCashFlow())));
+
+            FinancialBundleReqDto bundle = new FinancialBundleReqDto(finalCf, finalCfs, parsed.financialRatios());
+            aggregateService.saveBundle(bundle);
+            log.info("[IPO-UPLOAD] 저장 완료: stockId={}, annual_cf={}, latest_q_cf_present={}, annual_cfs={}, latest_q_cfs_present={}",
+                    stockId, annualFive.size(), latestQuarterOpt.isPresent(), annualCfsFive.size(), latestCfsOpt.isPresent());
+        } catch (Exception e) {
+            log.error("[IPO-UPLOAD] 업로드 실패: stockId={}, url={}, error={}", stockId, fileUrl, e.getMessage(), e);
+        }
+    }
+
     /** 간단한 바이트 기반 MultipartFile 구현 */
     private static class SimpleBytesMultipartFile implements MultipartFile {
         private final byte[] bytes;

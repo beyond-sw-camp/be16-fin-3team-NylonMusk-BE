@@ -3,8 +3,8 @@ package com.beyond.MKX.domain.execution.entity;
 import com.beyond.MKX.common.domain.BaseIdAndTimeEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -20,16 +20,13 @@ import java.util.UUID;
 @Entity
 public class Ledger extends BaseIdAndTimeEntity {
 
-    @Column(nullable = false)
     private UUID orderLogId;
 
-    @Column(nullable = false)
     private UUID creditAccountId;
 
-    @Column(nullable = false)
     private UUID debitAccountId;
 
-    @Column(nullable = false, columnDefinition = "VARCHAR(6)")
+    @Column(nullable = true, columnDefinition = "VARCHAR(6)")
     private String ticker;
 
     // 정산일
@@ -42,16 +39,26 @@ public class Ledger extends BaseIdAndTimeEntity {
     private Long credit;
 
     // 거래량
-    @Column(nullable = false)
     private Long qtyChange;
 
     // 거래 가격
-    @Column(nullable = false)
     private Long amountChange;
 
-    @Column(nullable = false)
     private Long commission;
 
     private Long tax;
+
+    // 거래 유형
+    @Enumerated(EnumType.STRING)
+    @Column(name = "transaction_type", length = 20)
+    private TransactionType transactionType;
+
+    // 계좌이체 시 상대방 계좌번호
+    @Column(name = "counterparty_account_number", length = 50)
+    private String counterpartyAccountNumber;
+
+    // 계좌이체 시 상대방 이름 (회원명 또는 기업명)
+    @Column(name = "counterparty_name", length = 100)
+    private String counterpartyName;
 
 }

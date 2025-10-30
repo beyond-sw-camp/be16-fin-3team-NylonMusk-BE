@@ -50,6 +50,7 @@ public class IpoService {
     private final CorporationRepository corporationRepository;
     private final StockRepository stockRepository;
     private final IpoAllocationOutboxRepository outboxRepository;
+    private final com.beyond.MKX.domain.financial.service.FinancialUploadService financialUploadService;
     private final IpoAllocationFeign orderingFeign;
     private final S3Manager s3Manager;
     private final AdminRepository adminRepository;
@@ -206,6 +207,19 @@ public class IpoService {
             }
         }
         if (ticker == null) throw new IllegalStateException("종목코드 생성 실패.");
+
+        // 3-1) 상장 시 제출된 재무제표 저장: 연간 5개년 + 직전 분기 1개
+        try {
+            String fsUrl = ipo.getFinancialStatementsUrl();
+            if (fsUrl != null && !fsUrl.isBlank()) {
+                financialUploadService.uploadIpoFinancials(ipo.getStockId(), fsUrl);
+            } else {
+                log.info("[IPO-LISTING] 재무제표 파일 URL 없음. stockId={}", ipo.getStockId());
+            }
+        } catch (Exception ex) {
+            // 상장 자체는 계속 진행, 재무 업로드 실패는 로그만 남김
+            log.error("[IPO-LISTING] 연간 재무제표 저장 실패: stockId={}, error={}", ipo.getStockId(), ex.getMessage(), ex);
+        }
 
         // 4) 커밋 후: 보유 주식 반영(Outbox → Ordering 단건 PUT)
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {

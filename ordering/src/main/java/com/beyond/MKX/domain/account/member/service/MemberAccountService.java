@@ -1,6 +1,7 @@
 package com.beyond.MKX.domain.account.member.service;
 
 import com.beyond.MKX.domain.account.member.client.AccountListClient;
+import com.beyond.MKX.domain.account.member.client.MemberInternalClient;
 import com.beyond.MKX.domain.account.member.dto.AccountListRegisterReq;
 import com.beyond.MKX.domain.account.member.dto.AccountStatusUpdateReq;
 import com.beyond.MKX.domain.account.member.util.MemberAccountNumberGenerator;
@@ -8,6 +9,7 @@ import com.beyond.MKX.domain.assets.entity.AccountStatus;
 import com.beyond.MKX.domain.assets.entity.MemberAccount;
 import com.beyond.MKX.domain.assets.repository.MemberAccountRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
@@ -23,6 +25,7 @@ import java.util.UUID;
  * - 생성 후 mkx-platform(account_list)에 MEMBER 유형으로 메타 등록 요청(Feign)
  * - 계좌번호 충돌 회피(여러 번 시도)
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -30,6 +33,8 @@ public class MemberAccountService {
 
     private final MemberAccountRepository repository;
     private final AccountListClient accountListClient;
+    private final TransactionEventPublisher eventPublisher;
+    private final MemberInternalClient memberInternalClient;
 
     /**
      * 수동 생성(계좌번호 지정)
@@ -128,6 +133,10 @@ public class MemberAccountService {
             throw new IllegalStateException("계좌 상태가 활성(ACTIVE)이 아닙니다.");
         }
         acc.deposit(amount);
+        
+        // Kafka 이벤트 발행
+        eventPublisher.publishDepositEvent(accountNumber, acc.getId(), amount, "BANK_TRANSFER");
+        
         return acc.getBalance();
     }
 
@@ -140,6 +149,81 @@ public class MemberAccountService {
             throw new IllegalStateException("계좌 상태가 활성(ACTIVE)이 아닙니다.");
         }
         acc.withdraw(amount);
+        
+        // Kafka 이벤트 발행
+        eventPublisher.publishWithdrawalEvent(accountNumber, acc.getId(), amount, "BANK_TRANSFER");
+        
         return acc.getBalance();
+    }
+
+    /**
+     * 계좌 이체: MEMBER 계좌 간 이체
+     * - 송금인 계좌에서 출금
+     * - 수취인 계좌로 입금
+     * - 트랜잭션으로 묶어서 처리
+     */
+    public void transfer(String fromAccountNumber, String toAccountNumber, Long amount) {
+        log.info(">>> Service.transfer 시작");
+        log.info("fromAccountNumber: {}, toAccountNumber: {}, amount: {}", 
+                fromAccountNumber, toAccountNumber, amount);
+        
+        // 송금인 계좌 검증 및 출금
+        MemberAccount fromAcc = getByAccountNumber(fromAccountNumber);
+        log.info("송금인 계좌 조회 완료 - status: {}, balance: {}", 
+                fromAcc.getStatus(), fromAcc.getBalance());
+        
+        if (fromAcc.getStatus() != AccountStatus.ACTIVE) {
+            log.error("송금인 계좌 상태 불일치: {}", fromAcc.getStatus());
+            throw new IllegalStateException("송금인 계좌 상태가 활성(ACTIVE)이 아닙니다.");
+        }
+        
+        // 수취인 계좌 검증
+        MemberAccount toAcc = getByAccountNumber(toAccountNumber);
+        log.info("수취인 계좌 조회 완료 - status: {}, balance: {}", 
+                toAcc.getStatus(), toAcc.getBalance());
+        
+        if (toAcc.getStatus() != AccountStatus.ACTIVE) {
+            log.error("수취인 계좌 상태 불일치: {}", toAcc.getStatus());
+            throw new IllegalStateException("수취인 계좌 상태가 활성(ACTIVE)이 아닙니다.");
+        }
+        
+        // 송금인/수취인 이름 조회
+        String fromName = getMemberName(fromAcc.getMemberId());
+        String toName = getMemberName(toAcc.getMemberId());
+        log.info("이름 조회 완료 - 송금인: {}, 수취인: {}", fromName, toName);
+        
+        // 송금인 출금
+        log.info("송금인 출금 시작: {} 원", amount);
+        fromAcc.withdraw(amount);
+        log.info("송금인 출금 완료 - 남은 잔액: {}", fromAcc.getBalance());
+        
+        // 수취인 입금
+        log.info("수취인 입금 시작: {} 원", amount);
+        toAcc.deposit(amount);
+        log.info("수취인 입금 완료 - 현재 잔액: {}", toAcc.getBalance());
+        
+        // Kafka 이벤트 발행 (이체 전용 이벤트, 상대방 정보 포함)
+        log.info("Kafka 이벤트 발행 시작");
+        eventPublisher.publishTransferWithdrawalEvent(
+            fromAccountNumber, fromAcc.getId(), amount, toAccountNumber, toName);
+        log.info("이체 출금 이벤트 발행 완료");
+        
+        eventPublisher.publishTransferDepositEvent(
+            toAccountNumber, toAcc.getId(), amount, fromAccountNumber, fromName);
+        log.info("이체 입금 이벤트 발행 완료");
+        
+        log.info(">>> Service.transfer 완료");
+    }
+    
+    /**
+     * 회원 이름 조회 (Feign 호출)
+     */
+    private String getMemberName(UUID memberId) {
+        try {
+            return memberInternalClient.getMemberName(memberId).get("name");
+        } catch (Exception e) {
+            log.warn("회원 이름 조회 실패: memberId={}, error={}", memberId, e.getMessage());
+            return "회원";
+        }
     }
 }

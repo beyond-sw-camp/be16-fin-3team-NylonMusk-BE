@@ -114,7 +114,7 @@ public class IpoOfferingService {
                 .refundDate(offeringReqDTO.getRefundDate())
                 .depositRate(offeringReqDTO.getDepositRate())
                 .competitionRatio(BigDecimal.ZERO)
-                .ipoOfferingStatus(IpoOfferingStatus.SCHEDULED)
+                .ipoOfferingStatus(IpoOfferingStatus.DRAFT)
                 .bookBuildingStart(offeringReqDTO.getBookBuildingStart())
                 .bookBuildingEnd(offeringReqDTO.getBookBuildingEnd())
                 .build();
@@ -128,6 +128,29 @@ public class IpoOfferingService {
         }
 
         return ipoOffering;
+    }
+
+    /* 공모 요청 */
+    /**
+     * 발행사(기업)의 공모 요청
+     * - IPO 상태: LISTED or APPROVED 가능
+     * - 결과: IpoOfferingStatus = DRAFT
+     */
+    @Transactional
+    public IpoOffering offeringRequest(UUID ipoId, IpoOfferingReqDTO reqDTO) {
+        Ipo ipo = ipoRepository.findByIdForUpdate(ipoId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 IPO입니다."));
+
+        if (ipo.getStatus() == IpoStatus.REJECTED) {
+            throw new IllegalStateException("심사 거절된 기업은 공모 요청 불가");
+        }
+
+        // 기존 create 로직 재사용 (DRAFT 상태로 생성)
+        IpoOffering offering = create(ipoId, reqDTO);
+        offering.setIpoOfferingStatus(IpoOfferingStatus.DRAFT);
+        ipoOfferingRepository.save(offering);
+
+        return offering;
     }
 
     private void validateSchedule(
@@ -312,6 +335,21 @@ public class IpoOfferingService {
         if (offering.getIpoOfferingStatus() != IpoOfferingStatus.SCHEDULED)
             throw new IllegalStateException("SCHEDULED 상태에서만 수요예측 시작 가능");
         offering.setIpoOfferingStatus(IpoOfferingStatus.BOOK_BUILDING);
+        return offering;
+    }
+
+    /** DRAFT -> SCHEDULED */
+    @Transactional
+    public IpoOffering approve(UUID offeringId) {
+        IpoOffering offering = ipoOfferingRepository.findByIdForUpdate(offeringId)
+                .orElseThrow(() -> new IllegalArgumentException("공모 없음"));
+        offering.approveOffering(); // ✅ 엔티티 상태 전이 호출
+
+        // 거래정지 (N차 공모 시)
+        if (offering.getOfferingType() == IpoOfferingType.FOLLOW_ON
+                || offering.getOfferingType() == IpoOfferingType.RIGHTS_ISSUE) {
+            tradingLockService.suspendTradingForOffering(offering);
+        }
         return offering;
     }
 }

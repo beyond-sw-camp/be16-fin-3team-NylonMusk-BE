@@ -160,4 +160,11 @@ public class IpoOffering extends BaseIdAndTimeEntity {
         this.ipoOfferingStatus = IpoOfferingStatus.SETTLED;
     }
 
+    public void approveOffering() {
+        if (this.ipoOfferingStatus != IpoOfferingStatus.DRAFT) {
+            throw new IllegalStateException("DRAFT 상태에서만 승인 가능합니다.");
+        }
+        this.ipoOfferingStatus = IpoOfferingStatus.SCHEDULED;
+    }
+
 }

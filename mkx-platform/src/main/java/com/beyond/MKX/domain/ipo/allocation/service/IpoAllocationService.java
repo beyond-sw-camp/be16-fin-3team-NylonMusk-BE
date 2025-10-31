@@ -5,6 +5,7 @@ import com.beyond.MKX.domain.corporation.repository.CorporationRepository;
 import com.beyond.MKX.domain.ipo.IpoAllocationOutbox.entity.IpoAllocationOutbox;
 import com.beyond.MKX.domain.ipo.IpoAllocationOutbox.entity.OutboxStatus;
 import com.beyond.MKX.domain.ipo.IpoAllocationOutbox.repository.IpoAllocationOutboxRepository;
+import com.beyond.MKX.domain.ipo.allocation.dto.IpoAllocationItemResDTO;
 import com.beyond.MKX.domain.ipo.allocation.dto.IpoAllocationSummaryResDTO;
 import com.beyond.MKX.domain.ipo.allocation.entity.AllocationStatus;
 import com.beyond.MKX.domain.ipo.allocation.entity.IpoAllocation;
@@ -270,22 +271,41 @@ public class IpoAllocationService {
                 .mapToLong(IpoAllocation::getAllocatedQuantity)
                 .sum();
 
-        // 5️⃣ 상태 전환 핵심 부분
-        //    offering.allocated()는 단순 setter가 아니라, 도메인 메서드입니다.
-        //    내부에서 allocatedQuantity 설정 + ipoOfferingStatus = ALLOCATED 으로 전환됩니다.
-        //    예: this.allocatedQuantity = total; this.ipoOfferingStatus = ALLOCATED;
-        offering.allocated(totalAllocated);
-
-        // 6️⃣ 트랜잭션 내에서 엔티티 변경 감지(Dirty Checking)
-        //    → save(offering) 시점 또는 트랜잭션 커밋 시 DB에 UPDATE 쿼리 반영됨.
+        // 거래소 검증 완료 상태로 전환 (ALLOCATED 아님!)
+        offering.setIpoOfferingStatus(IpoOfferingStatus.VERIFIED);
+        // → save(offering) 시점 또는 트랜잭션 커밋 시 DB에 UPDATE 쿼리 반영됨.
         offeringRepository.save(offering);
 
-        log.info("[IPO][ADMIN] 거래소 승인 완료 → ALLOCATED 전환 (totalAllocated={})", totalAllocated);
+        log.info("[IPO][ADMIN] 거래소 승인 완료 → VERIFIED 전환 (totalAllocated={})", totalAllocated);
 
         // 7️⃣ 배정 결과를 DTO로 감싸서 반환
         return IpoAllocationSummaryResDTO.of(offering, allocations, totalAllocated);
     }
 
+    // 발행사 배정 확정 메서드
+    @Transactional
+    public IpoAllocationSummaryResDTO confirmAllocation(UUID offeringId) {
+        log.info("[IPO][ISSUER] confirmAllocation(offeringId={})", offeringId);
+
+        IpoOffering offering = offeringRepository.findByIdForUpdate(offeringId)
+                .orElseThrow(() -> new IllegalArgumentException("공모를 찾을 수 없습니다."));
+
+        if (offering.getIpoOfferingStatus() != IpoOfferingStatus.VERIFIED) {
+            throw new IllegalStateException("거래소 검증(VERIFIED) 이후만 확정 가능합니다.");
+        }
+
+        List<IpoAllocation> allocations = allocationRepository.findAllByOfferingId(offeringId);
+        long totalAllocated = allocations.stream()
+                .mapToLong(IpoAllocation::getAllocatedQuantity)
+                .sum();
+
+        offering.allocated(totalAllocated);  // 내부에서 ALLOCATED 세팅
+        offeringRepository.save(offering);
+
+        log.info("[IPO][ISSUER] 발행사 배정 확정 완료 → ALLOCATED");
+
+        return IpoAllocationSummaryResDTO.of(offering, allocations, totalAllocated);
+    }
 
 
     @Transactional(readOnly = true)
@@ -341,7 +361,7 @@ public class IpoAllocationService {
     /**
      * 발행사 관점: 기관만 실명, 개인은 익명 처리
      */
-    private String resolveSubscriberNameForCorporationView(com.beyond.MKX.domain.ipo.allocation.dto.IpoAllocationItemResDTO item) {
+    private String resolveSubscriberNameForCorporationView(IpoAllocationItemResDTO item) {
         log.info("[IPO] resolveSubscriberNameForCorporationView: subscriberId={}, investorType={}",
                 item.getSubscriberId(), item.getInvestorType());
 

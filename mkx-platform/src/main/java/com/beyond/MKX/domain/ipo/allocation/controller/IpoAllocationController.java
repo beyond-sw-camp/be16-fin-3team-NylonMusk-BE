@@ -88,4 +88,11 @@ public class IpoAllocationController {
         IpoAllocationSummaryResDTO resDTO = allocationService.approveAllocation(offeringId);
         return ApiResponse.ok(resDTO, "거래소 승인 완료(ALLOCATED 상태 전환)");
     }
+
+    @PatchMapping("/{offeringId}/confirm")
+    @PreAuthorize("hasRole('CORPORATION')")
+    public ResponseEntity<?> confirmAllocationByIssuer(@PathVariable UUID offeringId) {
+        IpoAllocationSummaryResDTO resDTO = allocationService.confirmAllocation(offeringId);
+        return ApiResponse.ok(resDTO, "발행사 배정 확정 완료(ALLOCATED 상태 전환)");
+    }
 }

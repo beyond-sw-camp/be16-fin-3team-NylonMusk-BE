@@ -1161,6 +1161,7 @@ public void scheduledRetryFailedCompensations() {
         // 기준 유형에 따른 가중치
         int typeWeight = switch (criteria.getCriteriaType()) {
             case REGULATORY -> 3; // 법규 기준이 가장 심각
+            case GOVERNANCE -> 2; // 지배구조 기준
             case FINANCIAL -> 2; // 재무 기준
             case TRADING -> 1;   // 거래 기준
         };

@@ -15,6 +15,7 @@ public record DelistingCriteriaCreateReqDto(
         @NotBlank @Size(max = 100) String criteriaName,
         @NotNull com.beyond.MKX.domain.delisting.entity.CriteriaType criteriaType,
         BigDecimal thresholdValue,
+        @NotNull com.beyond.MKX.domain.delisting.entity.DelistingCriteria.ComparisonOperator comparisonOperator,
         Integer thresholdPeriod,
         com.beyond.MKX.domain.delisting.entity.DelistingCriteria.ThresholdUnit thresholdUnit,
         @Size(max = 1000) String description,

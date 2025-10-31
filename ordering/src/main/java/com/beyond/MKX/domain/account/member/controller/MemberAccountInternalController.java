@@ -161,6 +161,7 @@ public class MemberAccountInternalController {
     
     /**
      * 내부용 회원 계좌 입금 (상장폐지 보상금 지급 등) - 계좌번호 기준
+     * ⚠️ 이 엔드포인트는 이벤트를 발행하지 않음 (외부에서 발행)
      */
     @PostMapping("/by-number/{accountNumber}/deposit")
     public ResponseEntity<?> depositByAccountNumber(
@@ -178,7 +179,8 @@ public class MemberAccountInternalController {
             ), "계좌 조회 실패");
         }
         
-        Long balance = memberAccountService.deposit(accountNumber, request.amount());
+        // ⭐ 이벤트 발행 없는 메서드 사용 (mkx-platform에서 DELISTING_REFUND 이벤트 발행)
+        Long balance = memberAccountService.depositWithoutEvent(accountNumber, request.amount());
         
         return ApiResponse.ok(Map.of(
                 "success", true,

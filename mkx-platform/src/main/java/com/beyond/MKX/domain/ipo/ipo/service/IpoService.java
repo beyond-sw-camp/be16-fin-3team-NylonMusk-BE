@@ -18,6 +18,7 @@ import com.beyond.MKX.domain.ipo.ipo.repository.IpoRepository;
 import com.beyond.MKX.domain.stock.entity.Stock;
 import com.beyond.MKX.domain.stock.repository.StockRepository;
 import com.beyond.MKX.domain.stock.util.StockTickerGenerator;
+import com.beyond.MKX.domain.ipo.client.NewsRemappingClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -54,6 +55,7 @@ public class IpoService {
     private final IpoAllocationFeign orderingFeign;
     private final S3Manager s3Manager;
     private final AdminRepository adminRepository;
+    private final NewsRemappingClient newsRemappingClient;
     private Clock clock = Clock.systemDefaultZone();
     private static final int TICKER_GEN_MAX_ATTEMPTS = 20;
 
@@ -222,6 +224,21 @@ public class IpoService {
         } catch (Exception ex) {
             // 상장 자체는 계속 진행, 재무 업로드 실패는 로그만 남김
             log.error("[IPO-LISTING] 연간 재무제표 저장 실패: stockId={}, error={}", ipo.getStockId(), ex.getMessage(), ex);
+        }
+
+        // 3-2) 상장된 종목의 기존 뉴스 재매핑
+        try {
+            newsRemappingClient.remapNewsForListedStock(
+                ipo.getStockId().toString(),
+                nameKo,
+                ticker
+            );
+            log.info("[IPO-LISTING] 뉴스 재매핑 완료: stockId={}, ticker={}", 
+                    ipo.getStockId(), ticker);
+        } catch (Exception ex) {
+            // 상장 자체는 계속 진행, 뉴스 재매핑 실패는 로그만 남김
+            log.error("[IPO-LISTING] 뉴스 재매핑 실패: stockId={}, ticker={}, error={}", 
+                    ipo.getStockId(), ticker, ex.getMessage(), ex);
         }
 
         // 4) 커밋 후: 보유 주식 반영(Outbox → Ordering 단건 PUT)

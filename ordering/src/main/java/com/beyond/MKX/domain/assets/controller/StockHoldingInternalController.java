@@ -31,4 +31,16 @@ public class StockHoldingInternalController {
         List<StockHoldingResDTO> result = stockHoldingService.getAllHoldersByTicker(ticker);
         return ApiResponse.ok(result, ticker + " 보유자 목록 조회 성공");
     }
+
+    /**
+     * 특정 ticker의 모든 stock holdings 삭제 (상장폐지용)
+     * 
+     * @param ticker 주식 티커
+     * @return 삭제된 개수
+     */
+    @DeleteMapping("/ticker/{ticker}")
+    public ResponseEntity<?> deleteAllByTicker(@PathVariable String ticker) {
+        int deletedCount = stockHoldingService.deleteAllByTicker(ticker);
+        return ApiResponse.ok(deletedCount, ticker + " 보유 정보 " + deletedCount + "건 삭제 완료");
+    }
 }

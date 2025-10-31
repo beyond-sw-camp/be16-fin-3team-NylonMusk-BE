@@ -11,6 +11,7 @@ public record FinancialRatiosResDto(
         Integer fiscalQuarter,
         BigDecimal per,
         BigDecimal pbr,
+        BigDecimal bps,  // 주당순자산가치 추가
         BigDecimal operatingMargin,
         BigDecimal netMargin,
         BigDecimal debtRatio,

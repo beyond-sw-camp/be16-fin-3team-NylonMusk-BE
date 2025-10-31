@@ -101,6 +101,7 @@ public class FinancialFileParser {
         }
     }
 
+
     private List<CompanyFinancialsReqDto> parseCompanyFinancials(Sheet sheet) {
         if (sheet == null) return List.of();
         Row header = sheet.getRow(0);

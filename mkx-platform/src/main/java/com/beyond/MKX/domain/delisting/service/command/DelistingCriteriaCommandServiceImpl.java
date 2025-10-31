@@ -31,6 +31,7 @@ public class DelistingCriteriaCommandServiceImpl implements DelistingCriteriaCom
                 .criteriaName(req.criteriaName())
                 .criteriaType(req.criteriaType())
                 .thresholdValue(req.thresholdValue())
+                .comparisonOperator(req.comparisonOperator())
                 .thresholdPeriod(req.thresholdPeriod())
                 .thresholdUnit(req.thresholdUnit())
                 .description(req.description())
@@ -54,6 +55,7 @@ public class DelistingCriteriaCommandServiceImpl implements DelistingCriteriaCom
             if (req.criteriaName() != null) entity.setCriteriaName(req.criteriaName());
             if (req.criteriaType() != null) entity.setCriteriaType(req.criteriaType());
             if (req.thresholdValue() != null) entity.setThresholdValue(req.thresholdValue());
+            if (req.comparisonOperator() != null) entity.setComparisonOperator(req.comparisonOperator());
             if (req.thresholdPeriod() != null) entity.setThresholdPeriod(req.thresholdPeriod());
             if (req.thresholdUnit() != null) entity.setThresholdUnit(req.thresholdUnit());
             if (req.description() != null) entity.setDescription(req.description());
@@ -99,6 +101,7 @@ public class DelistingCriteriaCommandServiceImpl implements DelistingCriteriaCom
                 .criteriaName(entity.getCriteriaName())
                 .criteriaType(entity.getCriteriaType())
                 .thresholdValue(entity.getThresholdValue())
+                .comparisonOperator(entity.getComparisonOperator())
                 .thresholdPeriod(entity.getThresholdPeriod())
                 .thresholdUnit(entity.getThresholdUnit())
                 .description(entity.getDescription())

@@ -37,11 +37,10 @@ public class DisclosurePublicController {
     public ResponseEntity<?> list(
             @RequestParam(required = false) DisclosureType type,
             @RequestParam(required = false) String ticker,
-            @RequestParam(required = false, name = "title") String title,
-            @RequestParam(required = false, name = "displayNo") String displayNo,
+            @RequestParam(required = false) String q,
             @PageableDefault(size = 20, sort = "publishedAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        Page<DisclosureResDto> page = disclosureQueryService.listApproved(type, ticker, title, displayNo, pageable);
+        Page<DisclosureResDto> page = disclosureQueryService.listApproved(type, ticker, emptyToNull(q), pageable);
         return ApiResponse.ok(page, "승인 공시 조회 완료");
     }
 
@@ -101,5 +100,9 @@ public class DisclosurePublicController {
         } catch (IllegalArgumentException e) {
             throw new EntityNotFoundException("해당 공시번호를 찾을 수 없습니다.");
         }
+    }
+
+    private String emptyToNull(String s) {
+        return (s == null || s.isBlank()) ? null : s;
     }
 }

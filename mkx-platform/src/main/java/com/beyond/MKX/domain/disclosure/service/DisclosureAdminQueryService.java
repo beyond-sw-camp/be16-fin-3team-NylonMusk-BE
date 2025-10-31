@@ -32,13 +32,12 @@ public class DisclosureAdminQueryService {
             DisclosureStatus status,
             DisclosureType type,
             UUID stockId,
-            String title,
-            String displayNo,
+            String q,
             LocalDateTime from,
             LocalDateTime toExclusive,
             Pageable pageable
     ) {
-        return disclosureRepository.searchAdmin(status, type, stockId, title, displayNo, from, toExclusive, pageable)
+        return disclosureRepository.searchAdmin(status, type, stockId, q, from, toExclusive, pageable)
                 .map(DisclosureMapper::toRes);
     }
 

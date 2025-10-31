@@ -252,22 +252,37 @@ public class IpoAllocationService {
     public IpoAllocationSummaryResDTO approveAllocation(UUID offeringId) {
         log.info("[IPO][ADMIN] approveAllocation(offeringId={})", offeringId);
 
+        // 1️⃣ 공모 엔티티를 조회 (SELECT ... FOR UPDATE)
+        //    → 동시 승인 방지를 위해 DB 락을 겁니다.
         IpoOffering offering = offeringRepository.findByIdForUpdate(offeringId)
                 .orElseThrow(() -> new IllegalArgumentException("공모를 찾을 수 없습니다."));
 
+        // 2️⃣ 상태 검증: 거래소 승인 대기 상태여야 함
         if (offering.getIpoOfferingStatus() != IpoOfferingStatus.ALLOCATION_PENDING) {
             throw new IllegalStateException("승인 대기 상태(ALLOCATION_PENDING)인 공모만 승인할 수 있습니다.");
         }
 
-        // 총 배정 수량 계산
+        // 3️⃣ 배정 내역 조회: 이미 생성된 IpoAllocation 목록을 DB에서 가져옴
         List<IpoAllocation> allocations = allocationRepository.findAllByOfferingId(offeringId);
-        long totalAllocated = allocations.stream().mapToLong(IpoAllocation::getAllocatedQuantity).sum();
 
+        // 4️⃣ 총 배정 수량 합계 계산
+        long totalAllocated = allocations.stream()
+                .mapToLong(IpoAllocation::getAllocatedQuantity)
+                .sum();
+
+        // 5️⃣ 상태 전환 핵심 부분
+        //    offering.allocated()는 단순 setter가 아니라, 도메인 메서드입니다.
+        //    내부에서 allocatedQuantity 설정 + ipoOfferingStatus = ALLOCATED 으로 전환됩니다.
+        //    예: this.allocatedQuantity = total; this.ipoOfferingStatus = ALLOCATED;
         offering.allocated(totalAllocated);
+
+        // 6️⃣ 트랜잭션 내에서 엔티티 변경 감지(Dirty Checking)
+        //    → save(offering) 시점 또는 트랜잭션 커밋 시 DB에 UPDATE 쿼리 반영됨.
         offeringRepository.save(offering);
 
         log.info("[IPO][ADMIN] 거래소 승인 완료 → ALLOCATED 전환 (totalAllocated={})", totalAllocated);
 
+        // 7️⃣ 배정 결과를 DTO로 감싸서 반환
         return IpoAllocationSummaryResDTO.of(offering, allocations, totalAllocated);
     }
 

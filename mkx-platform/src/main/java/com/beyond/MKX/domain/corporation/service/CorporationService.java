@@ -33,6 +33,9 @@ public class CorporationService {
         String corporateSealCertUrl = uploadOrThrow(request.getCorporateSealCertFile(),
                 "corporations/corporate-seal");
 
+        String logoUrl = uploadOrThrow(request.getLogoFile(),
+                "corporations/logo");
+
         Corporation corporation = Corporation.builder()
                 .nameKo(request.getNameKo())
                 .nameEng(request.getNameEng())
@@ -46,6 +49,7 @@ public class CorporationService {
                 .recentAnnualSales(request.getRecentAnnualSales())
                 .businessRegistrationCert(businessRegistrationCertUrl)
                 .corporateSealCert(corporateSealCertUrl)
+                .logoUrl(logoUrl)
                 .build();
 
         Corporation savedCorporation = corporationRepository.save(corporation);

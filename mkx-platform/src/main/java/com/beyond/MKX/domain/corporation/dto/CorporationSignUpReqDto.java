@@ -58,6 +58,9 @@ public class CorporationSignUpReqDto {
     @NotNull(message = "법인인감증명서 파일은 필수입니다.")
     private MultipartFile corporateSealCertFile;
 
+    @NotNull(message = "기업 로고 파일은 필수입니다.")
+    private MultipartFile logoFile;
+
     @NotBlank(message = "관리자 이름은 필수입니다.")
     @Size(max = 10, message = "관리자 이름은 10자 이하여야 합니다.")
     private String adminName;

@@ -182,10 +182,12 @@ public class IpoService {
         }
 
         // 3) Stock 생성(티커 확정)
-        final UUID corpId = ipo.getCorporation().getId();
+        final Corporation corporation = ipo.getCorporation();
+        final UUID corpId = corporation.getId();
         final String nameKo = ipo.getSymbol();
         final long totalSharesAtListing = Optional.ofNullable(ipo.getOutstandingSharesAtListing())
                 .orElseThrow(() -> new IllegalStateException("상장 시점 총 발행 주식 수 미계산."));
+        final String stockImageUrl = corporation.getLogoUrl(); // 기업 로고를 종목 이미지로 사용
 
         String ticker = null;
         for (int attempt = 0; attempt < TICKER_GEN_MAX_ATTEMPTS; attempt++) {
@@ -197,6 +199,7 @@ public class IpoService {
                         .nameKo(nameKo)
                         .status(Stock.Status.LISTED)
                         .totalSharesOutstanding(totalSharesAtListing)
+                        .imageUrl(stockImageUrl)
                         .build();
                 stockRepository.saveAndFlush(stock);
                 ipo.linkStock(stock.getId(), stock.getTicker());

@@ -121,7 +121,7 @@ public class IpoOffering extends BaseIdAndTimeEntity {
 
     public void fixOfferPrice(long price, long min, long max, long face) {
         if (this.ipoOfferingStatus != IpoOfferingStatus.BOOK_BUILDING) {
-            throw new IllegalStateException("SCHEDULED 에서만 가격 확정 가능");
+            throw new IllegalStateException("BOOK_BUILDING 에서만 가격 확정 가능");
         }
         if (price < face) throw new IllegalArgumentException("확정 공모가는 액면가(" + face + ") 이상이어야 합니다.");
         if (price < min || price > max) throw new IllegalArgumentException("확정 공모가는 밴드 범위(" + min + "~" + max + ") 내여야 합니다.");
@@ -139,8 +139,8 @@ public class IpoOffering extends BaseIdAndTimeEntity {
     }
 
     public void allocated(long totalAllocated) {
-        if (this.ipoOfferingStatus != IpoOfferingStatus.CLOSED) {
-            throw new IllegalStateException("CLOSED 이후에만 배정 확정 가능");
+        if (this.ipoOfferingStatus != IpoOfferingStatus.CLOSED && this.ipoOfferingStatus != IpoOfferingStatus.VERIFIED) {
+            throw new IllegalStateException("CLOSED 또는 VERIFIED 이후에만 배정 확정 가능");
         }
         if (totalAllocated < 0 || totalAllocated > this.offerQuantity) {
             throw new IllegalStateException("배정 수량이 유효하지 않습니다.");

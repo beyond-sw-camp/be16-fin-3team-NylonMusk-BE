@@ -15,6 +15,7 @@ import com.beyond.MKX.domain.ipo.offering.repository.IpoOfferingRepository;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
@@ -80,4 +81,11 @@ public class IpoAllocationController {
         return ApiResponse.ok(dto, "해당 청약의 최신 배정 결과입니다.");
     }
 
+    // 7) N차 공모 관리자 승인
+    @PatchMapping("/{offeringId}/approve")
+    @PreAuthorize("hasRole('EXCHANGE')")
+    public ResponseEntity<?> approveNAllocation(@PathVariable UUID offeringId) {
+        IpoAllocationSummaryResDTO resDTO = allocationService.approveAllocation(offeringId);
+        return ApiResponse.ok(resDTO, "거래소 승인 완료(ALLOCATED 상태 전환)");
+    }
 }

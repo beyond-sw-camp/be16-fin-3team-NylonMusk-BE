@@ -216,6 +216,7 @@ public class IpoAllocationService {
         outboxRepository.saveAll(events);
         log.info("[IPO] allocations persisted. toSaveCount={}, skippedExists={}, skippedNotPaid={}, zeroQty={}",
                 toSave.size(), skippedExists, skippedNotPaid, zeroQty);
+
         // ──────────────────────────────────────────────
         // 7) OFFERING 상태 전환
         // ──────────────────────────────────────────────
@@ -242,7 +243,36 @@ public class IpoAllocationService {
     private long nvl(Long v) { return v == null ? 0L : v; }
 
     private int nvl(Integer v, int def) { return v == null ? def : v; }
-    
+
+    /**
+     * 거래소 관리자 N차 공모 & 유상증자 승인 처리
+     * - ALLOCATION_PENDING → ALLOCATED 전환
+     */
+    @Transactional
+    public IpoAllocationSummaryResDTO approveAllocation(UUID offeringId) {
+        log.info("[IPO][ADMIN] approveAllocation(offeringId={})", offeringId);
+
+        IpoOffering offering = offeringRepository.findByIdForUpdate(offeringId)
+                .orElseThrow(() -> new IllegalArgumentException("공모를 찾을 수 없습니다."));
+
+        if (offering.getIpoOfferingStatus() != IpoOfferingStatus.ALLOCATION_PENDING) {
+            throw new IllegalStateException("승인 대기 상태(ALLOCATION_PENDING)인 공모만 승인할 수 있습니다.");
+        }
+
+        // 총 배정 수량 계산
+        List<IpoAllocation> allocations = allocationRepository.findAllByOfferingId(offeringId);
+        long totalAllocated = allocations.stream().mapToLong(IpoAllocation::getAllocatedQuantity).sum();
+
+        offering.allocated(totalAllocated);
+        offeringRepository.save(offering);
+
+        log.info("[IPO][ADMIN] 거래소 승인 완료 → ALLOCATED 전환 (totalAllocated={})", totalAllocated);
+
+        return IpoAllocationSummaryResDTO.of(offering, allocations, totalAllocated);
+    }
+
+
+
     @Transactional(readOnly = true)
     public IpoAllocationSummaryResDTO summarize(UUID offeringId) {
         IpoOffering o = offeringRepository.findById(offeringId)

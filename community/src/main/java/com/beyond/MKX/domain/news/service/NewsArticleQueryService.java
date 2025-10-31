@@ -20,6 +20,16 @@ public class NewsArticleQueryService {
                 .searchByTickers(tickers, (q == null || q.isBlank()) ? null : q, pageable)
                 .map(NewsArticleResDto::from);
     }
+
+    public Page<NewsArticleResDto> getPopular(String ticker, String q, Pageable pageable) {
+        return newsArticleRepository
+                .findPopular(
+                        (ticker == null || ticker.isBlank()) ? null : ticker,
+                        (q == null || q.isBlank()) ? null : q,
+                        pageable
+                )
+                .map(NewsArticleResDto::from);
+    }
 }
 
 

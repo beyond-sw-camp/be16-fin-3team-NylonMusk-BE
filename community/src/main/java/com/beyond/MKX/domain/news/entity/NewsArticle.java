@@ -49,4 +49,5 @@ public class NewsArticle extends BaseIdAndTimeEntity {
 
     public void setSummary(String summary) { this.summary = summary; }
     public void setAuthor(String author) { this.author = author; }
+    public void setThumbnailUrl(String thumbnailUrl) { this.thumbnailUrl = thumbnailUrl; }
 }

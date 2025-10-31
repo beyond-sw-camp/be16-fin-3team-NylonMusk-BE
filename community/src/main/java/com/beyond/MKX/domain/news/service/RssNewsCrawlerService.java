@@ -132,6 +132,13 @@ public class RssNewsCrawlerService {
                     publisher = defaultPublisher;
                 }
 
+                // 썸네일이 아직 없으면 본문에서 첫 이미지 추출 (매일경제/한국경제/조선일보만)
+                if ((thumbnail == null || thumbnail.isBlank()) && 
+                    ("매일경제".equals(publisher) || "한국경제".equals(publisher) || "조선일보".equals(publisher))) {
+                    String fromArticle = fetchArticleImage(link);
+                    if (fromArticle != null) thumbnail = fromArticle;
+                }
+
                 // description 폴백: 없으면 제목 사용
                 if (description == null || description.isBlank()) {
                     description = title;
@@ -287,7 +294,8 @@ public class RssNewsCrawlerService {
                             Map.of("role", "system", "content", "You are a Korean financial news assistant. Respond JSON only."),
                             Map.of("role", "user", "content", buildPrompt(article))
                     ),
-                    "temperature", 0.2
+                    "temperature", 0.2,
+                    "max_tokens", 800
             );
             String res = openAiClient.post()
                     .uri("/chat/completions")
@@ -316,7 +324,7 @@ public class RssNewsCrawlerService {
         return String.format("""
                 다음 한국 경제 기사에 대해 JSON으로만 답하세요.
                 필드:
-                - summary: 2문장 요약
+                - summary: 반드시 정확히 10문장으로 구성된 상세한 요약. 각 문장은 핵심 내용을 포함해야 하며, 문장 수를 정확히 10개로 맞춰주세요. 요약은 기사의 주요 내용, 배경, 의미 등을 포괄적으로 다뤄야 합니다.
 
                 제목: %s
                 언론사: %s
@@ -412,6 +420,48 @@ public class RssNewsCrawlerService {
             String fromText = extractAuthorFromText(doc.text());
             if (fromText != null && !fromText.isBlank()) return fromText;
         } catch (Exception ignore) {}
+        return null;
+    }
+
+    // 기사 페이지에서 본문 첫 이미지 추출 (썸네일용)
+    private String fetchArticleImage(String link) {
+        try {
+            Document doc = Jsoup.connect(link)
+                    .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                    .referrer("https://www.google.com/")
+                    .timeout(5000)
+                    .get();
+            
+            // 본문 영역 찾기
+            String contentSelector = "article, .article-content, .news_view, .article_view, .article_body, #articleBody, .news_cnt_detail_wrap";
+            Element contentEl = doc.selectFirst(contentSelector);
+            if (contentEl == null) {
+                log.warn("본문 영역을 찾을 수 없음: {}", link);
+                return null;
+            }
+            
+            // 본문 내 첫 번째 이미지 찾기
+            Elements images = contentEl.select("img[src]");
+            for (Element img : images) {
+                String url = img.absUrl("src");
+                if (url == null || !url.startsWith("http")) continue;
+                // icon, logo, button 등 제외
+                if (url.contains("icon") || url.contains("logo") || url.contains("button")) continue;
+                // 너비가 너무 작은 이미지 제외
+                String width = img.attr("width");
+                if (width != null && !width.isEmpty()) {
+                    try {
+                        int w = Integer.parseInt(width);
+                        if (w < 100) continue;
+                    } catch (NumberFormatException ignore) {}
+                }
+                log.info("본문 첫 이미지 추출 성공: {}", url);
+                return url;
+            }
+            log.warn("본문에 적절한 이미지를 찾을 수 없음: {}", link);
+        } catch (Exception e) {
+            log.warn("기사 이미지 추출 실패 [{}]: {}", link, e.getMessage());
+        }
         return null;
     }
 

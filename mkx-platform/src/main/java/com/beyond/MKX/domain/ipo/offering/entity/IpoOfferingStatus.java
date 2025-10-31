@@ -7,8 +7,9 @@ public enum IpoOfferingStatus {
     PRICE_FIXED,        // 확정 공모가 고시(밴드 내 확정). 배정 전제 충족 상태
     ALLOCATED,          // 배정 완료(배정 테이블 기록 완료)
     SETTLED,            // 환불/정산까지 완료(최종 종결)
-    CANCELLED,           // 과정 중단(관리자 취소/에러 롤백 등)
-    BOOK_BUILDING
+    CANCELLED,          // 과정 중단(관리자 취소/에러 롤백 등)
+    BOOK_BUILDING,
+    ALLOCATION_PENDING  // 거래소 승인 대기
 
 
 }

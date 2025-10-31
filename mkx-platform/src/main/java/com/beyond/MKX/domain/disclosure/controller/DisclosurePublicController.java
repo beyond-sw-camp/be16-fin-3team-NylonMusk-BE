@@ -69,16 +69,37 @@ public class DisclosurePublicController {
         return ApiResponse.ok(chain.get(0), "승인 공시 상세 조회 완료");
     }
 
-    /** 공개용 히스토리: 특정 공시번호의 정정 이력(최신 우선) */
+    /** 공개용 히스토리: 특정 공시번호의 정정 이력(시간순, 본공시+추가공시 모두 포함) */
     @GetMapping("/{displayNo}/history")
     public ResponseEntity<?> historyByDisplayNo(@PathVariable String displayNo) {
-        List<DisclosureResDto> history = disclosureAdminQueryService.listRevisionsByDisplayNo(displayNo)
-                .stream()
-                .filter(d -> d.status() == DisclosureStatus.APPROVED)
-                .toList();
-        if (history.isEmpty()) {
+        try {
+            // 전체 관련 공시 트리 조회
+            var tree = disclosureAdminQueryService.getRelatedTreeByBaseNo(displayNo);
+            
+            // 트리를 flat 리스트로 변환
+            java.util.List<DisclosureResDto> allDisclosures = new java.util.ArrayList<>();
+            
+            // 본공시 체인 추가
+            allDisclosures.addAll(tree.chain());
+            
+            // 추가공시 체인들 추가
+            for (var child : tree.children()) {
+                allDisclosures.addAll(child.chain());
+            }
+            
+            // 승인된 것만 필터링하고 생성시간 기준으로 정렬
+            List<DisclosureResDto> history = allDisclosures.stream()
+                    .filter(d -> d.status() == DisclosureStatus.APPROVED)
+                    .sorted((a, b) -> a.createdAt().compareTo(b.createdAt()))
+                    .toList();
+            
+            if (history.isEmpty()) {
+                throw new EntityNotFoundException("해당 공시번호를 찾을 수 없습니다.");
+            }
+            
+            return ApiResponse.ok(history, "승인 공시 이력 조회 완료");
+        } catch (IllegalArgumentException e) {
             throw new EntityNotFoundException("해당 공시번호를 찾을 수 없습니다.");
         }
-        return ApiResponse.ok(history, "승인 공시 이력 조회 완료");
     }
 }

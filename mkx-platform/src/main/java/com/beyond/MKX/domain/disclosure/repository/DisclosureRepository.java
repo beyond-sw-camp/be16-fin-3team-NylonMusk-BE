@@ -37,7 +37,6 @@ public interface DisclosureRepository extends JpaRepository<Disclosure, UUID> {
             from Disclosure d
             where d.status = :approved
               and d.publishedAt is not null
-              and d.isLatest = true
               and (:type is null or d.disclosureType = :type)
               and (:stockId is null or d.stockId = :stockId)
               and (:title is null or lower(d.title) like lower(concat('%', :title, '%')))
@@ -155,7 +154,6 @@ public interface DisclosureRepository extends JpaRepository<Disclosure, UUID> {
             from Disclosure d
             where d.status = :approved
               and d.publishedAt is not null
-              and d.isLatest = true
               and (:type is null or d.disclosureType = :type)
               and d.tickerSnapshot in :tickers
             order by d.publishedAt desc

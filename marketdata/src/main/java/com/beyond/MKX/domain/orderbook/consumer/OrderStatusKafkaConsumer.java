@@ -2,6 +2,7 @@ package com.beyond.MKX.domain.orderbook.consumer;
 
 import com.beyond.MKX.domain.orderbook.dto.OrderStatusEventDTO;
 import com.beyond.MKX.domain.orderbook.service.OrderBookService;
+import com.beyond.MKX.domain.price.service.TurnoverWriterService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -11,6 +12,9 @@ import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -32,6 +36,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class OrderStatusKafkaConsumer {
 
     private final OrderBookService orderBookService;
+    private final TurnoverWriterService turnoverWriterService;
     
     // 이미 처리된 주문 ID를 추적 (중복 방지)
     private final Set<String> processedOrders = ConcurrentHashMap.newKeySet();
@@ -49,11 +54,13 @@ public class OrderStatusKafkaConsumer {
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             Acknowledgment acknowledgment) {
         try {
-            log.info("[KAFKA/ORDER-STATUS] 📨 Received from topic={}: orderId={}, status={}, ticker={}, side={}, price={}, remaining={}",
+            log.info("[KAFKA/ORDER-STATUS] 📨 Received from topic={}: orderId={}, status={}, ticker={}, side={}, price={}, remaining={}, notional={}",
                     topic,
                     orderStatus.getOrderId(), orderStatus.getStatus(),
                     orderStatus.getTicker(), orderStatus.getSide(),
-                    orderStatus.getPrice(), orderStatus.getRemaining());
+                    orderStatus.getPrice(), orderStatus.getRemaining(),
+                    orderStatus.getNotional()
+            );
 
             // 주문 상태에 따라 처리
             String status = orderStatus.getStatus();
@@ -78,6 +85,12 @@ public class OrderStatusKafkaConsumer {
             } else if ("MARKET_PARTIAL".equals(status)) {
                 // 부분 체결 → 남은 수량으로 업데이트
                 orderBookService.updateOrderQuantity(orderStatus);
+
+                // long타입 시간 -> KST기준 날짜로 변환
+                LocalDate tradingDate = translateTradingDate(orderStatus);
+                // 종목 별 거래대금 순위 캐싱
+                turnoverWriterService.addExecution(orderStatus.getTicker(), orderStatus.getNotional(), tradingDate);
+
                 log.info("[ORDER-STATUS] ✅ Updated quantity (PARTIAL): orderId={}, remaining={}", 
                         orderId, orderStatus.getRemaining());
                 
@@ -85,6 +98,11 @@ public class OrderStatusKafkaConsumer {
                 // 완전 체결 → 호가에서 제거
                 orderBookService.removeOrderFromBook(orderStatus);
                 processedOrders.remove(orderId);
+
+                // long타입 시간 -> KST기준 날짜로 변환
+                LocalDate tradingDate = translateTradingDate(orderStatus);
+                // 종목 별 거래대금 순위 캐싱
+                turnoverWriterService.addExecution(orderStatus.getTicker(), orderStatus.getNotional(), tradingDate);
                 log.info("[ORDER-STATUS] ✅ Removed from orderbook (FILLED): orderId={}, ticker={}, side={}, price={}", 
                         orderId, orderStatus.getTicker(), orderStatus.getSide(), orderStatus.getPrice());
                 
@@ -108,4 +126,14 @@ public class OrderStatusKafkaConsumer {
             }
         }
     }
+
+    private static LocalDate translateTradingDate(OrderStatusEventDTO orderStatus) {
+        long timestamp = orderStatus.getTimestamp(); // 1. 타임스탬프 가져오기
+        // 2. KST 기준 날짜로 변환 (위의 1~4단계를 한 줄로 표현)
+        return Instant.ofEpochMilli(timestamp)
+                .atZone(ZoneId.of("Asia/Seoul"))
+                .toLocalDate();
+    }
+
+
 }

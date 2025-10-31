@@ -289,106 +289,208 @@ public class OrderBookService {
     /**
      * 주문 상태 이벤트 기반 호가 추가
      * NEW_ACCEPTED 또는 WAITING 상태일 때 호출
+     * 
+     * ✅ v2.0 NULL 방어 로직 강화:
+     * - quantity(remaining)가 null이면 에러 로그 + 처리 중단
+     * - 필수 필드 검증 강화
      */
     public void addOrderToBook(com.beyond.MKX.domain.orderbook.dto.OrderStatusEventDTO orderStatus) {
         try {
+            String orderId = orderStatus.getOrderId();
             String ticker = orderStatus.getTicker();
             String side = orderStatus.getSide();
             long price = orderStatus.getPrice();
             BigDecimal quantity = orderStatus.getRemaining();
 
-            if (quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0) {
-                log.warn("Invalid quantity for order: orderId={}, quantity={}", 
-                        orderStatus.getOrderId(), quantity);
+            // ✅ NULL 방어 로직 1: 필수 필드 검증
+            if (ticker == null || ticker.isBlank()) {
+                log.error("[ORDER-STATUS/ADD] ❌ CRITICAL: Ticker is null/empty! orderId={}", orderId);
+                return;
+            }
+            
+            if (side == null || side.isBlank()) {
+                log.error("[ORDER-STATUS/ADD] ❌ CRITICAL: Side is null/empty! orderId={}, ticker={}", 
+                         orderId, ticker);
                 return;
             }
 
+            // ✅ NULL 방어 로직 2: quantity(remaining) 검증
+            if (quantity == null) {
+                log.error("[ORDER-STATUS/ADD] ❌ CRITICAL: Quantity(remaining) is NULL! " +
+                         "orderId={}, ticker={}, side={}, price={}. " +
+                         "Cannot add order to book without quantity.",
+                         orderId, ticker, side, price);
+                
+                // 모니터링을 위한 전체 데이터 출력
+                log.error("[ORDER-STATUS/ADD] ❌ Full orderStatus data: {}", orderStatus);
+                return;
+            }
+            
+            // ✅ NULL 방어 로직 3: quantity 범위 검증
+            if (quantity.compareTo(BigDecimal.ZERO) <= 0) {
+                log.error("[ORDER-STATUS/ADD] ❌ CRITICAL: Quantity is zero or negative! " +
+                         "orderId={}, quantity={}", orderId, quantity);
+                return;
+            }
+
+            // 정상 처리
             if ("BUY".equalsIgnoreCase(side)) {
                 addBid(ticker, price, quantity);
-                log.info("[ORDER-STATUS/ADD] Added BUY: orderId={}, ticker={}, price={}, quantity={}",
-                        orderStatus.getOrderId(), ticker, price, quantity);
+                log.info("[ORDER-STATUS/ADD] ✅ Added BUY: orderId={}, ticker={}, price={}, quantity={}",
+                        orderId, ticker, price, quantity);
             } else if ("SELL".equalsIgnoreCase(side)) {
                 addAsk(ticker, price, quantity);
-                log.info("[ORDER-STATUS/ADD] Added SELL: orderId={}, ticker={}, price={}, quantity={}",
-                        orderStatus.getOrderId(), ticker, price, quantity);
+                log.info("[ORDER-STATUS/ADD] ✅ Added SELL: orderId={}, ticker={}, price={}, quantity={}",
+                        orderId, ticker, price, quantity);
             } else {
-                log.warn("Unknown order side: orderId={}, side={}", 
-                        orderStatus.getOrderId(), side);
+                log.error("[ORDER-STATUS/ADD] ❌ Unknown order side: orderId={}, side={}", 
+                        orderId, side);
             }
 
         } catch (Exception e) {
-            log.error("Failed to add order to orderbook: orderId={}", 
-                    orderStatus.getOrderId(), e);
+            log.error("[ORDER-STATUS/ADD] ❌ Exception occurred while adding order: " +
+                     "orderId={}, error={}", 
+                     orderStatus.getOrderId(), e.getMessage(), e);
         }
     }
 
     /**
      * 주문 상태 이벤트 기반 호가 제거
      * CANCEL_OK 또는 MARKET_FILLED 상태일 때 호출
+     * 
+     * ✅ v2.0 로그 개선:
+     * - 필수 필드 검증
+     * - 상세 에러 로깅
      */
     public void removeOrderFromBook(com.beyond.MKX.domain.orderbook.dto.OrderStatusEventDTO orderStatus) {
         try {
+            String orderId = orderStatus.getOrderId();
             String ticker = orderStatus.getTicker();
             String side = orderStatus.getSide();
             long price = orderStatus.getPrice();
 
+            // ✅ 필수 필드 검증
+            if (ticker == null || ticker.isBlank()) {
+                log.error("[ORDER-STATUS/REMOVE] ❌ Ticker is null/empty! orderId={}", orderId);
+                return;
+            }
+            
+            if (side == null || side.isBlank()) {
+                log.error("[ORDER-STATUS/REMOVE] ❌ Side is null/empty! orderId={}, ticker={}", 
+                         orderId, ticker);
+                return;
+            }
+
             if ("BUY".equalsIgnoreCase(side)) {
                 removeBidCompletely(ticker, price);
-                log.info("[ORDER-STATUS/REMOVE] Removed BUY: orderId={}, ticker={}, price={}",
-                        orderStatus.getOrderId(), ticker, price);
+                log.info("[ORDER-STATUS/REMOVE] ✅ Removed BUY: orderId={}, ticker={}, price={}",
+                        orderId, ticker, price);
             } else if ("SELL".equalsIgnoreCase(side)) {
                 removeAskCompletely(ticker, price);
-                log.info("[ORDER-STATUS/REMOVE] Removed SELL: orderId={}, ticker={}, price={}",
-                        orderStatus.getOrderId(), ticker, price);
+                log.info("[ORDER-STATUS/REMOVE] ✅ Removed SELL: orderId={}, ticker={}, price={}",
+                        orderId, ticker, price);
             } else {
-                log.warn("Unknown order side for removal: orderId={}, side={}", 
-                        orderStatus.getOrderId(), side);
+                log.error("[ORDER-STATUS/REMOVE] ❌ Unknown order side: orderId={}, side={}", 
+                        orderId, side);
             }
 
         } catch (Exception e) {
-            log.error("Failed to remove order from orderbook: orderId={}", 
-                    orderStatus.getOrderId(), e);
+            log.error("[ORDER-STATUS/REMOVE] ❌ Exception occurred: orderId={}, error={}", 
+                    orderStatus.getOrderId(), e.getMessage(), e);
         }
     }
 
     /**
      * 주문 상태 이벤트 기반 호가 수량 업데이트
      * MARKET_PARTIAL 상태일 때 호출 (부분 체결)
+     * 
+     * ✅ v2.0 NULL 방어 로직 강화:
+     * - remaining이 null이면 에러 로그 + 호가 제거
+     * - 가격 불일치 시 경고 로그 출력
      */
     public void updateOrderQuantity(com.beyond.MKX.domain.orderbook.dto.OrderStatusEventDTO orderStatus) {
         try {
             String ticker = orderStatus.getTicker();
+            String orderId = orderStatus.getOrderId();
             String side = orderStatus.getSide();
             long price = orderStatus.getPrice();
             BigDecimal remaining = orderStatus.getRemaining();
 
-            if (remaining == null || remaining.compareTo(BigDecimal.ZERO) < 0) {
-                log.warn("Invalid remaining quantity: orderId={}, remaining={}", 
-                        orderStatus.getOrderId(), remaining);
+            // ✅ NULL 방어 로직 1: remaining이 null인 경우
+            if (remaining == null) {
+                log.error("[ORDER-STATUS/UPDATE] ❌ CRITICAL: Remaining is NULL! " +
+                         "orderId={}, ticker={}, side={}, price={}. " +
+                         "This indicates a data integrity issue. Removing order from book.",
+                         orderId, ticker, side, price);
+                
+                // 임시 조치: 해당 가격의 호가 전체 제거 (데이터 불일치 방지)
+                removeOrderFromBook(orderStatus);
+                
+                // 모니터링을 위한 추가 로그
+                log.error("[ORDER-STATUS/UPDATE] ❌ Full orderStatus data: {}", orderStatus);
                 return;
             }
 
+            // ✅ NULL 방어 로직 2: remaining이 음수인 경우
+            if (remaining.compareTo(BigDecimal.ZERO) < 0) {
+                log.error("[ORDER-STATUS/UPDATE] ❌ CRITICAL: Remaining is NEGATIVE! " +
+                         "orderId={}, remaining={}. Setting to ZERO and removing.",
+                         orderId, remaining);
+                remaining = BigDecimal.ZERO;
+            }
+
             log.info("[ORDER-STATUS/UPDATE] Updating quantity: orderId={}, ticker={}, side={}, price={}, remaining={}", 
-                    orderStatus.getOrderId(), ticker, side, price, remaining);
+                    orderId, ticker, side, price, remaining);
 
             // 남은 수량이 0이면 제거, 아니면 수량 업데이트
             if (remaining.compareTo(BigDecimal.ZERO) == 0) {
                 removeOrderFromBook(orderStatus);
-                log.info("[ORDER-STATUS/UPDATE] Fully filled, removed: orderId={}", orderStatus.getOrderId());
+                log.info("[ORDER-STATUS/UPDATE] ✅ Fully filled, removed: orderId={}", orderId);
             } else {
+                // ✅ NULL 방어 로직 3: 호가 업데이트 전 기존 호가 존재 여부 확인
+                OrderBook orderBook = getOrderBook(ticker);
+                boolean existsInBook = false;
+                
                 if ("BUY".equalsIgnoreCase(side)) {
-                    updateBidQuantity(ticker, price, remaining);
+                    existsInBook = orderBook.getBids().stream()
+                            .anyMatch(e -> e.getPrice() == price);
+                    
+                    if (!existsInBook) {
+                        log.warn("[ORDER-STATUS/UPDATE] ⚠️ BID not found at price {}. " +
+                                "Possible reasons: 1) Price changed due to market simulation, " +
+                                "2) Already fully executed, 3) Race condition. " +
+                                "Adding new entry instead of updating. orderId={}",
+                                price, orderId);
+                        // 호가가 없으면 새로 추가
+                        addBid(ticker, price, remaining);
+                    } else {
+                        updateBidQuantity(ticker, price, remaining);
+                    }
                 } else if ("SELL".equalsIgnoreCase(side)) {
-                    updateAskQuantity(ticker, price, remaining);
+                    existsInBook = orderBook.getAsks().stream()
+                            .anyMatch(e -> e.getPrice() == price);
+                    
+                    if (!existsInBook) {
+                        log.warn("[ORDER-STATUS/UPDATE] ⚠️ ASK not found at price {}. " +
+                                "Possible reasons: 1) Price changed due to market simulation, " +
+                                "2) Already fully executed, 3) Race condition. " +
+                                "Adding new entry instead of updating. orderId={}",
+                                price, orderId);
+                        // 호가가 없으면 새로 추가
+                        addAsk(ticker, price, remaining);
+                    } else {
+                        updateAskQuantity(ticker, price, remaining);
+                    }
                 } else {
-                    log.warn("Unknown order side for update: orderId={}, side={}", 
-                            orderStatus.getOrderId(), side);
+                    log.error("[ORDER-STATUS/UPDATE] ❌ Unknown order side: orderId={}, side={}", 
+                            orderId, side);
                 }
             }
 
         } catch (Exception e) {
-            log.error("Failed to update order quantity: orderId={}", 
-                    orderStatus.getOrderId(), e);
+            log.error("[ORDER-STATUS/UPDATE] ❌ Exception occurred while updating order quantity: " +
+                     "orderId={}, error={}", 
+                     orderStatus.getOrderId(), e.getMessage(), e);
         }
     }
     

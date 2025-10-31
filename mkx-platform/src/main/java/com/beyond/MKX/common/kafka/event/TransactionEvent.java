@@ -25,5 +25,10 @@ public class TransactionEvent {
     private String method;               // 거래 방법 (BANK_TRANSFER, CARD 등) - optional
     private String description;          // 거래 설명 - optional
     private Long timestamp;              // 이벤트 발생 시각
+    
+    // 상장폐지/IPO 환불 시 추가 정보
+    private String ticker;               // 종목 코드
+    private Long quantity;               // 주식 수량
+    private Long pricePerShare;          // 주당 가격
 }
 

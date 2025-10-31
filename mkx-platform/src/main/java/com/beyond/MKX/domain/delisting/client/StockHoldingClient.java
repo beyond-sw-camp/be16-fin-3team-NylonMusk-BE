@@ -3,6 +3,7 @@ package com.beyond.MKX.domain.delisting.client;
 import com.beyond.MKX.common.apiResponse.CommonDTO;
 import com.beyond.MKX.domain.delisting.dto.StockHoldingResDto;
 import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
@@ -23,4 +24,13 @@ public interface StockHoldingClient {
      */
     @GetMapping("/api/internal/stock-holdings/ticker/{ticker}")
     CommonDTO<List<StockHoldingResDto>> getAllHoldersByTicker(@PathVariable("ticker") String ticker);
+
+    /**
+     * 특정 ticker의 모든 보유 정보 삭제 (상장폐지용)
+     * 
+     * @param ticker 주식 티커
+     * @return CommonDTO로 감싸진 삭제된 개수
+     */
+    @DeleteMapping("/api/internal/stock-holdings/ticker/{ticker}")
+    CommonDTO<Integer> deleteAllByTicker(@PathVariable("ticker") String ticker);
 }

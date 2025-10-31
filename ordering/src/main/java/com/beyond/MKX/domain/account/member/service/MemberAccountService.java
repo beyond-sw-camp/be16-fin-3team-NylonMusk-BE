@@ -139,6 +139,20 @@ public class MemberAccountService {
         
         return acc.getBalance();
     }
+    
+    /**
+     * 내부용 입금 (이벤트 발행 없음)
+     * - 상장폐지 환불, 공모 환불 등 외부에서 이미 이벤트를 발행하는 경우 사용
+     * - 외부(mkx-platform 등)에서 직접 TransactionEvent를 발행하므로 중복 방지
+     */
+    public Long depositWithoutEvent(String accountNumber, Long amount) {
+        MemberAccount acc = getByAccountNumber(accountNumber);
+        if (acc.getStatus() != AccountStatus.ACTIVE) {
+            throw new IllegalStateException("계좌 상태가 활성(ACTIVE)이 아닙니다.");
+        }
+        acc.deposit(amount);
+        return acc.getBalance();
+    }
 
     /**
      * 출금: 계좌 상태가 ACTIVE일 때만 허용

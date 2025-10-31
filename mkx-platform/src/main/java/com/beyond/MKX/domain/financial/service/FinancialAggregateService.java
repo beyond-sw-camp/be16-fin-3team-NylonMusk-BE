@@ -5,6 +5,8 @@ import com.beyond.MKX.domain.financial.entity.*;
 import com.beyond.MKX.domain.financial.mapper.FinancialMapper;
 import com.beyond.MKX.domain.financial.repository.*;
 import com.beyond.MKX.domain.financial.util.FinancialRatiosAutoCalculator;
+import com.beyond.MKX.domain.stock.entity.Stock;
+import com.beyond.MKX.domain.stock.repository.StockRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +23,7 @@ public class FinancialAggregateService {
     private final CashFlowStatementRepository cashFlowStatementRepository;
     private final FinancialRatiosRepository financialRatiosRepository;
     private final FinancialRatiosAutoCalculator calculator;
+    private final StockRepository stockRepository;  // BPS 계산을 위해 추가
 
     /**
      * 1. companyFinancials, cashFlowStatements, financialRatios 각각 null 체크
@@ -114,9 +117,18 @@ public class FinancialAggregateService {
     }
 
     private void upsertComputedRatiosFromFinancials(CompanyFinancials cf) {
+        // Stock 정보 조회 (BPS 계산을 위해 필요)
+        Stock stock = stockRepository.findById(cf.getStockId())
+                .orElseThrow(() -> new IllegalArgumentException("Stock not found: " + cf.getStockId()));
+        
         BigDecimal roe = calculator.calculateROE(cf);
         BigDecimal roa = calculator.calculateROA(cf);
         BigDecimal debt = calculator.calculateDebtRatio(cf);
+        BigDecimal opMargin = calculator.calculateOperatingMargin(cf);
+        BigDecimal netMargin = calculator.calculateNetMargin(cf);
+        BigDecimal currRatio = calculator.calculateCurrentRatio(cf);
+        BigDecimal intCov = calculator.calculateInterestCoverage(cf);
+        BigDecimal bps = calculator.calculateBPS(cf, stock.getTotalSharesOutstanding());  // BPS 계산 추가
 
         Optional<FinancialRatios> existingRecord =
                 financialRatiosRepository.findByStockIdAndFiscalYearAndFiscalQuarter(
@@ -128,6 +140,11 @@ public class FinancialAggregateService {
             existing.setRoe(roe);
             existing.setRoa(roa);
             existing.setDebtRatio(debt);
+            existing.setOperatingMargin(opMargin);
+            existing.setNetMargin(netMargin);
+            existing.setCurrentRatio(currRatio);
+            existing.setInterestCoverage(intCov);
+            existing.setBps(bps);  // BPS 추가
         } else {
             FinancialRatios created = FinancialRatios.builder()
                     .stockId(cf.getStockId())
@@ -136,6 +153,11 @@ public class FinancialAggregateService {
                     .roe(roe)
                     .roa(roa)
                     .debtRatio(debt)
+                    .operatingMargin(opMargin)
+                    .netMargin(netMargin)
+                    .currentRatio(currRatio)
+                    .interestCoverage(intCov)
+                    .bps(bps)  // BPS 추가
                     .build();
             financialRatiosRepository.save(created);
         }

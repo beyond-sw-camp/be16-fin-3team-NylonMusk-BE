@@ -79,7 +79,8 @@ public class TransactionEventConsumer {
                 Long debitAmount;
                 Long creditAmount;
                 
-                if (transactionType == TransactionType.DEPOSIT) {
+                if (transactionType == TransactionType.DEPOSIT || transactionType == TransactionType.DELISTING_REFUND) {
+                    // 입금 또는 상장폐지 환불: 시스템 → 회원 계좌
                     creditAccountId = accountId;    // 입금 받는 쪽: 회원 계좌
                     debitAccountId = null;           // 입금 보내는 쪽: 시스템(null)
                     debitAmount = 0L;
@@ -112,14 +113,20 @@ public class TransactionEventConsumer {
                 }
 
                 // Ledger 기록
+                // ⭐ 상장폐지 환불인 경우 ticker와 quantity 정보 포함
+                String ticker = (transactionType == TransactionType.DELISTING_REFUND && event.getTicker() != null) 
+                        ? event.getTicker() : "";
+                Long qtyChange = (transactionType == TransactionType.DELISTING_REFUND && event.getQuantity() != null) 
+                        ? event.getQuantity() : 0L;
+                
                 Ledger ledger = Ledger.builder()
                         .orderLogId(null)  // 입출금은 주문과 무관
                         .creditAccountId(creditAccountId)
                         .debitAccountId(debitAccountId)
-                        .ticker("")  // 입출금은 ticker 없음 (빈 문자열)
+                        .ticker(ticker)  // 상장폐지 환불인 경우 ticker 기록
                         .debit(debitAmount)
                         .credit(creditAmount)
-                        .qtyChange(0L)  // 입출금은 거래량 없음
+                        .qtyChange(qtyChange)  // 상장폐지 환불인 경우 주식 수량 기록
                         .amountChange(event.getAmount())  // 입출금 금액 = amountChange
                         .commission(0L)
                         .tax(0L)
@@ -129,9 +136,16 @@ public class TransactionEventConsumer {
                         .build();
                 
                 ledgerRepository.save(ledger);
-                log.info("MEMBER Ledger 기록 완료: eventId={}, type={}, amount={}, counterparty={}", 
-                        event.getEventId(), transactionType, event.getAmount(), 
-                        event.getCounterpartyName() != null ? event.getCounterpartyName() : "N/A");
+                
+                if (transactionType == TransactionType.DELISTING_REFUND) {
+                    log.info("MEMBER Ledger 기록 완료 (상장폐지 환불): eventId={}, ticker={}, quantity={}주, price={}원, totalAmount={}", 
+                            event.getEventId(), event.getTicker(), event.getQuantity(), 
+                            event.getPricePerShare(), event.getAmount());
+                } else {
+                    log.info("MEMBER Ledger 기록 완료: eventId={}, type={}, amount={}, counterparty={}", 
+                            event.getEventId(), transactionType, event.getAmount(), 
+                            event.getCounterpartyName() != null ? event.getCounterpartyName() : "N/A");
+                }
             } 
             // CORPORATION 계좌 처리
             else if ("CORPORATION".equals(event.getAccountType())) {
@@ -144,28 +158,34 @@ public class TransactionEventConsumer {
                 
                 UUID corporationAccountId = UUID.fromString(event.getAccountId());
                 
-                // 입금(DEPOSIT): 거래소 → corporation (debitAccountId는 null)
+                // 입금(DEPOSIT, DELISTING_REFUND): 거래소/시스템 → corporation (debitAccountId는 null)
                 // 출금(WITHDRAWAL): corporation → 거래소 (creditAccountId는 null)
                 UUID creditAccountId;
                 UUID debitAccountId;
                 
-                if (transactionType == TransactionType.DEPOSIT) {
+                if (transactionType == TransactionType.DEPOSIT || transactionType == TransactionType.DELISTING_REFUND) {
                     creditAccountId = corporationAccountId;  // 입금 받는 쪽: 기업 계좌
-                    debitAccountId = null;                   // 입금 보내는 쪽: null (거래소 계좌 미사용)
+                    debitAccountId = null;                   // 입금 보내는 쪽: null (시스템/거래소)
                 } else {
                     creditAccountId = null;                  // 출금 받는 쪽: null (거래소 계좌 미사용)
                     debitAccountId = corporationAccountId;   // 출금 보내는 쪽: 기업 계좌
                 }
                 
                 // Ledger 기록
+                // ⭐ 상장폐지 환불인 경우 ticker와 quantity 정보 포함
+                String ticker = (transactionType == TransactionType.DELISTING_REFUND && event.getTicker() != null) 
+                        ? event.getTicker() : "";
+                Long qtyChange = (transactionType == TransactionType.DELISTING_REFUND && event.getQuantity() != null) 
+                        ? event.getQuantity() : 0L;
+                
                 Ledger ledger = Ledger.builder()
                         .orderLogId(null)
                         .creditAccountId(creditAccountId)
                         .debitAccountId(debitAccountId)
-                        .ticker("")  // 입출금은 ticker 없음 (빈 문자열)
+                        .ticker(ticker)  // 상장폐지 환불인 경우 ticker 기록
                         .debit(event.getAmount())
                         .credit(event.getAmount())
-                        .qtyChange(0L)  // 입출금은 거래량 없음
+                        .qtyChange(qtyChange)  // 상장폐지 환불인 경우 주식 수량 기록
                         .amountChange(event.getAmount())  // 입출금 금액 = amountChange
                         .commission(0L)
                         .tax(0L)
@@ -173,8 +193,15 @@ public class TransactionEventConsumer {
                         .build();
                 
                 ledgerRepository.save(ledger);
-                log.info("CORPORATION Ledger 기록 완료: eventId={}, type={}, amount={}, accountId={}", 
-                        event.getEventId(), transactionType, event.getAmount(), corporationAccountId);
+                
+                if (transactionType == TransactionType.DELISTING_REFUND) {
+                    log.info("CORPORATION Ledger 기록 완료 (상장폐지 환불): eventId={}, ticker={}, quantity={}주, price={}원, totalAmount={}", 
+                            event.getEventId(), event.getTicker(), event.getQuantity(), 
+                            event.getPricePerShare(), event.getAmount());
+                } else {
+                    log.info("CORPORATION Ledger 기록 완료: eventId={}, type={}, amount={}, accountId={}", 
+                            event.getEventId(), transactionType, event.getAmount(), corporationAccountId);
+                }
             }
 
             ack.acknowledge();

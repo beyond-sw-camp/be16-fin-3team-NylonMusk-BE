@@ -27,7 +27,8 @@ public final class FinancialMapper {
     public static FinancialRatiosResDto toRes(FinancialRatios e){
         return new FinancialRatiosResDto(
                 e.getId(), e.getStockId(), e.getFiscalYear(), e.getFiscalQuarter(),
-                e.getPer(), e.getPbr(), e.getOperatingMargin(), e.getNetMargin(),
+                e.getPer(), e.getPbr(), e.getBps(),  // BPS 추가
+                e.getOperatingMargin(), e.getNetMargin(),
                 e.getDebtRatio(), e.getCurrentRatio(), e.getInterestCoverage(),
                 e.getRoa(), e.getRoe(),
                 e.getCreatedAt(), e.getUpdatedAt()
@@ -70,6 +71,7 @@ public final class FinancialMapper {
                 .fiscalQuarter(d.fiscalQuarter())
                 .per(d.per())
                 .pbr(d.pbr())
+                .bps(d.bps())  // BPS 추가
                 .operatingMargin(d.operatingMargin())
                 .netMargin(d.netMargin())
                 .debtRatio(d.debtRatio())

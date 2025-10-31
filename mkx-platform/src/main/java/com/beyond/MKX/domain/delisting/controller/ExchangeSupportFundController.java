@@ -2,10 +2,14 @@ package com.beyond.MKX.domain.delisting.controller;
 
 import com.beyond.MKX.domain.delisting.entity.ExchangeSupportFund;
 import com.beyond.MKX.domain.delisting.repository.ExchangeSupportFundRepository;
+import com.beyond.MKX.domain.account.corporation.service.CorporationAccountService;
+import com.beyond.MKX.common.auth.security.CorporationOnly;
+import com.beyond.MKX.common.auth.security.CustomAdminPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -26,6 +30,7 @@ import java.util.UUID;
 public class ExchangeSupportFundController {
 
     private final ExchangeSupportFundRepository supportFundRepo;
+    private final CorporationAccountService corporationAccountService;
 
     /**
      * 모든 지원금 조회
@@ -109,26 +114,54 @@ public class ExchangeSupportFundController {
     }
 
     /**
-     * 지원금 상환 처리
+     * 지원금 상환 처리 (기업 계좌에서 차감 후 상환 반영)
+     * - 기업 관리자만 호출 가능
+     * - amount는 원 단위 정수(BigDecimal)로 받되, 계좌 출금 시 BigInteger로 변환
      */
     @PostMapping("/{supportFundId}/repay")
-    public ResponseEntity<String> repaySupportFund(@PathVariable UUID supportFundId, @RequestParam BigDecimal amount) {
+    @CorporationOnly
+    public ResponseEntity<?> repaySupportFund(
+            @AuthenticationPrincipal CustomAdminPrincipal principal,
+            @PathVariable UUID supportFundId,
+            @RequestBody RepayRequest req
+    ) {
         try {
+            if (req == null || req.getAmount() == null || req.getAccountId() == null) {
+                throw new IllegalArgumentException("accountId와 amount는 필수입니다.");
+            }
+
+            // 1) 기업 계좌에서 출금 (잔액 부족 시 예외 발생)
+            var amountAsInteger = req.getAmount().toBigIntegerExact();
+            corporationAccountService.withdraw(req.getAccountId(), amountAsInteger);
+
+            // 2) 지원금 상환 반영
             ExchangeSupportFund supportFund = supportFundRepo.findById(supportFundId)
                     .orElseThrow(() -> new IllegalArgumentException("지원금을 찾을 수 없습니다: " + supportFundId));
-            
-            supportFund.repay(amount);
+
+            supportFund.repay(req.getAmount());
             supportFundRepo.save(supportFund);
-            
-            log.info("지원금 상환 처리 완료: supportFundId={}, amount={}, remaining={}", 
-                    supportFundId, amount, supportFund.getRemainingAmount());
-            
-            return ResponseEntity.ok("상환 처리 완료. 잔여 금액: " + supportFund.getRemainingAmount());
-            
+
+            log.info("지원금 상환 처리 완료: supportFundId={}, amount={}, remaining={}",
+                    supportFundId, req.getAmount(), supportFund.getRemainingAmount());
+
+            return ResponseEntity.ok(
+                    java.util.Map.of(
+                            "message", "상환 처리 완료",
+                            "remaining", supportFund.getRemainingAmount()
+                    )
+            );
+
         } catch (Exception e) {
-            log.error("지원금 상환 처리 실패: supportFundId={}, amount={}", supportFundId, amount, e);
-            return ResponseEntity.badRequest().body("상환 처리 실패: " + e.getMessage());
+            log.error("지원금 상환 처리 실패: supportFundId={}, amount={}", supportFundId, req != null ? req.getAmount() : null, e);
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", e.getMessage()));
         }
+    }
+
+    /** 상환 요청 바디 */
+    @lombok.Data
+    public static class RepayRequest {
+        private UUID accountId;
+        private BigDecimal amount;
     }
 
     /**

@@ -1,5 +1,6 @@
 package com.beyond.MKX.domain.ipo.subscription.repository;
 
+import com.beyond.MKX.domain.ipo.subscription.entity.InvestorType;
 import com.beyond.MKX.domain.ipo.subscription.entity.IpoSubscription;
 import com.beyond.MKX.domain.ipo.subscription.entity.SubscriptionStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -42,4 +43,6 @@ public interface IpoSubscriptionRepository extends JpaRepository<IpoSubscription
     List<IpoSubscription> findAllByOfferingIdAndStatus(
             @Param("offeringId") UUID offeringId,
             @Param("status") SubscriptionStatus status);
+
+    List<IpoSubscription> findAllBySubscriberIdAndInvestorType(UUID subscriberId, InvestorType investorType);
 }

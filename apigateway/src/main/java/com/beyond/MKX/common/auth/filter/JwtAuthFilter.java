@@ -69,7 +69,8 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             "/api/stocks/**",
             "/api/public/**",
             "/my-stocks",
-            "/swagger-ui/**"
+            "/swagger-ui/**",
+            "/trading/home/ranking"
     );
 
     /**

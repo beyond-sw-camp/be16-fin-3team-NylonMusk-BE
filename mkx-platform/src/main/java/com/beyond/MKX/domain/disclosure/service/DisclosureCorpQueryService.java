@@ -36,7 +36,7 @@ public class DisclosureCorpQueryService {
     public Page<DisclosureResDto> listMine(
             DisclosureStatus status,
             DisclosureType type,
-            String title,
+            String q,
             LocalDate fromDate,
             LocalDate toDate,
             Pageable pageable
@@ -44,7 +44,7 @@ public class DisclosureCorpQueryService {
         UUID corpId = currentCorporationId();
         LocalDateTime from = (fromDate != null) ? fromDate.atStartOfDay() : null;
         LocalDateTime toExclusive = (toDate != null) ? toDate.plusDays(1).atStartOfDay() : null;
-        return disclosureRepository.searchByCorporation(corpId, status, type, title, from, toExclusive, pageable)
+        return disclosureRepository.searchByCorporation(corpId, status, type, q, from, toExclusive, pageable)
                 .map(DisclosureMapper::toRes);
     }
 

@@ -78,6 +78,10 @@ public class Stock extends BaseIdAndTimeEntity {
     @Enumerated(EnumType.STRING)
     private DelistingReason delistingReason;
 
+    // ====== 종목 이미지 url ======
+    @Column(name = "image_url", length = 512)
+    private String imageUrl;
+
     // ====== 도메인 메서드(선택적 변경만 허용) ======
     public void updateNameKo(String nameKo) {
         this.nameKo = nameKo;

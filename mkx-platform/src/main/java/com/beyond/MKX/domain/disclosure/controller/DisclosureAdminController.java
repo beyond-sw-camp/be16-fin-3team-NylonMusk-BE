@@ -63,22 +63,21 @@ public class DisclosureAdminController {
         return ApiResponse.ok(DisclosureMapper.toRes(rejected), "공시 반려 완료");
     }
 
-    /** 관리자 전용 공시 조회(상태/유형/종목/제목/기간 필터) */
+    /** 관리자 전용 공시 조회(상태/유형/종목/검색어/기간 필터) */
     @ExchangeOnly
     @GetMapping
     public ResponseEntity<?> search(
             @RequestParam(required = false) DisclosureStatus status,
             @RequestParam(required = false) DisclosureType type,
             @RequestParam(required = false) UUID stockId,
-            @RequestParam(required = false) String title,
-            @RequestParam(required = false, name = "displayNo") String displayNo,
+            @RequestParam(required = false) String q,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         LocalDateTime from = (fromDate != null) ? fromDate.atStartOfDay() : null;
         LocalDateTime toExclusive = (toDate != null) ? toDate.plusDays(1).atStartOfDay() : null;
-        Page<DisclosureResDto> page = disclosureAdminQueryService.search(status, type, stockId, title, displayNo, from, toExclusive, pageable);
+        Page<DisclosureResDto> page = disclosureAdminQueryService.search(status, type, stockId, emptyToNull(q), from, toExclusive, pageable);
         return ApiResponse.ok(page, "관리자 공시 조회 완료");
     }
 
@@ -119,5 +118,9 @@ public class DisclosureAdminController {
                 .contentType(MediaType.parseMediaType(dl.contentType()))
                 .contentLength(dl.bytes().length)
                 .body(resource);
+    }
+
+    private String emptyToNull(String s) {
+        return (s == null || s.isBlank()) ? null : s;
     }
 }

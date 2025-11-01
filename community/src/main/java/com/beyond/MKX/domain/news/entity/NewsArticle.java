@@ -47,10 +47,7 @@ public class NewsArticle extends BaseIdAndTimeEntity {
     @Column(name = "summary", columnDefinition = "TEXT")
     private String summary;
 
-    @Column(name = "sentiment", length = 16)
-    private String sentiment;
-
     public void setSummary(String summary) { this.summary = summary; }
-    public void setSentiment(String sentiment) { this.sentiment = sentiment; }
     public void setAuthor(String author) { this.author = author; }
+    public void setThumbnailUrl(String thumbnailUrl) { this.thumbnailUrl = thumbnailUrl; }
 }

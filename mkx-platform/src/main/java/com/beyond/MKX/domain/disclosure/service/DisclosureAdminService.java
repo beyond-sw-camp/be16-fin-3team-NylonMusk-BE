@@ -25,6 +25,7 @@ public class DisclosureAdminService {
     private final S3Manager s3Manager;
     private final DisclosureNumberService numberService;
     private final FinancialUploadService financialUploadService;
+    private final com.beyond.MKX.domain.delisting.service.DelistingService delistingService;
 
     /**
      * 공시 상세 조회 (관리자용)
@@ -91,6 +92,16 @@ public class DisclosureAdminService {
                 .action(DisclosureDecisionAction.APPROVE)
                 .build();
         decisionRepository.save(decision);
+
+        // 승인 후: 최신 공시 기반으로 상장폐지 조건 재검사 및 정상화 처리
+        try {
+            if (disclosure.getStockId() != null) {
+                delistingService.onDisclosureApproved(disclosure.getStockId(), adminId);
+            }
+        } catch (Exception e) {
+            // 재평가 실패는 승인 자체를 롤백하지 않음
+            System.out.println("[Disclosure] 공시 승인 후 재평가 중 오류: disclosureId=" + id + ", stockId=" + disclosure.getStockId() + ", err=" + e.getMessage());
+        }
         return disclosure;
     }
 

@@ -49,6 +49,7 @@ public class DelistingCriteriaQueryServiceImpl implements DelistingCriteriaQuery
                 .criteriaName(entity.getCriteriaName())
                 .criteriaType(entity.getCriteriaType())
                 .thresholdValue(entity.getThresholdValue())
+                .comparisonOperator(entity.getComparisonOperator())
                 .thresholdPeriod(entity.getThresholdPeriod())
                 .thresholdUnit(entity.getThresholdUnit())
                 .description(entity.getDescription())

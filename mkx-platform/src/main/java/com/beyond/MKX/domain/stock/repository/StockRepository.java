@@ -1,5 +1,6 @@
 package com.beyond.MKX.domain.stock.repository;
 
+import com.beyond.MKX.domain.delisting.entity.DelistingStage;
 import com.beyond.MKX.domain.stock.entity.Stock;
 import com.beyond.MKX.domain.stock.entity.Stock.Status;
 import org.springframework.data.domain.Page;
@@ -7,6 +8,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -73,4 +75,16 @@ public interface StockRepository extends JpaRepository<Stock, UUID> {
             @Param("q") String q,
             Pageable pageable
     );
+
+
+    interface BriefView {
+        UUID getId();
+        String getTicker();
+        String getNameKo();
+        Stock.Status getStatus();
+        // DelistingStage 타입 패키지 경로에 맞춰 import 또는 Stock과 같은 패키지면 그대로
+        DelistingStage getDelistingStage();
+    }
+
+    List<BriefView> findByTickerIn(Collection<String> tickers);
 }

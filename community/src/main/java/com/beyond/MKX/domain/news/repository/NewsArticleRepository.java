@@ -90,4 +90,14 @@ public interface NewsArticleRepository extends JpaRepository<NewsArticle, UUID> 
             @Param("q") String q,
             Pageable pageable
     );
+
+    /**
+     * 서머리가 없는 뉴스 조회 (최신순)
+     */
+    @Query("""
+            select n from NewsArticle n
+            where n.summary is null or n.summary = ''
+            order by n.publishedAt desc
+            """)
+    Page<NewsArticle> findBySummaryIsNull(Pageable pageable);
 }

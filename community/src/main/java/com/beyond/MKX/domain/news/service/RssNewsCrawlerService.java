@@ -12,6 +12,9 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.jsoup.parser.Parser;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -209,8 +212,8 @@ public class RssNewsCrawlerService {
                     }
                 }
 
-                // OpenAI 분석 (요약) - 실패 시 무시
-                analyzeWithOpenAI(article);
+                // OpenAI 분석 (요약) - 재시도 로직 포함
+                analyzeWithOpenAIWithRetry(article, 3);
 
             }
         } catch (Exception e) {
@@ -285,9 +288,47 @@ public class RssNewsCrawlerService {
 
     private record StockInfo(UUID id, String ticker, String nameKo) {}
 
-    private void analyzeWithOpenAI(NewsArticle article) {
-        if (openAiApiKey == null || openAiApiKey.isBlank()) return;
+    /**
+     * OpenAI로 요약 생성 (재시도 포함)
+     * @param article 뉴스 기사
+     * @param maxRetries 최대 재시도 횟수
+     * @return 요약 생성 성공 여부
+     */
+    private boolean analyzeWithOpenAIWithRetry(NewsArticle article, int maxRetries) {
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            if (analyzeWithOpenAI(article)) {
+                return true; // 성공
+            }
+            
+            if (attempt < maxRetries) {
+                // 재시도 전 대기 (exponential backoff: 1초, 2초, 4초...)
+                long waitTime = (long) Math.pow(2, attempt - 1) * 1000;
+                log.info("[OpenAI 요약] 재시도 대기: articleId={}, attempt={}/{}, wait={}ms", 
+                        article.getId(), attempt + 1, maxRetries, waitTime);
+                try {
+                    Thread.sleep(waitTime);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return false;
+                }
+            }
+        }
+        log.warn("[OpenAI 요약] 최대 재시도 횟수 초과: articleId={}, title={}", article.getId(), article.getTitle());
+        return false;
+    }
+
+    /**
+     * OpenAI로 요약 생성 (단일 시도)
+     * @param article 뉴스 기사
+     * @return 요약 생성 성공 여부
+     */
+    private boolean analyzeWithOpenAI(NewsArticle article) {
+        if (openAiApiKey == null || openAiApiKey.isBlank()) {
+            log.debug("[OpenAI 요약] API 키가 설정되지 않아 요약 생성을 건너뜁니다. articleId={}", article.getId());
+            return false;
+        }
         try {
+            log.debug("[OpenAI 요약] 시작: articleId={}, title={}", article.getId(), article.getTitle());
             Map<String, Object> body = Map.of(
                     "model", openAiModel,
                     "messages", List.of(
@@ -305,18 +346,72 @@ public class RssNewsCrawlerService {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-            if (res == null || res.isBlank()) return;
+            if (res == null || res.isBlank()) {
+                log.warn("[OpenAI 요약] 응답이 비어있습니다. articleId={}", article.getId());
+                return false;
+            }
             JsonNode top = objectMapper.readTree(res);
-            JsonNode msg = top.path("choices").get(0).path("message").path("content");
+            JsonNode choices = top.path("choices");
+            if (choices.isEmpty() || !choices.isArray()) {
+                log.warn("[OpenAI 요약] choices가 없거나 배열이 아닙니다. articleId={}, response={}", article.getId(), res.substring(0, Math.min(200, res.length())));
+                return false;
+            }
+            JsonNode msg = choices.get(0).path("message").path("content");
             String content = msg.asText("").replace("```json", "").replace("```", "").trim();
-            if (content.isBlank()) return;
+            if (content.isBlank()) {
+                log.warn("[OpenAI 요약] 메시지 content가 비어있습니다. articleId={}", article.getId());
+                return false;
+            }
             JsonNode root = objectMapper.readTree(content);
-            String summary = root.path("summary").asText(null);
-            if (summary != null && !summary.isBlank()) article.setSummary(summary);
-            // JPA dirty checking으로 저장됨(@Transactional)
+            JsonNode summaryNode = root.path("summary");
+            String summary = null;
+            
+            // summary가 배열인 경우와 문자열인 경우 모두 처리
+            if (summaryNode.isArray()) {
+                // 배열인 경우 각 요소를 문장으로 합침
+                StringBuilder sb = new StringBuilder();
+                for (JsonNode item : summaryNode) {
+                    String text = item.asText("");
+                    if (text != null && !text.isBlank()) {
+                        if (sb.length() > 0) {
+                            sb.append(" ");
+                        }
+                        sb.append(text);
+                    }
+                }
+                summary = sb.toString();
+                log.debug("[OpenAI 요약] summary 배열을 문자열로 변환: articleId={}, items={}", 
+                        article.getId(), summaryNode.size());
+            } else if (summaryNode.isTextual()) {
+                // 문자열인 경우
+                summary = summaryNode.asText(null);
+            } else if (!summaryNode.isNull() && !summaryNode.isMissingNode()) {
+                // 다른 타입인 경우 문자열로 변환 시도
+                summary = summaryNode.asText(null);
+            }
+            
+            if (summary != null && !summary.isBlank()) {
+                article.setSummary(summary);
+                log.info("[OpenAI 요약] 성공: articleId={}, summaryLength={}", article.getId(), summary.length());
+                // JPA dirty checking으로 저장됨(@Transactional)
+                return true;
+            } else {
+                log.warn("[OpenAI 요약] summary 필드가 없거나 비어있습니다. articleId={}, summaryNodeType={}, content={}", 
+                        article.getId(), summaryNode.getNodeType(), content.substring(0, Math.min(500, content.length())));
+                return false;
+            }
         } catch (WebClientResponseException e) {
-            // 429/4xx/5xx 무시
-        } catch (Exception ignore) {
+            // 429 (Too Many Requests)는 재시도 대상, 다른 4xx/5xx는 재시도 불가
+            if (e.getStatusCode().value() == 429) {
+                log.warn("[OpenAI 요약] Rate limit 초과 (재시도 가능): articleId={}, status={}", article.getId(), e.getStatusCode());
+            } else {
+                log.warn("[OpenAI 요약] HTTP 오류 (재시도 불가): articleId={}, status={}, message={}", 
+                        article.getId(), e.getStatusCode(), e.getMessage());
+            }
+            return false;
+        } catch (Exception e) {
+            log.error("[OpenAI 요약] 요약 생성 실패: articleId={}, error={}", article.getId(), e.getMessage(), e);
+            return false;
         }
     }
 
@@ -432,35 +527,109 @@ public class RssNewsCrawlerService {
                     .timeout(5000)
                     .get();
             
-            // 본문 영역 찾기
-            String contentSelector = "article, .article-content, .news_view, .article_view, .article_body, #articleBody, .news_cnt_detail_wrap";
-            Element contentEl = doc.selectFirst(contentSelector);
-            if (contentEl == null) {
-                log.warn("본문 영역을 찾을 수 없음: {}", link);
-                return null;
+            // 본문 영역 찾기 (여러 셀렉터 시도)
+            String[] contentSelectors = {
+                "article", 
+                ".article-content", 
+                ".news_view", 
+                ".article_view", 
+                ".article_body", 
+                "#articleBody", 
+                ".news_cnt_detail_wrap",
+                "[class*=article]",
+                "[class*=content]",
+                "[id*=article]",
+                "[id*=content]",
+                "main",
+                ".main-content"
+            };
+            
+            Element contentEl = null;
+            for (String selector : contentSelectors) {
+                contentEl = doc.selectFirst(selector);
+                if (contentEl != null) {
+                    log.debug("본문 영역 발견 (selector={}): {}", selector, link);
+                    break;
+                }
             }
             
-            // 본문 내 첫 번째 이미지 찾기
-            Elements images = contentEl.select("img[src]");
-            for (Element img : images) {
-                String url = img.absUrl("src");
-                if (url == null || !url.startsWith("http")) continue;
-                // icon, logo, button 등 제외
-                if (url.contains("icon") || url.contains("logo") || url.contains("button")) continue;
-                // 너비가 너무 작은 이미지 제외
-                String width = img.attr("width");
-                if (width != null && !width.isEmpty()) {
-                    try {
-                        int w = Integer.parseInt(width);
-                        if (w < 100) continue;
-                    } catch (NumberFormatException ignore) {}
+            // 본문 영역이 있으면 본문 내에서 이미지 찾기
+            if (contentEl != null) {
+                String image = findImageInElement(contentEl, link, true);
+                if (image != null) {
+                    return image;
                 }
-                log.info("본문 첫 이미지 추출 성공: {}", url);
-                return url;
+                log.debug("본문 영역 내에서 이미지를 찾지 못함, 전체 문서에서 시도: {}", link);
+            } else {
+                log.warn("본문 영역을 찾을 수 없음, 전체 문서에서 이미지 검색 시도: {}", link);
             }
+            
+            // 본문 영역이 없거나 본문 내에서 찾지 못한 경우 전체 문서에서 이미지 찾기 (폴백)
+            String image = findImageInElement(doc.body(), link, false);
+            if (image != null) {
+                log.info("전체 문서에서 이미지 추출 성공: {}", image);
+                return image;
+            }
+            
             log.warn("본문에 적절한 이미지를 찾을 수 없음: {}", link);
         } catch (Exception e) {
             log.warn("기사 이미지 추출 실패 [{}]: {}", link, e.getMessage());
+        }
+        return null;
+    }
+    
+    /**
+     * 요소 내에서 적절한 이미지 찾기
+     * @param element 검색할 요소
+     * @param link 기사 링크 (로깅용)
+     * @param strict 본문 영역에서 검색하는 경우 true (더 엄격한 필터링)
+     * @return 이미지 URL 또는 null
+     */
+    private String findImageInElement(Element element, String link, boolean strict) {
+        if (element == null) return null;
+        
+        Elements images = element.select("img[src]");
+        for (Element img : images) {
+            String url = img.absUrl("src");
+            if (url == null || !url.startsWith("http")) continue;
+            
+            // icon, logo, button, avatar 등 제외
+            String urlLower = url.toLowerCase();
+            if (urlLower.contains("icon") || urlLower.contains("logo") || 
+                urlLower.contains("button") || urlLower.contains("avatar") ||
+                urlLower.contains("profile") || urlLower.contains("thumbnail") && !urlLower.contains("article")) {
+                continue;
+            }
+            
+            // 너비가 너무 작은 이미지 제외
+            String width = img.attr("width");
+            if (width != null && !width.isEmpty()) {
+                try {
+                    int w = Integer.parseInt(width);
+                    if (w < (strict ? 200 : 150)) continue; // 본문 영역에서는 더 큰 이미지만
+                } catch (NumberFormatException ignore) {}
+            }
+            
+            // data-src 속성도 확인 (lazy loading)
+            if (url.contains("data:image") || url.contains("placeholder")) {
+                String dataSrc = img.attr("data-src");
+                if (dataSrc != null && !dataSrc.isBlank() && dataSrc.startsWith("http")) {
+                    url = img.absUrl("data-src");
+                } else {
+                    continue;
+                }
+            }
+            
+            // class나 id에 불필요한 키워드가 있는지 확인
+            String imgClass = img.attr("class");
+            String imgId = img.attr("id");
+            if ((imgClass != null && (imgClass.contains("icon") || imgClass.contains("logo") || imgClass.contains("button"))) ||
+                (imgId != null && (imgId.contains("icon") || imgId.contains("logo") || imgId.contains("button")))) {
+                continue;
+            }
+            
+            log.info("이미지 추출 성공: {} (strict={})", url, strict);
+            return url;
         }
         return null;
     }

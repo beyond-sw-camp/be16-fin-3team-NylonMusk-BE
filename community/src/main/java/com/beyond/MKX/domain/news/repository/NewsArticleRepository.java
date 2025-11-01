@@ -84,7 +84,20 @@ public interface NewsArticleRepository extends JpaRepository<NewsArticle, UUID> 
                  coalesce(v.avg_duration, 0) * 0.1 + 
                  coalesce(v.share_count, 0) * 2.0) desc,
                 n.published_at desc
-            """, nativeQuery = true)
+            """,
+            countQuery = """
+            select count(*) from news_article n
+            left join (
+                select news_id
+                from news_view_event
+                where created_at >= date_sub(now(), interval 24 hour)
+                group by news_id
+            ) v on n.id = v.news_id
+            where (:ticker is null or n.ticker = :ticker)
+              and (:q is null or lower(n.title) like lower(concat('%', :q, '%'))
+                 or lower(n.description) like lower(concat('%', :q, '%')))
+            """,
+            nativeQuery = true)
     Page<NewsArticle> findPopular(
             @Param("ticker") String ticker,
             @Param("q") String q,

@@ -14,6 +14,7 @@ public record StockListResDto(
         String nameKo,
         String status,
         String delistingStage,
+        String delistingReason,
         long totalSharesOutstanding,
         Long ownedShares,
         Long freeFloatShares,
@@ -29,6 +30,7 @@ public record StockListResDto(
                 .nameKo(s.getNameKo())
                 .status(s.getStatus() != null ? s.getStatus().name() : null)
                 .delistingStage(s.getDelistingStage() != null ? s.getDelistingStage().name() : null)
+                .delistingReason(s.getDelistingReason() != null ? s.getDelistingReason().name() : null)
                 .totalSharesOutstanding(s.getTotalSharesOutstanding())
                 .ownedShares(s.getOwnedShares())
                 .freeFloatShares(s.getFreeFloatShares())

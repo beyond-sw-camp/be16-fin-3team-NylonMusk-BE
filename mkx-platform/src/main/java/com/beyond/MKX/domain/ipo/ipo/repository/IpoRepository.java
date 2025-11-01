@@ -84,4 +84,8 @@ public interface IpoRepository extends JpaRepository<Ipo, UUID> {
     List<Ipo> findByCorporationIdOrderByRequestedAtDesc(@Param("corporationId") UUID corporationId);
 
     boolean existsByCorporation_IdAndStatusIn(UUID corporationId, Collection<IpoStatus> statuses);
+
+    Optional<Ipo> findByStockId(UUID stockId);
+
+    Optional<Ipo> findByStockTicker(String ticker);
 }

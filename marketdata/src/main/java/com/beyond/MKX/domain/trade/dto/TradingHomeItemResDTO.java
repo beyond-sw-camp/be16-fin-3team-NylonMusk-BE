@@ -21,4 +21,5 @@ public class TradingHomeItemResDTO {
     private long turnover;
     private String status;         // 'SUSPENDED' 체크
     private String delistingStage; // 상장폐지 배지/거래불가 판단
+    private String imageUrl;       // 종목 기업 이미지
 }

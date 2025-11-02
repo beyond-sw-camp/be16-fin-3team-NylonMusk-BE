@@ -17,4 +17,5 @@ public class StockBriefDTO {
     private String nameKo;
     private Stock.Status status;
     private DelistingStage delistingStage;
+    private String imageUrl;
 }

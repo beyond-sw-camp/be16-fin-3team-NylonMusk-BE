@@ -72,7 +72,7 @@ class StockInternalController {
     }
 
 
-    // 대량 간략 정보 조회 (이름 + id + status + delistingStage)
+    // 종목 간략 정보 조회 (이름 + id + status + delistingStage)
     @GetMapping("/briefs")
     public List<StockBriefDTO> getBriefs(@RequestParam("tickers") List<String> tickers) {
         if (tickers == null || tickers.isEmpty()) return List.of();
@@ -83,6 +83,7 @@ class StockInternalController {
                         .nameKo(v.getNameKo())
                         .status(v.getStatus())
                         .delistingStage(v.getDelistingStage())
+                        .imageUrl(v.getImageUrl())
                         .build())
                 .toList();
     }

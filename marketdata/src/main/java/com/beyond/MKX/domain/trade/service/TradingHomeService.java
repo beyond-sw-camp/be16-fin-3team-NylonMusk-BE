@@ -57,6 +57,7 @@ public class TradingHomeService {
                     .turnover(turnover)
                     .status(brief != null ? brief.getStatus() : null)
                     .delistingStage(brief != null ? brief.getDelistingStage() : null)
+                    .imageUrl(brief != null ? brief.getImageUrl() : null)
                     .build());
         }
         return list;

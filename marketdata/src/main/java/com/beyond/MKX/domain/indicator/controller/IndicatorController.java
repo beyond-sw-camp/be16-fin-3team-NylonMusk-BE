@@ -6,7 +6,6 @@ import com.beyond.MKX.domain.indicator.dto.IndicatorResultDTO;
 import com.beyond.MKX.domain.indicator.dto.UserIndicatorConfigDTO;
 import com.beyond.MKX.domain.indicator.enums.IndicatorType;
 import com.beyond.MKX.domain.indicator.service.IndicatorService;
-import com.beyond.MKX.domain.indicator.websocket.IndicatorWebSocketHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +19,10 @@ import java.util.Map;
  * 보조지표 REST API Controller
  * 
  * 보조지표 계산 및 사용자 설정 관리 API 제공
+ * 
+ * ⚠️ 변경사항: IndicatorWebSocketHandler 제거
+ * - Native WebSocket Handler 사용 중단
+ * - IndicatorStompController가 STOMP를 통해 실시간 데이터 전송
  */
 @Slf4j
 @RestController
@@ -28,7 +31,7 @@ import java.util.Map;
 public class IndicatorController {
 
     private final IndicatorService indicatorService;
-    private final IndicatorWebSocketHandler indicatorWebSocketHandler;
+    // ❌ indicatorWebSocketHandler 제거: STOMP로 대체됨
 
     /**
      * 단일 보조지표 계산 및 조회
@@ -68,8 +71,8 @@ public class IndicatorController {
         // 지표 계산
         IndicatorResultDTO result = indicatorService.calculateIndicator(request, startTime, endTime);
         
-        // WebSocket으로 실시간 전송
-        indicatorWebSocketHandler.broadcastIndicator(ticker, result);
+        // ❌ WebSocket 전송 제거: IndicatorStompController가 이벤트를 통해 처리
+        // indicatorWebSocketHandler.broadcastIndicator(ticker, result);
         
         return ApiResponse.ok(result, "보조지표 계산 완료");
     }
@@ -101,10 +104,10 @@ public class IndicatorController {
         List<IndicatorResultDTO> results = indicatorService.calculateMultipleIndicators(
                 ticker, interval, requests, startTime, endTime);
         
-        // 각 지표를 WebSocket으로 전송
-        for (IndicatorResultDTO result : results) {
-            indicatorWebSocketHandler.broadcastIndicator(ticker, result);
-        }
+        // ❌ WebSocket 전송 제거: STOMP로 대체됨
+        // for (IndicatorResultDTO result : results) {
+        //     indicatorWebSocketHandler.broadcastIndicator(ticker, result);
+        // }
         
         return ApiResponse.ok(results, "보조지표 일괄 계산 완료");
     }

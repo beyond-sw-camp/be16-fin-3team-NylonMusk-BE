@@ -15,4 +15,5 @@ public class StockBriefDTO {
     private String nameKo;
     private String status;
     private String delistingStage;
+    private String imageUrl;
 }

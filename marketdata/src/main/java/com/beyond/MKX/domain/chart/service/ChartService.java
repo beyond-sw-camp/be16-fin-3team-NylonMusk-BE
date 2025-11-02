@@ -2,7 +2,7 @@ package com.beyond.MKX.domain.chart.service;
 
 import com.beyond.MKX.domain.chart.entity.Candle;
 import com.beyond.MKX.domain.chart.repository.CandleInfluxRepository;
-import com.beyond.MKX.domain.chart.websocket.ChartWebSocketHandler;
+// import com.beyond.MKX.domain.chart.stomp.ChartStompController; // ✅ 순환 참조 방지: 제거
 import com.beyond.MKX.domain.execution.dto.ExecutionEventDTO;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -39,7 +39,7 @@ public class ChartService {
 
     private final RedisTemplate<String, Object> redisTemplate;
     private final CandleInfluxRepository candleInfluxRepository;
-    private final ChartWebSocketHandler chartWebSocketHandler;
+    // private final ChartStompController chartStompController; // ✅ 순환 참조 방지: 제거
     private final ObjectMapper objectMapper;
 
     // Redis key prefix
@@ -69,8 +69,8 @@ public class ChartService {
             for (String interval : INTERVAL_MINUTES.keySet()) {
                 Candle candle = updateCurrentCandle(execution, interval);
                 
-                // WebSocket으로 실시간 전송
-                chartWebSocketHandler.broadcastCandle(execution.getTicker(), candle);
+                // STOMP로 실시간 전송 (Redis Pub/Sub) - 직접 발행
+                publishCandle(candle);
             }
             
         } catch (Exception e) {
@@ -214,6 +214,41 @@ public class ChartService {
     }
 
     /**
+     * 최근 N개의 캔들 조회 (STOMP 초기 구독 시 사용)
+     * 
+     * @param ticker 종목 코드
+     * @param interval 캔들 간격 (1m, 5m, 15m, 30m, 1h, 4h, 1d)
+     * @param limit 조회할 캔들 개수
+     * @return 최근 캔들 리스트
+     */
+    public List<Candle> getRecentCandles(String ticker, String interval, int limit) {
+        try {
+            // 현재 시각 기준으로 과거 데이터 조회
+            Instant end = Instant.now();
+            
+            // interval에 따라 시작 시각 계산
+            long intervalMinutes = INTERVAL_MINUTES.getOrDefault(interval, 1L);
+            long lookbackMinutes = intervalMinutes * limit * 2; // 여유있게 2배로 설정
+            Instant start = end.minus(lookbackMinutes, ChronoUnit.MINUTES);
+            
+            // InfluxDB에서 캔들 데이터 조회
+            List<Candle> candles = getCandles(ticker, interval, start, end);
+            
+            // 최신 순으로 정렬 후 limit 개수만큼 반환
+            return candles.stream()
+                    .sorted(Comparator.comparing(Candle::getTime).reversed())
+                    .limit(limit)
+                    .sorted(Comparator.comparing(Candle::getTime)) // 다시 시간순으로 정렬
+                    .collect(Collectors.toList());
+                    
+        } catch (Exception e) {
+            log.error("[CHART/QUERY] Failed to get recent candles: ticker={}, interval={}, limit={}", 
+                    ticker, interval, limit, e);
+            return Collections.emptyList();
+        }
+    }
+
+    /**
      * 최신 캔들 조회 (Redis에서 현재 진행 중인 캔들)
      */
     public Candle getLatestCandle(String ticker, String interval) {
@@ -292,5 +327,48 @@ public class ChartService {
         long candleMinutes = (epochMinutes / intervalMinutes) * intervalMinutes;
         
         return Instant.ofEpochSecond(candleMinutes * 60);
+    }
+
+    /**
+     * 캔들 데이터를 Redis Pub/Sub으로 발행 (순환 참조 방지)
+     *
+     * 채널: market:chart (ticker 정보는 메시지 내부에 포함)
+     * RedisPubSubListener가 수신하여 /topic/chart/{ticker}로 전송
+     *
+     * @param candle 캔들 데이터
+     */
+    private void publishCandle(Candle candle) {
+        try {
+            String ticker = candle.getTicker();
+            
+            // 메시지 구성
+            Map<String, Object> message = new HashMap<>();
+            message.put("type", "chart");
+            message.put("ticker", ticker);
+            message.put("data", Map.of(
+                    "ticker", candle.getTicker(),
+                    "interval", candle.getInterval(),
+                    "time", candle.getTime(),
+                    "open", candle.getOpen(),
+                    "high", candle.getHigh(),
+                    "low", candle.getLow(),
+                    "close", candle.getClose(),
+                    "volume", candle.getVolume()
+            ));
+            message.put("timestamp", System.currentTimeMillis());
+            
+            // JSON 직렬화
+            String messageJson = objectMapper.writeValueAsString(message);
+            
+            // Redis Pub/Sub 발행
+            redisTemplate.convertAndSend("market:chart", messageJson);
+            
+            log.debug("[CHART-STOMP] 📤 Published: channel=market:chart, ticker={}, interval={}, close={}",
+                    ticker, candle.getInterval(), candle.getClose());
+            
+        } catch (Exception e) {
+            log.error("[CHART-STOMP] ❌ Failed to publish: ticker={}",
+                    candle.getTicker(), e);
+        }
     }
 }

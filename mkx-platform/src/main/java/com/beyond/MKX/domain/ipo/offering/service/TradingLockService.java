@@ -68,7 +68,9 @@ public class TradingLockService {
             if (latestOffering == null || latestOffering.getRecordDate() == null) continue;
 
             // recordDate + 3분 경과 시 거래 재개
-            LocalDateTime unlockTime = latestOffering.getRecordDate().plusMinutes(3);
+//            LocalDateTime unlockTime = latestOffering.getRecordDate().plusMinutes(3);
+            // recordDate + 5분 경과 시 거래 재개
+            LocalDateTime unlockTime = latestOffering.getRecordDate().plusMinutes(5);
 
             if (now.isAfter(unlockTime)) {
                 stock.updateStatus(Stock.Status.LISTED);

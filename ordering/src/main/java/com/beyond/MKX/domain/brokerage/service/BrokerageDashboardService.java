@@ -244,56 +244,52 @@ public class BrokerageDashboardService {
             volumeChangePercent = 100.0; // 전일 거래가 없었는데 오늘 거래가 있으면 100% 증가
         }
         
-        // 5. 월간 수익 (이번 달)
-        // 매수(BUY): debitAccountId = brokerageId인 ledger의 commission (증권사가 출금하는 쪽이므로 수수료를 받음)
-        // 매도(SELL): creditAccountId = brokerageId인 ledger의 commission (증권사가 입금받는 쪽이므로 수수료를 받음)
-        int currentYear = today.getYear();
-        int currentMonth = today.getMonthValue();
+        // 5. 월간 수익 (최근 30일)
+        // 매수(BUY)와 매도(SELL) 거래의 수수료를 합산하여 월간 수익 계산
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime thirtyDaysAgo = now.minusDays(30);
+        LocalDateTime sixtyDaysAgo = now.minusDays(60);
         
-        // 매수 수수료: transactionType이 BUY이고 brokerageId와 관련된 거래의 commission
-        Long buyCommission = ledgerRepository.getBuyCommissionByBrokerageId(
-            brokerageId, TransactionType.BUY, currentYear, currentMonth);
+        // 최근 30일 매수 수수료
+        Long buyCommission = ledgerRepository.getCommissionByBrokerageIdAndDateRange(
+            brokerageId, TransactionType.BUY, thirtyDaysAgo, now);
         if (buyCommission == null) {
             buyCommission = 0L;
         }
         
-        // 매도 수수료: transactionType이 SELL이고 brokerageId와 관련된 거래의 commission
-        Long sellCommission = ledgerRepository.getSellCommissionByBrokerageId(
-            brokerageId, TransactionType.SELL, currentYear, currentMonth);
+        // 최근 30일 매도 수수료
+        Long sellCommission = ledgerRepository.getCommissionByBrokerageIdAndDateRange(
+            brokerageId, TransactionType.SELL, thirtyDaysAgo, now);
         if (sellCommission == null) {
             sellCommission = 0L;
         }
         
         Long monthlyRevenue = buyCommission + sellCommission;
         
-        // 6. 전월 수익
-        LocalDate lastMonthDate = today.minusMonths(1);
-        int lastMonthYear = lastMonthDate.getYear();
-        int lastMonth = lastMonthDate.getMonthValue();
-        
-        Long lastMonthBuyCommission = ledgerRepository.getBuyCommissionByBrokerageId(
-            brokerageId, TransactionType.BUY, lastMonthYear, lastMonth);
-        if (lastMonthBuyCommission == null) {
-            lastMonthBuyCommission = 0L;
+        // 6. 이전 30일 수익 (30일 전 ~ 60일 전)
+        Long previousBuyCommission = ledgerRepository.getCommissionByBrokerageIdAndDateRange(
+            brokerageId, TransactionType.BUY, sixtyDaysAgo, thirtyDaysAgo);
+        if (previousBuyCommission == null) {
+            previousBuyCommission = 0L;
         }
         
-        Long lastMonthSellCommission = ledgerRepository.getSellCommissionByBrokerageId(
-            brokerageId, TransactionType.SELL, lastMonthYear, lastMonth);
-        if (lastMonthSellCommission == null) {
-            lastMonthSellCommission = 0L;
+        Long previousSellCommission = ledgerRepository.getCommissionByBrokerageIdAndDateRange(
+            brokerageId, TransactionType.SELL, sixtyDaysAgo, thirtyDaysAgo);
+        if (previousSellCommission == null) {
+            previousSellCommission = 0L;
         }
         
-        Long lastMonthRevenue = lastMonthBuyCommission + lastMonthSellCommission;
-        if (lastMonthRevenue == 0) {
-            lastMonthRevenue = 1L; // 0으로 나누기 방지
+        Long previousRevenue = previousBuyCommission + previousSellCommission;
+        if (previousRevenue == 0) {
+            previousRevenue = 1L; // 0으로 나누기 방지
         }
         
         // 7. 수익 변화율 계산
         double revenueChangePercent = 0.0;
-        if (lastMonthRevenue > 1L) {
-            revenueChangePercent = ((double)(monthlyRevenue - lastMonthRevenue) / lastMonthRevenue) * 100.0;
+        if (previousRevenue > 1L) {
+            revenueChangePercent = ((double)(monthlyRevenue - previousRevenue) / previousRevenue) * 100.0;
         } else if (monthlyRevenue > 0) {
-            revenueChangePercent = 100.0; // 전월 수익이 없었는데 이번 달 수익이 있으면 100% 증가
+            revenueChangePercent = 100.0; // 이전 30일 수익이 없었는데 최근 30일 수익이 있으면 100% 증가
         }
         
         return BrokerageStatsDTO.builder()

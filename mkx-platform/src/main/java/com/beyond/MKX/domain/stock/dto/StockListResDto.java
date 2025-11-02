@@ -3,6 +3,7 @@ package com.beyond.MKX.domain.stock.dto;
 import com.beyond.MKX.domain.stock.entity.Stock;
 import lombok.Builder;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -20,7 +21,8 @@ public record StockListResDto(
         Long freeFloatShares,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
-        LocalDateTime deletedAt
+        LocalDateTime deletedAt,
+        BigDecimal totalCompensationAmount
 ) {
     public static StockListResDto from(Stock s) {
         return StockListResDto.builder()
@@ -37,6 +39,7 @@ public record StockListResDto(
                 .createdAt(s.getCreatedAt())
                 .updatedAt(s.getUpdatedAt())
                 .deletedAt(s.getDeletedAt())
+                .totalCompensationAmount(s.getTotalCompensationAmount())
                 .build();
     }
 }

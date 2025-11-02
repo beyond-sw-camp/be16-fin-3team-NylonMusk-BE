@@ -2,7 +2,7 @@ package com.beyond.MKX.domain.chart.scheduler;
 
 import com.beyond.MKX.domain.chart.entity.Candle;
 import com.beyond.MKX.domain.chart.repository.CandleInfluxRepository;
-import com.beyond.MKX.domain.chart.websocket.ChartWebSocketHandler;
+import com.beyond.MKX.domain.chart.stomp.ChartStompController;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,7 +36,7 @@ public class CandleConfirmationScheduler {
 
     private final RedisTemplate<String, Object> redisTemplate;
     private final CandleInfluxRepository candleInfluxRepository;
-    private final ChartWebSocketHandler chartWebSocketHandler;
+    private final ChartStompController chartStompController;
     private final ObjectMapper objectMapper;
 
     private static final String CURRENT_CANDLE_PREFIX = "candle:";
@@ -211,7 +211,7 @@ public class CandleConfirmationScheduler {
                 // WebSocket으로 브로드캐스트
                 for (Candle candle : candlesToSave) {
                     try {
-                        chartWebSocketHandler.broadcastCandle(candle.getTicker(), candle);
+                        chartStompController.publishCandle(candle);
                         log.debug("[CANDLE/SCHEDULER] 📡 Broadcasted: ticker={}, interval={}, time={}, volume={}",
                                 candle.getTicker(), candle.getInterval(), candle.getTime(), candle.getVolume());
                     } catch (Exception e) {

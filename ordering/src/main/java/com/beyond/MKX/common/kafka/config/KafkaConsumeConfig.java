@@ -1,12 +1,10 @@
 package com.beyond.MKX.common.kafka.config;
 
-//import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.beyond.MKX.common.kafka.event.ExecutionEvent;
 import com.beyond.MKX.common.kafka.event.OrderStatusEvent;
 import com.beyond.MKX.common.kafka.event.TransactionEvent;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,6 +17,7 @@ import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.support.ExponentialBackOffWithMaxRetries;
 import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
+import org.springframework.util.backoff.FixedBackOff;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -103,7 +102,7 @@ public class KafkaConsumeConfig {
         ConcurrentKafkaListenerContainerFactory<String, ExecutionEvent> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(executionConsumerFactory);
-        factory.setCommonErrorHandler(commonErrorHandler());
+        factory.setCommonErrorHandler(noBackOffErrorHandler());
         // yml의 enable-auto-commit: false 설정에 따른 수동 커밋 설정
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
         return factory;
@@ -116,7 +115,7 @@ public class KafkaConsumeConfig {
         ConcurrentKafkaListenerContainerFactory<String, OrderStatusEvent> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(orderStatusConsumerFactory);
-        factory.setCommonErrorHandler(commonErrorHandler());
+        factory.setCommonErrorHandler(noBackOffErrorHandler());
         // yml의 enable-auto-commit: false 설정에 따른 수동 커밋 설정
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
         return factory;
@@ -129,7 +128,7 @@ public class KafkaConsumeConfig {
         ConcurrentKafkaListenerContainerFactory<String, TransactionEvent> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(transactionConsumerFactory);
-        factory.setCommonErrorHandler(commonErrorHandler());
+        factory.setCommonErrorHandler(noBackOffErrorHandler());
         // yml의 enable-auto-commit: false 설정에 따른 수동 커밋 설정
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
         return factory;
@@ -145,5 +144,12 @@ public class KafkaConsumeConfig {
         backoff.setMaxInterval(2_000);
         return new DefaultErrorHandler(backoff);
     }
+
+    // 에러발생 시 해당 토픽 스킵
+    private DefaultErrorHandler noBackOffErrorHandler() {
+        // interval=0ms, maxAttempts=0 → 재시도 없음
+        return new DefaultErrorHandler(new FixedBackOff(0L, 0L));
+    }
+
 
 }

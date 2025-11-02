@@ -71,7 +71,8 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             "/api/public/**",
             "/my-stocks",
             "/swagger-ui/**",
-            "/ws/**"  // WebSocket 연결 (Optional 인증 - MarketData Service에서 처리)
+            "/ws/**",  // WebSocket 연결 (Optional 인증 - MarketData Service에서 처리)
+            "/trading-home/**"
     );
 
     /**
@@ -174,10 +175,10 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             //    - 내부망/서비스 간 통신을 전제로 한다.
             //    - 각 서비스는 외부로부터 동일 이름 헤더가 유입되지 않도록 게이트웨이 앞 단을 강제해야 한다.
             //    - WebSocket 연결 시에도 이 헤더들이 전달되어 STOMP 인증에 사용됨
-            
+
             // 이메일 정보 추출 (JWT claims에서)
             String email = Optional.ofNullable(claims.get("email", String.class)).orElse("");
-            
+
             ServerHttpRequest mutated = request.mutate()
                     .header("X-User-Id", userId)
                     .header("X-User-Email", email)

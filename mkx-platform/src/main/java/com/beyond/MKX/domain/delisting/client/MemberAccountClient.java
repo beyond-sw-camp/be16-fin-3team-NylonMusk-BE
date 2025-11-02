@@ -36,10 +36,10 @@ public interface MemberAccountClient {
      * 
      * @param accountNumber 계좌번호
      * @param request 입금 요청 정보
-     * @return 입금 결과
+     * @return 입금 결과 (CommonDTO 형식: { result: { success, message, newBalance } })
      */
     @PostMapping("/by-number/{accountNumber}/deposit")
-    DepositResult depositByAccountNumber(@PathVariable String accountNumber, @RequestBody DepositRequest request);
+    Map<String, Object> depositByAccountNumber(@PathVariable String accountNumber, @RequestBody DepositRequest request);
 
     /**
      * 입금 요청 DTO

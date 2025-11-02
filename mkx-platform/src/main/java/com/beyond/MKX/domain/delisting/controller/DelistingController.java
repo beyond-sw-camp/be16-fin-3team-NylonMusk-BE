@@ -142,6 +142,17 @@ public class DelistingController {
         return ApiResponse.ok(report, "상장폐지 위험 분석 리포트 생성 완료");
     }
 
+    /**
+     * 위험 해소 처리 (문제 없음 처리)
+     */
+    @PostMapping("/risk/resolve/{stockId}")
+    public ResponseEntity<?> resolveRisk(@PathVariable UUID stockId,
+                                        @RequestParam UUID adminId,
+                                        @RequestParam(required = false) String reason) {
+        delistingService.resolveRisk(stockId, adminId, reason);
+        return ApiResponse.ok(null, "위험 해소 처리 완료");
+    }
+
     private DelistingViolationResDto mapToResDto(DelistingViolation violation) {
         return DelistingViolationResDto.builder()
                 .id(violation.getId())

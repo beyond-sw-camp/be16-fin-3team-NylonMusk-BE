@@ -20,6 +20,7 @@ public class StockDetailResDTO {
     // Stock 정보
     private String ticker;
     private String nameKo;
+    private String imageUrl; // 종목 이미지 URL
     private Long totalSharesOutstanding;
     private LocalDateTime listedAt;  // 상장일 (Stock의 createdAt 또는 IPO의 listingAt)
     

@@ -25,7 +25,6 @@ public class NewsArticleResDto {
     private UUID stockId;
     private String description;
     private String summary;
-    private String sentiment;
 
     public static NewsArticleResDto from(NewsArticle a) {
         return NewsArticleResDto.builder()
@@ -40,7 +39,6 @@ public class NewsArticleResDto {
                 .stockId(a.getStockId())
                 .description(a.getDescription())
                 .summary(a.getSummary())
-                .sentiment(a.getSentiment())
                 .build();
     }
 }

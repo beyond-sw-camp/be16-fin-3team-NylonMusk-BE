@@ -15,6 +15,7 @@ public record DelistingCriteriaResDto(
         String criteriaName,
         com.beyond.MKX.domain.delisting.entity.CriteriaType criteriaType,
         BigDecimal thresholdValue,
+        com.beyond.MKX.domain.delisting.entity.DelistingCriteria.ComparisonOperator comparisonOperator,
         Integer thresholdPeriod,
         com.beyond.MKX.domain.delisting.entity.DelistingCriteria.ThresholdUnit thresholdUnit,
         String description,

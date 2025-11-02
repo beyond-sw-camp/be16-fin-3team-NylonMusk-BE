@@ -86,14 +86,20 @@ public class FinancialRatiosAutoCalculator {
     /**
      * BPS(주당순자산가치) = 자기자본 / 총발행주식수
      * - 총발행주식수가 0이면 0.00 반환
+     * - 큰 값 지원을 위해 BigDecimal 직접 사용
      */
     public BigDecimal calculateBPS(CompanyFinancials cf, Long totalSharesOutstanding) {
         if (totalSharesOutstanding == null || totalSharesOutstanding == 0) {
             return BigDecimal.ZERO;
         }
-        double equity = toDouble(cf.getTotalEquity());
-        return BigDecimal.valueOf(equity / totalSharesOutstanding)
-            .setScale(2, RoundingMode.HALF_UP);
+        Long equity = cf.getTotalEquity();
+        if (equity == null || equity == 0) {
+            return BigDecimal.ZERO;
+        }
+        // BigDecimal을 직접 사용하여 정밀도 보장
+        BigDecimal equityBigDecimal = BigDecimal.valueOf(equity);
+        BigDecimal sharesBigDecimal = BigDecimal.valueOf(totalSharesOutstanding);
+        return equityBigDecimal.divide(sharesBigDecimal, 2, RoundingMode.HALF_UP);
     }
 
     /** Long → double null-safe 변환 */

@@ -68,6 +68,7 @@ public class DelistingCriteria extends BaseIdAndTimeEntity {
     @Column(name = "comparison_operator", nullable = false, length = 20)
     @Enumerated(EnumType.STRING)
     @Comment("비교 연산자")
+    @Builder.Default
     private ComparisonOperator comparisonOperator = ComparisonOperator.LESS_THAN;
 
     /**
@@ -101,6 +102,7 @@ public class DelistingCriteria extends BaseIdAndTimeEntity {
      */
     @Column(name = "is_active", nullable = false)
     @Comment("활성화 여부")
+    @Builder.Default
     private Boolean isActive = true;
 
     /**

@@ -68,6 +68,54 @@ public class ExecutionInfluxRepository {
     }
 
     /**
+     * 특정 기간의 체결 데이터 조회
+     * 
+     * @param ticker 종목 코드
+     * @param start 시작 시각
+     * @param end 종료 시각
+     * @return 체결 데이터 리스트
+     */
+    public List<Execution> findExecutions(String ticker, Instant start, Instant end) {
+        String flux = String.format(
+                "from(bucket: \"%s\") " +
+                "|> range(start: %s, stop: %s) " +
+                "|> filter(fn: (r) => r._measurement == \"%s\") " +
+                "|> filter(fn: (r) => r.ticker == \"%s\") " +
+                "|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\") " +
+                "|> sort(columns: [\"_time\"], desc: false)",
+                bucket, start.toString(), end.toString(), Execution.MEASUREMENT, ticker
+        );
+
+        try {
+            List<FluxTable> tables = influxDBClient.getQueryApi().query(flux, orgnaization);
+            List<Execution> executions = new ArrayList<>();
+
+            for (FluxTable table : tables) {
+                for (FluxRecord record : table.getRecords()) {
+                    Execution execution = Execution.builder()
+                            .ticker(ticker)
+                            .side((String) record.getValueByKey("side"))
+                            .execId((String) record.getValueByKey("execId"))
+                            .marketOrderId((String) record.getValueByKey("marketOrderId"))
+                            .counterOrderId((String) record.getValueByKey("counterOrderId"))
+                            .price(((Number) record.getValueByKey("price")).longValue())
+                            .quantity(BigDecimal.valueOf(((Number) record.getValueByKey("quantity")).doubleValue()))
+                            .timestamp(record.getTime())
+                            .build();
+                    executions.add(execution);
+                }
+            }
+
+            log.info("Retrieved {} executions for ticker: {} (period: {} ~ {})", 
+                    executions.size(), ticker, start, end);
+            return executions;
+        } catch (Exception e) {
+            log.error("Failed to retrieve executions from InfluxDB for period {} ~ {}", start, end, e);
+            return new ArrayList<>();
+        }
+    }
+
+    /**
      * 특정 종목의 최근 체결 데이터 조회
      */
     public List<Execution> findRecentExecutions(String ticker, String duration) {

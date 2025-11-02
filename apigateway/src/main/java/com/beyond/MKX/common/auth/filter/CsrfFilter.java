@@ -53,7 +53,7 @@ public class CsrfFilter implements GlobalFilter, Ordered {
             "/ipo/**",
             "/my-stocks",
             "/swagger-ui/**",
-            "/trading/home/ranking"
+            "/trading-home/**"
     );
 
     /** Gateway에서 경로 정규화 시 제거할 서비스 접두사 */

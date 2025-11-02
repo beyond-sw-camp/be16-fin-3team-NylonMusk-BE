@@ -105,7 +105,7 @@ public class TradingBotService {
     /**
      * 자동 트레이딩 실행 (5초마다 실행)
      */
-    @Scheduled(fixedDelay = 5000)
+    @Scheduled(fixedDelay = 50)
     public void executeTrading() {
         try {
             List<TradingBotConfig> activeBots = configRepository.findByStatusAndIsActiveTrue("START");

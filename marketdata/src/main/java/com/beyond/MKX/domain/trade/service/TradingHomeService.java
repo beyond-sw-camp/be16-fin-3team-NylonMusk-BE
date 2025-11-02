@@ -4,6 +4,7 @@ import com.beyond.MKX.domain.price.entity.CurrentPrice;
 import com.beyond.MKX.domain.price.service.CurrentPriceService;
 import com.beyond.MKX.domain.trade.dto.StockBriefDTO;
 import com.beyond.MKX.domain.trade.dto.TradingHomeItemResDTO;
+import com.beyond.MKX.domain.trade.dto.TradingItemDetailResDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -61,4 +62,22 @@ public class TradingHomeService {
         return list;
     }
 
+
+    public List<TradingItemDetailResDTO> getTickerDetail(List<String> tickerList) {
+
+        List<TradingItemDetailResDTO> list = new ArrayList<>();
+        for (String ticker : tickerList) {
+            CurrentPrice cp = currentPriceService.getCurrentPrice(ticker);
+            long price = (cp != null) ? cp.getPrice() : 0L;
+            BigDecimal rate = (cp != null && cp.getChangeRate() != null) ? cp.getChangeRate() : BigDecimal.ZERO;
+
+            list.add(TradingItemDetailResDTO.builder()
+                    .ticker(ticker)
+                    .currentPrice(price)
+                    .changeRate(rate)
+                    .build());
+        }
+
+        return list;
+    }
 }

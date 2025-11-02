@@ -12,6 +12,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -22,7 +23,7 @@ public class DisclosureQueryService {
     private final DisclosureRepository disclosureRepository;
     private final StockRepository stockRepository;
 
-    public Page<DisclosureResDto> listApproved(DisclosureType type, String ticker, String title, String displayNo, Pageable pageable) {
+    public Page<DisclosureResDto> listApproved(DisclosureType type, String ticker, String q, Pageable pageable) {
         UUID stockId = null;
         if (ticker != null && !ticker.isBlank()) {
             Optional<Stock> stockOpt = stockRepository.findByTicker(ticker);
@@ -31,7 +32,17 @@ public class DisclosureQueryService {
             }
             stockId = stockOpt.get().getId();
         }
-        return disclosureRepository.searchApproved(DisclosureStatus.APPROVED, type, stockId, title, displayNo, pageable)
+        return disclosureRepository.searchApproved(DisclosureStatus.APPROVED, type, stockId, q, pageable)
+                .map(DisclosureMapper::toRes);
+    }
+
+    public Page<DisclosureResDto> listApprovedByTickers(List<String> tickers,
+                                                        DisclosureType type,
+                                                        Pageable pageable) {
+        if (tickers == null || tickers.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        return disclosureRepository.searchApprovedByTickers(DisclosureStatus.APPROVED, type, tickers, pageable)
                 .map(DisclosureMapper::toRes);
     }
 }

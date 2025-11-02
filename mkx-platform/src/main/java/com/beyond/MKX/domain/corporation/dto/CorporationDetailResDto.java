@@ -22,6 +22,7 @@ public record CorporationDetailResDto(
         Long recentAnnualSales,
         String businessRegistrationCert,
         String corporateSealCert,
+        String logoUrl,
         String rejectReason,
         String adminName,
         String adminEmail,
@@ -49,6 +50,7 @@ public record CorporationDetailResDto(
             .recentAnnualSales(c.getRecentAnnualSales())
             .businessRegistrationCert(c.getBusinessRegistrationCert())
             .corporateSealCert(c.getCorporateSealCert())
+            .logoUrl(c.getLogoUrl())
             .rejectReason(c.getRejectReason())
             .adminName(adminName)
             .adminEmail(adminEmail)

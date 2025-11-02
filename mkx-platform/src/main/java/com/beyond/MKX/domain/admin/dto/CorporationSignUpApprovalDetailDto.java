@@ -27,6 +27,7 @@ public class CorporationSignUpApprovalDetailDto {
     private Long recentAnnualSales;
     private String businessRegistrationCert;
     private String corporateSealCert;
+    private String logoUrl;
     private LocalDateTime createdAt;
     private AdminSummaryDto admin;
 
@@ -46,6 +47,7 @@ public class CorporationSignUpApprovalDetailDto {
                 .recentAnnualSales(corporation.getRecentAnnualSales())
                 .businessRegistrationCert(corporation.getBusinessRegistrationCert())
                 .corporateSealCert(corporation.getCorporateSealCert())
+                .logoUrl(corporation.getLogoUrl())
                 .createdAt(corporation.getCreatedAt())
                 .admin(admin)
                 .build();

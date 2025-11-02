@@ -1,5 +1,6 @@
 package com.beyond.MKX.common.config;
 
+import com.beyond.MKX.domain.websocket.pubsub.RedisPubSubListener;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -12,17 +13,18 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
-import org.springframework.data.redis.connection.stream.MapRecord;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.listener.PatternTopic;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
-import org.springframework.data.redis.stream.StreamMessageListenerContainer;
-import org.springframework.data.redis.stream.StreamMessageListenerContainer.StreamMessageListenerContainerOptions;
 
 import java.time.Duration;
 
 /**
- * Redis 설정 (Redis Streams 기반)
+ * Redis 설정 (Redis Pub/Sub 기반으로 전환)
+ *
+ * STOMP와 함께 사용하기 위한 Redis Pub/Sub 설정
  */
 @Configuration
 public class RedisConfig {
@@ -92,18 +94,38 @@ public class RedisConfig {
     }
 
     /**
-     * Redis Streams 컨테이너 설정 (MapRecord 사용)
+     * Redis Pub/Sub 메시지 리스너 컨테이너
+     *
+     * Public 채널 패턴:
+     * - market:orderbook - 호가 데이터
+     * - market:trades - 체결 데이터
+     * - market:price - 현재가 데이터
+     * - market:chart - 차트 데이터
+     * - market:indicator - 보조지표 데이터
+     * - market:summary - 시장 요약
+     *
+     * Private 채널 패턴:
+     * - user:* - 사용자별 개인 데이터
      */
     @Bean
-    public StreamMessageListenerContainer<String, MapRecord<String, String, String>> streamContainer(
-            RedisConnectionFactory connectionFactory) {
-        
-        StreamMessageListenerContainerOptions<String, MapRecord<String, String, String>> options =
-                StreamMessageListenerContainerOptions
-                        .builder()
-                        .pollTimeout(Duration.ofMillis(100))
-                        .build();
+    public RedisMessageListenerContainer redisMessageListenerContainer(
+            RedisConnectionFactory connectionFactory,
+            RedisPubSubListener redisPubSubListener) {
 
-        return StreamMessageListenerContainer.create(connectionFactory, options);
+        RedisMessageListenerContainer container = new RedisMessageListenerContainer();
+        container.setConnectionFactory(connectionFactory);
+
+        // Public 채널 구독 - 간소화된 패턴
+        container.addMessageListener(redisPubSubListener, new PatternTopic("market:orderbook"));
+        container.addMessageListener(redisPubSubListener, new PatternTopic("market:trades"));
+        container.addMessageListener(redisPubSubListener, new PatternTopic("market:price"));
+        container.addMessageListener(redisPubSubListener, new PatternTopic("market:chart"));
+        container.addMessageListener(redisPubSubListener, new PatternTopic("market:indicator"));
+        container.addMessageListener(redisPubSubListener, new PatternTopic("market:summary"));
+
+        // Private 채널 구독 (사용자별)
+        container.addMessageListener(redisPubSubListener, new PatternTopic("user:*"));
+
+        return container;
     }
 }

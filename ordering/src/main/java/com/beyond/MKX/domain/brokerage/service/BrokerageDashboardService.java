@@ -213,20 +213,25 @@ public class BrokerageDashboardService {
             .filter(acc -> acc.getStatus() == AccountStatus.ACTIVE)
             .count();
         
-        // TODO: 실제 온라인 고객 수 추적 필요 (현재는 활성 계좌 수로 대체)
-        long onlineCustomers = activeAccounts;
-        
-        // 2. 일일 거래량 (오늘)
+        // 3. 오늘 주문한 고객 수 (오늘 00:00 ~ 23:59:59 안에 주문을 넣은 회원 계좌 수)
         LocalDate today = LocalDate.now();
         LocalDateTime todayStart = today.atStartOfDay();
-        LocalDateTime todayEnd = today.atTime(LocalTime.MAX);
+        LocalDateTime todayEnd = today.atTime(LocalTime.MAX).plusSeconds(1); // 23:59:59까지 포함
         
-        Long dailyVolume = ledgerRepository.getDailyVolumeByBrokerageId(brokerageId, todayStart, todayEnd);
+        Long onlineCustomersCount = orderLogRepository.countDistinctMemberAccountsByBrokerageIdAndDateRange(
+            brokerageId, todayStart, todayEnd);
+        long onlineCustomers = onlineCustomersCount != null ? onlineCustomersCount : 0L;
+        
+        // 4. 일일 거래량 (오늘)
+        LocalDateTime todayVolumeStart = today.atStartOfDay();
+        LocalDateTime todayVolumeEnd = today.atTime(LocalTime.MAX);
+        
+        Long dailyVolume = ledgerRepository.getDailyVolumeByBrokerageId(brokerageId, todayVolumeStart, todayVolumeEnd);
         if (dailyVolume == null) {
             dailyVolume = 0L;
         }
         
-        // 3. 전일 거래량 (어제)
+        // 5. 전일 거래량 (어제)
         LocalDate yesterday = today.minusDays(1);
         LocalDateTime yesterdayStart = yesterday.atStartOfDay();
         LocalDateTime yesterdayEnd = yesterday.atTime(LocalTime.MAX);
@@ -236,7 +241,7 @@ public class BrokerageDashboardService {
             yesterdayVolume = 1L; // 0으로 나누기 방지
         }
         
-        // 4. 거래량 변화율 계산
+        // 6. 거래량 변화율 계산
         double volumeChangePercent = 0.0;
         if (yesterdayVolume > 1L) {
             volumeChangePercent = ((double)(dailyVolume - yesterdayVolume) / yesterdayVolume) * 100.0;

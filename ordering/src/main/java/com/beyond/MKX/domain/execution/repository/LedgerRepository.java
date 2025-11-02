@@ -62,4 +62,5 @@ public interface LedgerRepository extends JpaRepository<Ledger, UUID> {
                                                  @Param("transactionType") TransactionType transactionType,
                                                  @Param("startDateTime") java.time.LocalDateTime startDateTime,
                                                  @Param("endDateTime") java.time.LocalDateTime endDateTime);
+
 }

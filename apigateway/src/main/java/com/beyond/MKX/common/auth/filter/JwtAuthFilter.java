@@ -58,6 +58,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
      * normalize()로 서비스 접두사 제거 후 이 패턴과 매칭한다.
      * 예: "/auth/**" → 로그인, 토큰 재발급 등
      *     "/health"  → 헬스체크
+     *     "/ws/**"   → WebSocket 연결 (Optional 인증)
      */
     private static final List<String> AUTH_WHITELIST = List.of(
             "/auth/**",
@@ -69,7 +70,8 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             "/api/stocks/**",
             "/api/public/**",
             "/my-stocks",
-            "/swagger-ui/**"
+            "/swagger-ui/**",
+            "/ws/**"  // WebSocket 연결 (Optional 인증 - MarketData Service에서 처리)
     );
 
     /**
@@ -171,8 +173,14 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             // 5) 다운스트림 서비스가 인증 컨텍스트를 신뢰할 수 있도록 헤더 주입
             //    - 내부망/서비스 간 통신을 전제로 한다.
             //    - 각 서비스는 외부로부터 동일 이름 헤더가 유입되지 않도록 게이트웨이 앞 단을 강제해야 한다.
+            //    - WebSocket 연결 시에도 이 헤더들이 전달되어 STOMP 인증에 사용됨
+            
+            // 이메일 정보 추출 (JWT claims에서)
+            String email = Optional.ofNullable(claims.get("email", String.class)).orElse("");
+            
             ServerHttpRequest mutated = request.mutate()
                     .header("X-User-Id", userId)
+                    .header("X-User-Email", email)
                     .header("X-User-Role", role)
                     .build();
 

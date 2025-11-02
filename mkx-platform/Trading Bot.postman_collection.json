@@ -1,0 +1,346 @@
+{
+	"info": {
+		"_postman_id": "cdb18a86-2e49-4f29-b74a-f4eeeec0c69d",
+		"name": "Trading Bot",
+		"description": "상장폐지 도메인 전체 API 테스트 컬렉션 (수정된 버전 - Stock Holdings 삭제 & Kafka 이벤트 발행 포함)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "43742779",
+		"_collection_link": "https://hyeseongbak.postman.co/workspace/Hyeseong-Bak's-Workspace~143b1d12-ef7c-4668-829e-6bea84a768cf/collection/43742779-cdb18a86-2e49-4f29-b74a-f4eeeec0c69d?action=share&source=collection_link&creator=43742779"
+	},
+	"item": [
+		{
+			"name": "봇 Copy",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"health"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Test Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/test/api/trading-bot/test/health",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"test",
+								"api",
+								"trading-bot",
+								"test",
+								"health"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Dynamic Bots - MKX001",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/test/api/trading-bot/test/dynamic/MKX001",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"test",
+								"api",
+								"trading-bot",
+								"test",
+								"dynamic",
+								"MKX001"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Dynamic Bots - MKX002",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/test/api/trading-bot/test/dynamic/MKX002",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"test",
+								"api",
+								"trading-bot",
+								"test",
+								"dynamic",
+								"MKX002"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Dynamic Bots - MKX006",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/test/api/trading-bot/test/dynamic/MKX006",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"test",
+								"api",
+								"trading-bot",
+								"test",
+								"dynamic",
+								"MKX006"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Active Bots",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/test/api/trading-bot/test/configs/active",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"test",
+								"api",
+								"trading-bot",
+								"test",
+								"configs",
+								"active"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Deactivate All Bots",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/test/api/trading-bot/configs/all",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"test",
+								"api",
+								"trading-bot",
+								"configs",
+								"all"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Single Bot",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"ticker\": \"MKX001\",\n  \"status\": \"START\",\n  \"priceLimitHigh\": 55000,\n  \"priceLimitLow\": 45000,\n  \"quantity\": 10,\n  \"side\": \"BUY\",\n  \"orderType\": \"LIMIT\",\n  \"brokerageId\": \"TEST_BROKER\",\n  \"description\": \"테스트 매수 봇\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/test/api/trading-bot/config",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"test",
+								"api",
+								"trading-bot",
+								"config"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Bot Status",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"END\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/test/api/trading-bot/config/{{bot_id}}/status",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"test",
+								"api",
+								"trading-bot",
+								"config",
+								"{{bot_id}}",
+								"status"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Deactivate Single Bot",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/test/api/trading-bot/config/{{bot_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"test",
+								"api",
+								"trading-bot",
+								"config",
+								"{{bot_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Bots by Status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/test/api/trading-bot/configs/status/START",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"test",
+								"api",
+								"trading-bot",
+								"configs",
+								"status",
+								"START"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Test Matching Engine",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"brokerageId\": \"TEST_BROKER\",\n  \"orderId\": \"test-order-123\",\n  \"ticker\": \"MKX001\",\n  \"side\": \"BUY\",\n  \"orderType\": \"LIMIT\",\n  \"price\": 50000,\n  \"quantity\": 10,\n  \"createdAt\": \"2025-10-19T17:30:00\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/matching-engine-service/test/order",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"matching-engine-service",
+								"test",
+								"order"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "New Request",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "stockId",
+			"value": "00000000-0000-0000-0000-000000000001",
+			"type": "string",
+			"description": "테스트할 주식 ID"
+		},
+		{
+			"key": "violationId",
+			"value": "00000000-0000-0000-0000-000000000002",
+			"type": "string"
+		},
+		{
+			"key": "criteriaId",
+			"value": "00000000-0000-0000-0000-000000000003",
+			"type": "string"
+		},
+		{
+			"key": "memberAccountId",
+			"value": "00000000-0000-0000-0000-000000000004",
+			"type": "string"
+		},
+		{
+			"key": "corporationId",
+			"value": "00000000-0000-0000-0000-000000000005",
+			"type": "string"
+		},
+		{
+			"key": "adminId",
+			"value": "00000000-0000-0000-0000-000000000006",
+			"type": "string"
+		},
+		{
+			"key": "supportFundId",
+			"value": "00000000-0000-0000-0000-000000000007",
+			"type": "string"
+		}
+	]
+}

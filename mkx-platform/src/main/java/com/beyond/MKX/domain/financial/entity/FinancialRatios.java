@@ -27,7 +27,7 @@ public class FinancialRatios extends BaseIdAndTimeEntity {
 
     @Column(name="per",               precision=10, scale=2) private BigDecimal per;
     @Column(name="pbr",               precision=10, scale=2) private BigDecimal pbr;
-    @Column(name="bps",               precision=10, scale=2) private BigDecimal bps;  // 주당순자산가치
+    @Column(name="bps",               precision=18, scale=2) private BigDecimal bps;  // 주당순자산가치 (큰 값 지원)
     @Column(name="operating_margin",  precision=10, scale=2) private BigDecimal operatingMargin;
     @Column(name="net_margin",        precision=10, scale=2) private BigDecimal netMargin;
     @Column(name="debt_ratio",        precision=10, scale=2) private BigDecimal debtRatio;

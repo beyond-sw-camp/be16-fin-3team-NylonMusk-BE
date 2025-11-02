@@ -10,6 +10,7 @@ import com.beyond.MKX.domain.delisting.dto.DelistingProgressResDto;
 import com.beyond.MKX.domain.delisting.dto.ViolationSummaryDto;
 import com.beyond.MKX.domain.delisting.dto.CompensationStatusDto;
 import com.beyond.MKX.domain.delisting.entity.*;
+import com.beyond.MKX.domain.delisting.entity.DelistingCriteriaCode;
 import com.beyond.MKX.domain.delisting.repository.*;
 import com.beyond.MKX.domain.stock.entity.Stock;
 import com.beyond.MKX.domain.stock.repository.StockRepository;
@@ -27,6 +28,8 @@ import com.beyond.MKX.domain.delisting.entity.ExchangeSupportFund;
 import com.beyond.MKX.domain.account.accountlist.repository.AccountListRepository;
 import com.beyond.MKX.domain.account.accountlist.entity.AccountList;
 import com.beyond.MKX.domain.account.accountlist.entity.AccountType;
+import com.beyond.MKX.domain.ipo.ipo.entity.Ipo;
+import com.beyond.MKX.domain.ipo.ipo.repository.IpoRepository;
 import com.beyond.MKX.common.openai.OpenAiService;
 import com.beyond.MKX.common.kafka.event.TransactionEvent;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +43,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -73,6 +77,7 @@ public class DelistingService {
     private final ExchangeAccountRepository exchangeAccountRepo;
     private final ExchangeSupportFundRepository exchangeSupportFundRepo;
     private final AccountListRepository accountListRepo;
+    private final IpoRepository ipoRepo;
     private final OpenAiService openAiService;
     private final GptAnalysisService gptAnalysisService;
     
@@ -142,7 +147,7 @@ public class DelistingService {
 
         // 이력 기록
         recordHistory(stockId, ActionType.CRITERIA_VIOLATION, null, null, 
-                     "기준 위반 감지: " + criteriaCode, saved.getId().toString(), null);
+                     "기준 위반 감지: " + getCriteriaNameInKorean(criteriaCode), saved.getId().toString(), null);
 
         log.info("기준 위반 기록 완료: violationId={}, consecutivePeriods={}", 
                 saved.getId(), consecutivePeriods);
@@ -218,7 +223,7 @@ public class DelistingService {
 
         // 이력 기록
         recordHistory(stockId, ActionType.CRITERIA_VIOLATION, null, null, 
-                     "기준 위반 감지 (GPT 분석 포함): " + criteriaCode, saved.getId().toString(), null);
+                     "전문가 분석 기준 위반 감지: " + getCriteriaNameInKorean(criteriaCode), saved.getId().toString(), null);
 
         log.info("GPT 분석 결과 포함 기준 위반 기록 완료: violationId={}, consecutivePeriods={}, gptUsed={}", 
                 saved.getId(), consecutivePeriods, gptAnalysisUsed);
@@ -229,7 +234,7 @@ public class DelistingService {
     /**
      * 주식 상태를 상장폐지 위험으로 변경
      * 위반 감지 시 자동으로 DELISTING_RISK 상태로 변경
-     * 이후 3분 후 자동으로 DELISTING_PROCESS 상태로 전환
+     * 이후 10분 후 자동으로 DELISTING_NOTICE 상태로 전환
      */
     @Transactional
     private void updateStockStatusToRisk(UUID stockId) {
@@ -266,7 +271,7 @@ public class DelistingService {
                 log.info("주식 상태 업데이트 완료: stockId={}, status={}, stage={}", 
                         stockId, stock.getStatus(), stock.getDelistingStage());
                 
-                // 위반이 해결되지 않은 경우, 3분 후 자동으로 DELISTING_PROCESS로 전환
+                // 위반이 해결되지 않은 경우, 10분 후 자동으로 DELISTING_NOTICE로 전환
                 scheduleAutoDelistingProcess(stockId);
             }
         } catch (Exception e) {
@@ -275,12 +280,12 @@ public class DelistingService {
     }
     
     /**
-     * 3분 후 자동으로 DELISTING_PROCESS로 전환하는 스케줄러
+     * 10분 후 자동으로 DELISTING_NOTICE로 전환하는 스케줄러
      * 공시 미제출 시 자동 진행
      */
     private void scheduleAutoDelistingProcess(UUID stockId) {
         // 여기서는 단순히 기록만 하고, 별도의 스케줄러에서 처리
-        log.info("상장폐지 자동 진행 예약: stockId={}, 3분 후 DELISTING_PROCESS로 전환 예정", stockId);
+        log.info("상장폐지 자동 진행 예약: stockId={}, 10분 후 DELISTING_NOTICE로 전환 예정", stockId);
         // TODO: 별도 스케줄러에서 처리하거나, 이벤트 발행
     }
     
@@ -339,7 +344,7 @@ public class DelistingService {
             case LISTED, SUSPENDED -> DelistingStage.NORMAL;
             case DELISTING_RISK -> DelistingStage.WARNING;
             case DELISTING_NOTICE -> DelistingStage.DELISTING_NOTICE;
-            case DELISTING_PROCESS -> DelistingStage.DELISTING_PROCESS;
+            case DELISTING_PROCESS, DELISTING_DELAYED -> DelistingStage.DELISTING_PROCESS;
             case DELISTED -> DelistingStage.DELISTED;
         };
     }
@@ -529,11 +534,26 @@ public class DelistingService {
         log.info("보상금 생성 및 지급 시작: stockId={}", stockId);
 
         try {
+            // stockId로 Stock 엔티티 조회하여 ticker 가져오기 (먼저 조회)
+            Stock stock = stockRepo.findById(stockId)
+                    .orElseThrow(() -> new IllegalArgumentException("Stock not found: " + stockId));
+
             // ✅ 기존 보상금 확인 (중복 방지)
             List<DelistingCompensation> existingCompensations = compensationRepo.findByStockId(stockId);
             if (!existingCompensations.isEmpty()) {
                 log.info("이미 생성된 보상금이 존재: stockId={}, count={}", 
                         stockId, existingCompensations.size());
+                
+                // 기존 보상금의 총액 계산하여 Stock에 저장 (이미 계산된 값이 없을 수 있음)
+                BigDecimal existingTotal = existingCompensations.stream()
+                    .map(DelistingCompensation::getCompensationAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+                
+                if (stock.getTotalCompensationAmount() == null || stock.getTotalCompensationAmount().compareTo(existingTotal) != 0) {
+                    stock.setTotalCompensationAmount(existingTotal);
+                    stockRepo.save(stock);
+                    log.info("기존 보상금 총액 저장: stockId={}, totalCompensation={}", stockId, existingTotal);
+                }
                 
                 // 모든 보상금이 완료되었는지 확인
                 boolean allCompleted = existingCompensations.stream()
@@ -547,10 +567,6 @@ public class DelistingService {
                 log.info("미완료 보상금 존재 - 새로운 보상금 생성하지 않고 종료: stockId={}", stockId);
                 return; // 기존 미완료 보상금 재처리는 retryFailedCompensations에서 처리
             }
-            
-            // stockId로 Stock 엔티티 조회하여 ticker 가져오기
-            Stock stock = stockRepo.findById(stockId)
-                    .orElseThrow(() -> new IllegalArgumentException("Stock not found: " + stockId));
 
             String ticker = stock.getTicker();
             log.info("주식 정보 조회: stockId={}, ticker={}", stockId, ticker);
@@ -581,27 +597,49 @@ public class DelistingService {
                         compensationPrice = BigDecimal.valueOf(currentPrice.price());
                         log.info("현재가 조회 성공: ticker={}, price={}", ticker, compensationPrice);
                     } else {
-                        // 현재가 정보가 없으면 보상금 생성 중단하고 기록
-                        log.error("현재가 정보 없음으로 보상금 생성 중단: stockId={}, ticker={}", stockId, ticker);
+                        // 현재가 정보가 없으면 IPO 상장일 기준가로 대체 시도
+                        log.warn("현재가 정보 없음, IPO 상장일 기준가로 대체 시도: stockId={}, ticker={}", stockId, ticker);
+                        compensationPrice = getIpoListingPrice(stockId, ticker);
+                        if (compensationPrice == null) {
+                            log.error("현재가 및 IPO 기준가 정보 없음으로 보상금 생성 중단: stockId={}, ticker={}", stockId, ticker);
+                            recordCompensationFailure(stockId, ticker, "CURRENT_PRICE_NOT_FOUND", "현재가 정보가 없습니다");
+                            return;
+                        }
+                        log.info("IPO 상장일 기준가 사용: ticker={}, price={}", ticker, compensationPrice);
+                    }
+                } else {
+                    // 현재가 정보가 없으면 IPO 상장일 기준가로 대체 시도
+                    log.warn("현재가 정보 없음, IPO 상장일 기준가로 대체 시도: stockId={}, ticker={}", stockId, ticker);
+                    compensationPrice = getIpoListingPrice(stockId, ticker);
+                    if (compensationPrice == null) {
+                        log.error("현재가 및 IPO 기준가 정보 없음으로 보상금 생성 중단: stockId={}, ticker={}", stockId, ticker);
                         recordCompensationFailure(stockId, ticker, "CURRENT_PRICE_NOT_FOUND", "현재가 정보가 없습니다");
                         return;
                     }
-                } else {
-                    // 현재가 정보가 없으면 보상금 생성 중단하고 기록
-                    log.error("현재가 정보 없음으로 보상금 생성 중단: stockId={}, ticker={}", stockId, ticker);
-                    recordCompensationFailure(stockId, ticker, "CURRENT_PRICE_NOT_FOUND", "현재가 정보가 없습니다");
-                    return;
+                    log.info("IPO 상장일 기준가 사용: ticker={}, price={}", ticker, compensationPrice);
                 }
             } catch (Exception e) {
-                // marketdata 서비스 호출 실패 시 보상금 생성 중단하고 기록
-                log.error("현재가 조회 실패로 보상금 생성 중단: stockId={}, ticker={}", stockId, ticker, e);
-                recordCompensationFailure(stockId, ticker, "CURRENT_PRICE_FETCH_FAILED", "현재가 조회 실패: " + e.getMessage());
-                return;
+                // marketdata 서비스 호출 실패 시 IPO 상장일 기준가로 대체 시도
+                log.warn("현재가 조회 실패, IPO 상장일 기준가로 대체 시도: stockId={}, ticker={}, error={}", stockId, ticker, e.getMessage());
+                compensationPrice = getIpoListingPrice(stockId, ticker);
+                if (compensationPrice == null) {
+                    log.error("현재가 조회 실패 및 IPO 기준가 정보 없음으로 보상금 생성 중단: stockId={}, ticker={}", stockId, ticker, e);
+                    recordCompensationFailure(stockId, ticker, "CURRENT_PRICE_FETCH_FAILED", "현재가 조회 실패: " + e.getMessage());
+                    return;
+                }
+                log.info("IPO 상장일 기준가 사용 (현재가 조회 실패 후): ticker={}, price={}", ticker, compensationPrice);
             }
 
             // 총 보상금 계산
             BigDecimal totalCompensation = BigDecimal.ZERO;
             List<DelistingCompensation> compensations = new ArrayList<>();
+            
+            // compensationPrice가 null이면 안됨 (위에서 처리됨)
+            if (compensationPrice == null) {
+                log.error("보상 기준가가 null입니다: stockId={}, ticker={}", stockId, ticker);
+                recordCompensationFailure(stockId, ticker, "COMPENSATION_PRICE_NULL", "보상 기준가가 null입니다");
+                return;
+            }
 
             // 각 보유자별로 보상금 생성
             Map<UUID, String> accountNumberMap = new HashMap<>();
@@ -645,6 +683,11 @@ public class DelistingService {
             // 실제 지급 처리 (3단계 방식)
             processCompensationPayment(stockId, compensations, totalCompensation, accountNumberMap);
 
+            // 총 보상금을 Stock 엔티티에 저장
+            stock.setTotalCompensationAmount(totalCompensation);
+            stockRepo.save(stock);
+            log.info("총 보상금 저장 완료: stockId={}, totalCompensation={}", stockId, totalCompensation);
+
             log.info("보상금 생성 및 지급 완료: stockId={}, 보유자 수={}, 총 보상금={}", 
                     stockId, holders.size(), totalCompensation);
 
@@ -657,6 +700,8 @@ public class DelistingService {
             } catch (Exception ex) {
                 log.error("실패 기록 저장 중 오류: stockId={}", stockId, ex);
             }
+            // 예외를 다시 던져서 상장폐지 실행을 중단시킴
+            throw new RuntimeException("보상금 생성 실패: " + e.getMessage(), e);
         }
     }
 
@@ -685,6 +730,44 @@ private void recordCompensationFailure(UUID stockId, String ticker, String failu
 
     } catch (Exception e) {
         log.error("보상금 실패 기록 저장 중 오류: stockId={}", stockId, e);
+    }
+}
+
+/**
+ * IPO 상장일 기준가 조회
+ * 현재가 정보가 없을 때 사용하는 fallback 메서드
+ */
+private BigDecimal getIpoListingPrice(UUID stockId, String ticker) {
+    try {
+        // 1. stockId로 먼저 조회 시도
+        Optional<Ipo> ipoByStockId = ipoRepo.findByStockId(stockId);
+        if (ipoByStockId.isPresent()) {
+            Ipo ipo = ipoByStockId.get();
+            if (ipo.getPriceOnListing() != null && ipo.getPriceOnListing() > 0) {
+                log.info("IPO 상장일 기준가 조회 성공 (stockId): stockId={}, ticker={}, price={}", 
+                        stockId, ticker, ipo.getPriceOnListing());
+                return BigDecimal.valueOf(ipo.getPriceOnListing());
+            }
+        }
+        
+        // 2. ticker로 조회 시도
+        if (ticker != null && !ticker.isEmpty()) {
+            Optional<Ipo> ipoByTicker = ipoRepo.findByStockTicker(ticker);
+            if (ipoByTicker.isPresent()) {
+                Ipo ipo = ipoByTicker.get();
+                if (ipo.getPriceOnListing() != null && ipo.getPriceOnListing() > 0) {
+                    log.info("IPO 상장일 기준가 조회 성공 (ticker): stockId={}, ticker={}, price={}", 
+                            stockId, ticker, ipo.getPriceOnListing());
+                    return BigDecimal.valueOf(ipo.getPriceOnListing());
+                }
+            }
+        }
+        
+        log.warn("IPO 상장일 기준가를 찾을 수 없음: stockId={}, ticker={}", stockId, ticker);
+        return null;
+    } catch (Exception e) {
+        log.error("IPO 상장일 기준가 조회 중 오류 발생: stockId={}, ticker={}", stockId, ticker, e);
+        return null;
     }
 }
 
@@ -840,7 +923,7 @@ public void retryFailedCompensations(UUID stockId) {
                     
                     // 삭제 내역을 이력에 기록
                     recordHistory(stockId, ActionType.DELISTING_EXECUTION, null, null,
-                                 "Stock holdings 삭제 완료 (재처리): " + deletedCount + "건", null, null);
+                                 "주식 소유권자 " + deletedCount + "명에 대한 보상처리 완료 (재처리)", null, null);
                 } else {
                     log.warn("Stock holdings 삭제 결과가 null (재처리): ticker={}", ticker);
                 }
@@ -899,7 +982,56 @@ public void executeDelisting(UUID stockId) {
         // ★ GPT 분석 결과에서 reason 가져오기
         DelistingReason delistingReason = extractAndMapDelistingReason(stockId);
         
-        // 주식 상태를 DELISTED로 변경
+        // ⚠️ 보상금 생성 및 지급을 먼저 시도 (상태 변경 전에)
+        boolean compensationSuccess = false;
+        try {
+            createCompensations(stockId);
+            compensationSuccess = true;
+            log.info("✅ 보상금 생성 및 지급 성공: stockId={}", stockId);
+        } catch (Exception e) {
+            log.error("❌ 보상금 생성 및 지급 실패: stockId={}, error={}", stockId, e.getMessage(), e);
+            
+            // 보상금이 생성되었지만 지급 실패한 경우, 총 보상금을 Stock에 저장
+            List<DelistingCompensation> createdCompensations = compensationRepo.findByStockId(stockId);
+            if (!createdCompensations.isEmpty()) {
+                BigDecimal totalCompensation = createdCompensations.stream()
+                    .map(DelistingCompensation::getCompensationAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+                stock.setTotalCompensationAmount(totalCompensation);
+                log.info("보상금 생성 완료 (지급 실패): stockId={}, totalCompensation={}", stockId, totalCompensation);
+            }
+            
+            // 실패 이력 기록
+            recordHistory(stockId, ActionType.COMPENSATION_FAILED, currentStage, null,
+                         "보상금 처리 실패: " + e.getMessage(), null, null);
+            
+            // 거래소 계좌 잔액 부족 여부 확인
+            boolean isExchangeBalanceShortage = e.getMessage() != null && 
+                (e.getMessage().contains("거래소 계좌 잔액이 부족") || 
+                 e.getMessage().contains("잔액이 부족합니다"));
+            
+            // 거래소 잔액 부족인 경우 DELISTING_DELAYED 상태로 변경하고 정상 종료
+            if (isExchangeBalanceShortage) {
+                stock.updateStatus(Stock.Status.DELISTING_DELAYED);
+                stockRepo.save(stock);
+                log.warn("거래소 계좌 잔액 부족으로 인한 상장폐지 지연: stockId={}, 상태를 DELISTING_DELAYED로 변경", stockId);
+                // 상태 변경 완료했으므로 정상 종료 (예외를 던지지 않음)
+                return;
+            } else {
+                // 다른 이유로 실패한 경우 기존 상태 유지하고 예외 발생
+                log.error("보상금 실패로 인한 상장폐지 실행 중단: stockId={}, 상태는 {} 유지", 
+                         stockId, stock.getStatus());
+                throw new RuntimeException("보상금 처리 실패로 상장폐지 실행 중단: " + e.getMessage(), e);
+            }
+        }
+        
+        // ✅ 보상금 성공 후에만 상태 변경 및 Stock Holdings 삭제
+        if (!compensationSuccess) {
+            log.error("보상금 실패로 인해 상태 변경 및 Stock Holdings 삭제를 건너뜀: stockId={}", stockId);
+            throw new RuntimeException("보상금 처리 실패");
+        }
+        
+        // 주식 상태를 DELISTED로 변경 (보상금 성공 후에만)
         stock.updateStatus(Stock.Status.DELISTED);
         stock.setDelistingExecutionDate(LocalDateTime.now());
         stock.setDelistingStage(DelistingStage.DELISTED);
@@ -909,22 +1041,7 @@ public void executeDelisting(UUID stockId) {
         log.info("주식 상태 변경 완료: stockId={}, stage: {} → DELISTED, reason={}", 
                 stockId, currentStage, delistingReason);
         
-        // 보상금 생성 및 지급 (MSA 연동)
-        try {
-            createCompensations(stockId);
-            log.info("✅ 보상금 생성 및 지급 성공: stockId={}", stockId);
-        } catch (Exception e) {
-            log.error("❌ 보상금 생성 및 지급 실패: stockId={}, error={}", stockId, e.getMessage(), e);
-            
-            // 실패 이력 기록
-            recordHistory(stockId, ActionType.COMPENSATION_FAILED, currentStage, null,
-                         "보상금 처리 실패: " + e.getMessage(), null, null);
-            
-            // 보상금 실패 시 상장폐지를 롤백하지 않고 예외를 throw
-            throw new RuntimeException("보상금 처리 실패: " + e.getMessage(), e);
-        }
-        
-        // ✅ Stock Holdings 삭제 (환불 완료 후)
+        // ✅ Stock Holdings 삭제 (보상금 완료 후에만)
         try {
             String ticker = stock.getTicker();
             log.info("Stock holdings 삭제 시작: ticker={}, stockId={}", ticker, stockId);
@@ -937,7 +1054,7 @@ public void executeDelisting(UUID stockId) {
                 
                 // 삭제 내역을 이력에 기록
                 recordHistory(stockId, ActionType.DELISTING_EXECUTION, null, null,
-                             "Stock holdings 삭제 완료: " + deletedCount + "건", null, null);
+                             "주식 소유권자 " + deletedCount + "명에 대한 보상처리 완료", null, null);
             } else {
                 log.warn("Stock holdings 삭제 결과가 null: ticker={}", ticker);
             }
@@ -972,6 +1089,88 @@ public void executeDelisting(UUID stockId) {
 
 // 스케줄러 중복 실행 방지를 위한 락
 private final AtomicBoolean isProcessingRetry = new AtomicBoolean(false);
+private final AtomicBoolean isProcessingDelistingRetry = new AtomicBoolean(false);
+
+/**
+ * 실패한 상장폐지 실행 재시도 스케줄러
+ * 매 5분마다 실행되어 보상금 실패로 중단된 상장폐지를 자동으로 재시도
+ */
+@Scheduled(fixedRate = 300000) // 5분마다 실행 (300,000ms = 5분)
+public void scheduledRetryFailedDelistings() {
+    // 이미 실행 중이면 스킵 (중복 실행 방지)
+    if (!isProcessingDelistingRetry.compareAndSet(false, true)) {
+        log.info("⏭️ 실패한 상장폐지 재시도가 이미 실행 중 - 이번 스케줄 스킵");
+        return;
+    }
+    
+    try {
+        log.info("실패한 상장폐지 자동 재시도 스케줄러 시작");
+        
+        // 1. DELISTING_PROCESS 또는 DELISTING_DELAYED 상태인 주식 조회
+        List<Stock> processStocks = stockRepo.findByStatusIn(
+            List.of(Stock.Status.DELISTING_PROCESS, Stock.Status.DELISTING_DELAYED));
+        
+        if (processStocks.isEmpty()) {
+            log.info("재시도할 실패한 상장폐지 없음 - DELISTING_PROCESS 또는 DELISTING_DELAYED 상태인 주식이 없습니다");
+            return;
+        }
+        
+        log.info("DELISTING_PROCESS 또는 DELISTING_DELAYED 상태인 주식 발견: {}개", processStocks.size());
+        
+        // 2. 각 주식에 대해 COMPENSATION_FAILED 이력이 있는지 확인
+        List<Stock> failedDelistings = new ArrayList<>();
+        for (Stock stock : processStocks) {
+            List<DelistingHistory> failureRecords = historyRepo.findByStockIdAndActionTypeAndExecutionResult(
+                    stock.getId(), ActionType.COMPENSATION_FAILED, DelistingHistory.ExecutionResult.FAILED);
+            
+            if (!failureRecords.isEmpty()) {
+                // 최근 실패 기록 확인 (최근 1시간 이내)
+                LocalDateTime oneHourAgo = LocalDateTime.now().minusHours(1);
+                boolean recentFailure = failureRecords.stream()
+                        .anyMatch(record -> record.getExecutionDate().isAfter(oneHourAgo));
+                
+                if (recentFailure) {
+                    failedDelistings.add(stock);
+                    log.info("재시도 대상 발견: stockId={}, ticker={}, 실패 기록 수={}", 
+                            stock.getId(), stock.getTicker(), failureRecords.size());
+                }
+            }
+        }
+        
+        if (failedDelistings.isEmpty()) {
+            log.info("재시도할 실패한 상장폐지 없음 - 최근 실패 기록이 없습니다");
+            return;
+        }
+        
+        log.info("실패한 상장폐지 재시도 대상: {}개", failedDelistings.size());
+        
+        int successCount = 0;
+        int failureCount = 0;
+        
+        for (Stock stock : failedDelistings) {
+            try {
+                log.info("상장폐지 재시도 시작: stockId={}, ticker={}", stock.getId(), stock.getTicker());
+                executeDelisting(stock.getId());
+                successCount++;
+                log.info("✅ 상장폐지 재시도 성공: stockId={}, ticker={}", stock.getId(), stock.getTicker());
+            } catch (Exception e) {
+                failureCount++;
+                log.error("❌ 상장폐지 재시도 실패: stockId={}, ticker={}, error={}", 
+                        stock.getId(), stock.getTicker(), e.getMessage(), e);
+            }
+        }
+        
+        log.info("실패한 상장폐지 자동 재시도 완료: 성공 {}개 / 실패 {}개 / 전체 {}개", 
+                successCount, failureCount, failedDelistings.size());
+        
+    } catch (Exception e) {
+        log.error("실패한 상장폐지 자동 재시도 스케줄러 오류", e);
+    } finally {
+        // 락 해제
+        isProcessingDelistingRetry.set(false);
+        log.debug("상장폐지 재시도 스케줄러 락 해제");
+    }
+}
 
 /**
  * 실패한 보상금 자동 재처리 스케줄러
@@ -1079,6 +1278,51 @@ public void scheduledRetryFailedCompensations() {
                 .build();
 
         historyRepo.save(history);
+    }
+
+    /**
+     * 위험 해소 처리: 미해결 위반 해지 및 주식 상태 정상화
+     */
+    @Transactional
+    public void resolveRisk(UUID stockId, UUID adminId, String reason) {
+        log.info("위험 해소 처리 시작: stockId={}, adminId={}, reason={}", stockId, adminId, reason);
+
+        Stock stock = stockRepo.findById(stockId)
+                .orElseThrow(() -> new IllegalArgumentException("Stock not found: " + stockId));
+
+        // DELISTING_RISK 상태가 아니면 처리하지 않음
+        if (stock.getStatus() != Stock.Status.DELISTING_RISK) {
+            log.warn("위험 해소 대상이 아님: stockId={}, status={}", stockId, stock.getStatus());
+            throw new IllegalArgumentException("상장폐지 위험 상태가 아닙니다: " + stock.getStatus());
+        }
+
+        // 1) 미해결 위반 모두 해지 처리
+        List<DelistingViolation> unresolved = violationRepo.findByStockIdAndUnresolved(stockId);
+        if (!unresolved.isEmpty()) {
+            for (DelistingViolation v : unresolved) {
+                v.setIsResolved(true);
+                v.setResolvedDate(LocalDateTime.now());
+                v.setResolvedBy(adminId);
+                String prev = v.getDescription() != null ? v.getDescription() + "\n" : "";
+                v.setDescription(prev + "[수동 처리] 위험 해소: " + (reason != null ? reason : "문제 없음으로 판단"));
+                violationRepo.save(v);
+            }
+            // 위반 해지 이력
+            String ids = unresolved.stream().map(x -> x.getId().toString()).reduce((a,b)->a+","+b).orElse("");
+            recordHistory(stockId, ActionType.CRITERIA_VIOLATION, null, null,
+                "위험 해소 처리로 미해결 위반 해지: " + (reason != null ? reason : "문제 없음으로 판단"), ids, adminId);
+        }
+
+        // 2) 주식 상태 정상화
+        DelistingStage fromStage = stock.getDelistingStage();
+        Stock.Status prevStatus = stock.getStatus();
+        stock.updateStatus(Stock.Status.LISTED);
+        stock.setDelistingStage(DelistingStage.NORMAL);
+        stockRepo.save(stock);
+
+        log.info("주식 상태 정상화: stockId={}, {}→LISTED, stage {}→NORMAL", stockId, prevStatus, fromStage);
+        recordHistory(stockId, ActionType.STAGE_CHANGE, fromStage, DelistingStage.NORMAL,
+            "위험 해소 처리로 상태 정상화: " + (reason != null ? reason : "문제 없음으로 판단"), null, adminId);
     }
 
     /**
@@ -1674,6 +1918,8 @@ public void scheduledRetryFailedCompensations() {
         } catch (Exception e) {
             log.error("보상금 지급 처리 중 오류: stockId={}", stockId, e);
             recordCompensationFailure(stockId, "PAYMENT_PROCESSING_FAILED", "지급 처리 실패: " + e.getMessage());
+            // 예외를 다시 던져서 상장폐지 실행을 중단시킴
+            throw new RuntimeException("보상금 지급 처리 실패: " + e.getMessage(), e);
         }
     }
 
@@ -1725,10 +1971,16 @@ public void scheduledRetryFailedCompensations() {
     private void processExchangeFunding(UUID stockId, UUID corporationId, BigDecimal shortage) {
         log.info("거래소 funding 처리 시작: stockId={}, shortage={}", stockId, shortage);
         
-        // 거래소 계좌에서 출금
-        ExchangeAccount exchangeAccount = getExchangeAccount();
-        exchangeAccount.withdraw(shortage.toBigInteger());
-        exchangeAccountRepo.save(exchangeAccount);
+        try {
+            // 거래소 계좌에서 출금
+            ExchangeAccount exchangeAccount = getExchangeAccount();
+            exchangeAccount.withdraw(shortage.toBigInteger());
+            exchangeAccountRepo.save(exchangeAccount);
+        } catch (IllegalArgumentException e) {
+            // 거래소 계좌 잔액 부족 시 예외 발생
+            log.error("거래소 계좌 잔액 부족: stockId={}, shortage={}, error={}", stockId, shortage, e.getMessage());
+            throw new RuntimeException("거래소 계좌 잔액이 부족하여 보상금 지급이 불가능합니다. 상장폐지 처리가 지연됩니다: " + e.getMessage(), e);
+        }
         
         // ExchangeSupportFund 레코드 생성
         ExchangeSupportFund supportFund = ExchangeSupportFund.builder()
@@ -2473,6 +2725,20 @@ public void scheduledRetryFailedCompensations() {
     }
 
     /**
+     * 기준 코드를 한국어 이름으로 변환
+     */
+    private String getCriteriaNameInKorean(String criteriaCode) {
+        try {
+            DelistingCriteriaCode codeEnum = DelistingCriteriaCode.fromCode(criteriaCode);
+            return codeEnum.getDescription();
+        } catch (IllegalArgumentException e) {
+            // 알 수 없는 코드인 경우 원본 반환
+            log.warn("알 수 없는 기준 코드: {}", criteriaCode);
+            return criteriaCode;
+        }
+    }
+
+    /**
      * 기준 코드에 따른 GPT 분석 유형 결정
      */
     private String determineGptAnalysisType(String criteriaCode) {
@@ -2732,11 +2998,11 @@ public void scheduledRetryFailedCompensations() {
                         continue;
                     }
                     
-                    // 위반 발생 후 3분 지났는지 확인
-                    LocalDateTime threeMinutesAgo = LocalDateTime.now().minusMinutes(3);
+                    // 위반 발생 후 10분 지났는지 확인
+                    LocalDateTime tenMinutesAgo = LocalDateTime.now().minusMinutes(10);
                     
-                    if (oldestViolation.getViolationDate().isBefore(threeMinutesAgo)) {
-                        log.info("3분 유예기간 경과: stockId={}, violationDate={}, 전환 대상", 
+                    if (oldestViolation.getViolationDate().isBefore(tenMinutesAgo)) {
+                        log.info("10분 유예기간 경과: stockId={}, violationDate={}, 전환 대상", 
                                 stock.getId(), oldestViolation.getViolationDate());
                         
                         // 현재 stage 확인
@@ -2754,7 +3020,7 @@ public void scheduledRetryFailedCompensations() {
                             // 이력 기록
                             recordHistory(stock.getId(), ActionType.STAGE_CHANGE, 
                                          DelistingStage.WARNING, DelistingStage.DELISTING_NOTICE,
-                                         "3분 유예기간 경과 - 예고 발행", 
+                                         "10분 유예기간 경과 - 예고 발행", 
                                          oldestViolation.getId().toString(), null);
                             
                             processedCount++;

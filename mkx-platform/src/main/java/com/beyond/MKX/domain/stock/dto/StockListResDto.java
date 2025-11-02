@@ -3,6 +3,7 @@ package com.beyond.MKX.domain.stock.dto;
 import com.beyond.MKX.domain.stock.entity.Stock;
 import lombok.Builder;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -15,12 +16,14 @@ public record StockListResDto(
         String imageUrl,
         String status,
         String delistingStage,
+        String delistingReason,
         long totalSharesOutstanding,
         Long ownedShares,
         Long freeFloatShares,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
-        LocalDateTime deletedAt
+        LocalDateTime deletedAt,
+        BigDecimal totalCompensationAmount
 ) {
     public static StockListResDto from(Stock s) {
         return StockListResDto.builder()
@@ -31,12 +34,14 @@ public record StockListResDto(
                 .imageUrl(s.getImageUrl())
                 .status(s.getStatus() != null ? s.getStatus().name() : null)
                 .delistingStage(s.getDelistingStage() != null ? s.getDelistingStage().name() : null)
+                .delistingReason(s.getDelistingReason() != null ? s.getDelistingReason().name() : null)
                 .totalSharesOutstanding(s.getTotalSharesOutstanding())
                 .ownedShares(s.getOwnedShares())
                 .freeFloatShares(s.getFreeFloatShares())
                 .createdAt(s.getCreatedAt())
                 .updatedAt(s.getUpdatedAt())
                 .deletedAt(s.getDeletedAt())
+                .totalCompensationAmount(s.getTotalCompensationAmount())
                 .build();
     }
 }

@@ -6,6 +6,7 @@ import com.beyond.MKX.domain.delisting.entity.DelistingStage;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -42,6 +43,7 @@ public class Stock extends BaseIdAndTimeEntity {
         DELISTING_RISK,            // 상장폐지 위험 (기준 위반)
         DELISTING_NOTICE,          // 상장폐지 예고
         DELISTING_PROCESS,         // 상장폐지 절차 진행 중
+        DELISTING_DELAYED,         // 상장폐지 지연 (보상금 지급 지연)
         DELISTED                   // 상장폐지 완료
     }
 
@@ -82,6 +84,10 @@ public class Stock extends BaseIdAndTimeEntity {
     @Column(name = "image_url", length = 512)
     private String imageUrl;
 
+    // 상장폐지 보상금 총액 (상장폐지 실행 시 계산하여 저장)
+    @Column(name = "total_compensation_amount", precision = 20, scale = 2)
+    private BigDecimal totalCompensationAmount;
+
     // ====== 도메인 메서드(선택적 변경만 허용) ======
     public void updateNameKo(String nameKo) {
         this.nameKo = nameKo;
@@ -113,6 +119,10 @@ public class Stock extends BaseIdAndTimeEntity {
 
     public void setDelistingReason(DelistingReason delistingReason) {
         this.delistingReason = delistingReason;
+    }
+
+    public void setTotalCompensationAmount(BigDecimal totalCompensationAmount) {
+        this.totalCompensationAmount = totalCompensationAmount;
     }
 
     public void softDelete(LocalDateTime deletedAt) {

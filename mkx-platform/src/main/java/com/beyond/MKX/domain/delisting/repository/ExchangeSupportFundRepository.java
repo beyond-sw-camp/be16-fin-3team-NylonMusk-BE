@@ -48,26 +48,26 @@ public interface ExchangeSupportFundRepository extends JpaRepository<ExchangeSup
     List<ExchangeSupportFund> findOverdueSupports();
 
     /**
-     * 기업별 총 지원금 합계 조회
+     * 기업별 총 지원금 합계 조회 (상환 완료된 것도 포함)
      */
-    @Query("SELECT SUM(e.supportAmount) FROM ExchangeSupportFund e WHERE e.corporationId = :corporationId AND e.status IN ('ACTIVE', 'PARTIAL_REPAID', 'OVERDUE')")
+    @Query("SELECT SUM(e.supportAmount) FROM ExchangeSupportFund e WHERE e.corporationId = :corporationId AND e.status IN ('ACTIVE', 'PARTIAL_REPAID', 'OVERDUE', 'REPAID')")
     BigDecimal getTotalSupportAmountByCorporation(@Param("corporationId") UUID corporationId);
 
     /**
-     * 기업별 미상환 금액 조회
+     * 기업별 미상환 금액 조회 (상환 완료된 것은 0으로 계산됨)
      */
-    @Query("SELECT SUM(e.supportAmount - e.repaidAmount) FROM ExchangeSupportFund e WHERE e.corporationId = :corporationId AND e.status IN ('ACTIVE', 'PARTIAL_REPAID', 'OVERDUE')")
+    @Query("SELECT SUM(e.supportAmount - e.repaidAmount) FROM ExchangeSupportFund e WHERE e.corporationId = :corporationId AND e.status IN ('ACTIVE', 'PARTIAL_REPAID', 'OVERDUE', 'REPAID')")
     BigDecimal getUnpaidAmountByCorporation(@Param("corporationId") UUID corporationId);
 
     /**
-     * 거래소 총 지원금 합계 조회
+     * 거래소 총 지원금 합계 조회 (상환 완료된 것도 포함)
      */
-    @Query("SELECT SUM(e.supportAmount) FROM ExchangeSupportFund e WHERE e.status IN ('ACTIVE', 'PARTIAL_REPAID', 'OVERDUE')")
+    @Query("SELECT SUM(e.supportAmount) FROM ExchangeSupportFund e WHERE e.status IN ('ACTIVE', 'PARTIAL_REPAID', 'OVERDUE', 'REPAID')")
     BigDecimal getTotalActiveSupportAmount();
 
     /**
-     * 거래소 총 미상환 금액 조회
+     * 거래소 총 미상환 금액 조회 (상환 완료된 것은 0으로 계산됨)
      */
-    @Query("SELECT SUM(e.supportAmount - e.repaidAmount) FROM ExchangeSupportFund e WHERE e.status IN ('ACTIVE', 'PARTIAL_REPAID', 'OVERDUE')")
+    @Query("SELECT SUM(e.supportAmount - e.repaidAmount) FROM ExchangeSupportFund e WHERE e.status IN ('ACTIVE', 'PARTIAL_REPAID', 'OVERDUE', 'REPAID')")
     BigDecimal getTotalUnpaidAmount();
 }

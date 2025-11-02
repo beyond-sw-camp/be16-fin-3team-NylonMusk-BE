@@ -25,7 +25,6 @@ public class NewsArticleDetailResDto {
     private String thumbnailUrl;
     private String description;
     private String summary;
-    private String sentiment;
     private String ticker;     // 첫 매칭 종목(호환용)
     private UUID stockId;      // 첫 매칭 종목 ID(호환용)
     private List<StockRef> stocks; // 매칭된 전체 종목
@@ -51,7 +50,6 @@ public class NewsArticleDetailResDto {
                 .thumbnailUrl(a.getThumbnailUrl())
                 .description(a.getDescription())
                 .summary(a.getSummary())
-                .sentiment(a.getSentiment())
                 .ticker(a.getTicker())
                 .stockId(a.getStockId())
                 .stocks(list.stream().map(s -> StockRef.builder()

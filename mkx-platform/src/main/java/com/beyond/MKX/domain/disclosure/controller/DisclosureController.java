@@ -82,14 +82,14 @@ public class DisclosureController {
     }
 
     /**
-     * 내 기업 공시 목록 조회(상태/유형/제목/기간 필터)
+     * 내 기업 공시 목록 조회(상태/유형/검색어/기간 필터)
      */
     @CorporationOnly
     @GetMapping("/my")
     public ResponseEntity<?> listMine(
             @RequestParam(required = false) DisclosureStatus status,
             @RequestParam(required = false) DisclosureType type,
-            @RequestParam(required = false, name = "title") String title,
+            @RequestParam(required = false) String q,
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
             @RequestParam(required = false) LocalDate fromDate,
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
@@ -97,7 +97,7 @@ public class DisclosureController {
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC)
             Pageable pageable
     ) {
-        Page<DisclosureResDto> page = disclosureCorpQueryService.listMine(status, type, title, fromDate, toDate, pageable);
+        Page<DisclosureResDto> page = disclosureCorpQueryService.listMine(status, type, emptyToNull(q), fromDate, toDate, pageable);
         return ApiResponse.ok(page, "기업 공시 조회 완료");
     }
 
@@ -115,5 +115,9 @@ public class DisclosureController {
     public ResponseEntity<?> relatedMine(@PathVariable String baseNo) {
         DisclosureTreeResDto tree = disclosureCorpQueryService.getRelatedTreeMineByBaseNo(baseNo);
         return ApiResponse.ok(tree, "관련 공시 묶음(기업) 조회 완료");
+    }
+
+    private String emptyToNull(String s) {
+        return (s == null || s.isBlank()) ? null : s;
     }
 }

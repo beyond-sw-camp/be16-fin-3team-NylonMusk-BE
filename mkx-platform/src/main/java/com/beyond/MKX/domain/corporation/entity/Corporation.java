@@ -65,6 +65,10 @@ public class Corporation extends BaseIdAndTimeEntity {
     @Column(nullable = false, length = 512)
     private String corporateSealCert;
 
+    // 기업 로고 url
+    @Column(name = "logo_url", nullable = false, length = 512)
+    private String logoUrl;
+
     // 가입 거절 사유
     @Column(length = 255)
     private String rejectReason;

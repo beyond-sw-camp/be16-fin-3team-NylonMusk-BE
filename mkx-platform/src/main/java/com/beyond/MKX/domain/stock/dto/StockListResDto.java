@@ -13,6 +13,7 @@ public record StockListResDto(
         UUID corporationId,
         String ticker,
         String nameKo,
+        String imageUrl,
         String status,
         String delistingStage,
         String delistingReason,
@@ -30,6 +31,7 @@ public record StockListResDto(
                 .corporationId(s.getCorporationId())
                 .ticker(s.getTicker())
                 .nameKo(s.getNameKo())
+                .imageUrl(s.getImageUrl())
                 .status(s.getStatus() != null ? s.getStatus().name() : null)
                 .delistingStage(s.getDelistingStage() != null ? s.getDelistingStage().name() : null)
                 .delistingReason(s.getDelistingReason() != null ? s.getDelistingReason().name() : null)

@@ -69,6 +69,7 @@ public class StockQueryService {
         return StockDetailResDTO.builder()
                 .ticker(stock.getTicker())
                 .nameKo(stock.getNameKo())
+                .imageUrl(stock.getImageUrl())
                 .totalSharesOutstanding(stock.getTotalSharesOutstanding())
                 .listedAt(stock.getCreatedAt())  // 상장일 (Stock 생성일 사용)
                 .ownerName(corporation.getOwnerName())  // 대표이사

@@ -80,6 +80,10 @@ public class Stock extends BaseIdAndTimeEntity {
     @Enumerated(EnumType.STRING)
     private DelistingReason delistingReason;
 
+    // ====== 종목 이미지 url ======
+    @Column(name = "image_url", length = 512)
+    private String imageUrl;
+
     // 상장폐지 보상금 총액 (상장폐지 실행 시 계산하여 저장)
     @Column(name = "total_compensation_amount", precision = 20, scale = 2)
     private BigDecimal totalCompensationAmount;

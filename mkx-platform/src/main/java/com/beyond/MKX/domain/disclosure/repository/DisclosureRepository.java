@@ -37,19 +37,23 @@ public interface DisclosureRepository extends JpaRepository<Disclosure, UUID> {
             from Disclosure d
             where d.status = :approved
               and d.publishedAt is not null
-              and d.isLatest = true
               and (:type is null or d.disclosureType = :type)
               and (:stockId is null or d.stockId = :stockId)
-              and (:title is null or lower(d.title) like lower(concat('%', :title, '%')))
-              and (:displayNo is null or d.displayNo = :displayNo)
+              and (
+                :q is null
+                or lower(d.title) like lower(concat('%', :q, '%'))
+                or lower(d.summary) like lower(concat('%', :q, '%'))
+                or lower(d.displayNo) like lower(concat('%', :q, '%'))
+                or lower(d.stockNameSnapshot) like lower(concat('%', :q, '%'))
+                or lower(d.tickerSnapshot) like lower(concat('%', :q, '%'))
+              )
             order by d.publishedAt desc
             """)
     Page<Disclosure> searchApproved(
             @Param("approved") DisclosureStatus approved,
             @Param("type") DisclosureType type,
             @Param("stockId") UUID stockId,
-            @Param("title") String title,
-            @Param("displayNo") String displayNo,
+            @Param("q") String q,
             Pageable pageable
     );
 
@@ -60,8 +64,14 @@ public interface DisclosureRepository extends JpaRepository<Disclosure, UUID> {
             where (:status is null or d.status = :status)
               and (:type is null or d.disclosureType = :type)
               and (:stockId is null or d.stockId = :stockId)
-              and (:title is null or lower(d.title) like lower(concat('%', :title, '%')))
-              and (:displayNo is null or d.displayNo = :displayNo)
+              and (
+                :q is null
+                or lower(d.title) like lower(concat('%', :q, '%'))
+                or lower(d.summary) like lower(concat('%', :q, '%'))
+                or lower(d.displayNo) like lower(concat('%', :q, '%'))
+                or lower(d.stockNameSnapshot) like lower(concat('%', :q, '%'))
+                or lower(d.tickerSnapshot) like lower(concat('%', :q, '%'))
+              )
               and (:from is null or d.createdAt >= :from)
               and (:toExclusive is null or d.createdAt < :toExclusive)
             """)
@@ -69,8 +79,7 @@ public interface DisclosureRepository extends JpaRepository<Disclosure, UUID> {
             @Param("status") DisclosureStatus status,
             @Param("type") DisclosureType type,
             @Param("stockId") UUID stockId,
-            @Param("title") String title,
-            @Param("displayNo") String displayNo,
+            @Param("q") String q,
             @Param("from") LocalDateTime from,
             @Param("toExclusive") LocalDateTime toExclusive,
             Pageable pageable
@@ -85,7 +94,14 @@ public interface DisclosureRepository extends JpaRepository<Disclosure, UUID> {
             )
               and (:status is null or d.status = :status)
               and (:type is null or d.disclosureType = :type)
-              and (:title is null or lower(d.title) like lower(concat('%', :title, '%')))
+              and (
+                :q is null
+                or lower(d.title) like lower(concat('%', :q, '%'))
+                or lower(d.summary) like lower(concat('%', :q, '%'))
+                or lower(d.displayNo) like lower(concat('%', :q, '%'))
+                or lower(d.stockNameSnapshot) like lower(concat('%', :q, '%'))
+                or lower(d.tickerSnapshot) like lower(concat('%', :q, '%'))
+              )
               and (:from is null or d.createdAt >= :from)
               and (:toExclusive is null or d.createdAt < :toExclusive)
             """)
@@ -93,7 +109,7 @@ public interface DisclosureRepository extends JpaRepository<Disclosure, UUID> {
             @Param("corpId") UUID corporationId,
             @Param("status") DisclosureStatus status,
             @Param("type") DisclosureType type,
-            @Param("title") String title,
+            @Param("q") String q,
             @Param("from") LocalDateTime from,
             @Param("toExclusive") LocalDateTime toExclusive,
             Pageable pageable
@@ -148,4 +164,21 @@ public interface DisclosureRepository extends JpaRepository<Disclosure, UUID> {
             """)
     List<Disclosure> findAdditionalsByPreviousIds(@Param("relationType") DisclosureRelationType relationType,
                                                   @Param("previousIds") List<UUID> previousIds);
+
+    /** 공개 조회 배치: 다중 티커 스냅샷 기준 */
+    @Query("""
+            select d
+            from Disclosure d
+            where d.status = :approved
+              and d.publishedAt is not null
+              and (:type is null or d.disclosureType = :type)
+              and d.tickerSnapshot in :tickers
+            order by d.publishedAt desc
+            """)
+    Page<Disclosure> searchApprovedByTickers(
+            @Param("approved") DisclosureStatus approved,
+            @Param("type") DisclosureType type,
+            @Param("tickers") List<String> tickers,
+            Pageable pageable
+    );
 }

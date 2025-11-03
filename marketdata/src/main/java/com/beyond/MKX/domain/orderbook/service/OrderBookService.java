@@ -34,7 +34,7 @@ public class OrderBookService {
     private static final String ORDERBOOK_KEY_PREFIX = "orderbook:";
     
     // 호가 데이터 TTL (1시간)
-    private static final long ORDERBOOK_TTL_MINUTES = 60;
+    private static final long ORDERBOOK_TTL_MINUTES = 10080;
 
     /**
      * 체결 이벤트 발생 시 호가 업데이트

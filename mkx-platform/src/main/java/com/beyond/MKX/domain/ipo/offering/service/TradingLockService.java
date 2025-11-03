@@ -61,8 +61,11 @@ public class TradingLockService {
         List<Stock> suspendedStocks = stockRepository.findAllByStatus(Stock.Status.SUSPENDED);
 
         for (Stock stock : suspendedStocks) {
-            // 종목과 연결된 최신 공모를 찾음
-            IpoOffering latestOffering = offeringRepository.findLatestByStockId(stock.getId())
+            // recordDate가 있고, FOLLOW_ON 또는 RIGHTS_ISSUE인 최신 공모를 찾음
+            IpoOffering latestOffering = offeringRepository.findLatestWithRecordDateByStockId(
+                            stock.getId(),
+                            List.of(IpoOfferingType.FOLLOW_ON, IpoOfferingType.RIGHTS_ISSUE)
+                    )
                     .orElse(null);
 
             if (latestOffering == null || latestOffering.getRecordDate() == null) continue;

@@ -2,6 +2,7 @@ package com.beyond.MKX.domain.ipo.offering.repository;
 
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOffering;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOfferingStatus;
+import com.beyond.MKX.domain.ipo.offering.entity.IpoOfferingType;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -94,5 +95,19 @@ public interface IpoOfferingRepository extends JpaRepository<IpoOffering, UUID> 
         order by o.createdAt desc
         """)
     Optional<IpoOffering> findLatestByStockId(@Param("stockId") UUID stockId);
+
+    @Query("""
+    select o
+    from IpoOffering o
+    join o.ipo i
+    where i.stockId = :stockId
+      and o.offeringType in :types
+      and o.recordDate is not null
+    order by o.createdAt desc
+    """)
+    Optional<IpoOffering> findLatestWithRecordDateByStockId(
+            @Param("stockId") UUID stockId,
+            @Param("types") List<IpoOfferingType> types
+    );
 
 }

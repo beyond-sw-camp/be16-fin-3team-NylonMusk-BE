@@ -7,6 +7,7 @@ import com.beyond.MKX.domain.ipo.offering.dto.IpoOfferingResDTO;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOffering;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOfferingStatus;
 import com.beyond.MKX.domain.ipo.ipo.entity.IpoStatus;
+import com.beyond.MKX.domain.ipo.offering.entity.IpoOfferingType;
 import com.beyond.MKX.domain.ipo.offering.repository.IpoOfferingRepository;
 import com.beyond.MKX.domain.ipo.ipo.repository.IpoRepository;
 import com.beyond.MKX.domain.ipo.subscription.entity.SubscriptionStatus;
@@ -31,6 +32,7 @@ public class IpoOfferingService {
     private final IpoRepository ipoRepository;
     private final IpoOfferingRepository ipoOfferingRepository;
     private final IpoSubscriptionRepository subscriptionRepository;
+    private final TradingLockService tradingLockService;
     private final Clock clock;
 
     /* 공모 생성 */
@@ -39,91 +41,116 @@ public class IpoOfferingService {
         if (ipoId == null) {
             throw new IllegalArgumentException("상장(ipo) 아이디는 필수 입력값입니다.");
         }
-        // 1) 상장 존재/상태 검증
-        Ipo ipo = ipoRepository.findByIdForUpdate(ipoId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 Ipo입니다."));
 
+        // 1️⃣ 상장 검증 및 잠금
+        Ipo ipo = ipoRepository.findByIdForUpdate(ipoId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 IPO입니다."));
+
+        // 2️⃣ 공모 타입 자동 판별 (상장 상태 + 유상증자 여부)
+        IpoOfferingType type = IpoOfferingType.INITIAL;
+        if (ipo.getStatus() == IpoStatus.LISTED) {
+            type = offeringReqDTO.isRightsIssue()
+                    ? IpoOfferingType.RIGHTS_ISSUE
+                    : IpoOfferingType.FOLLOW_ON;
+        }
+
+        // 3️⃣ 상장 후 공모(recordDate 필수)
+        if (ipo.getStatus() == IpoStatus.LISTED && offeringReqDTO.getRecordDate() == null) {
+            throw new IllegalArgumentException("상장 후 공모(N차 공모)에서는 recordDate가 필수입니다.");
+        }
+
+        // 4️⃣ 이전 차수 미종결 확인
         Integer lastRoundNo = ipoOfferingRepository.findMaxRoundNo(ipo.getId());
         int nextRound = (lastRoundNo == null) ? 1 : lastRoundNo + 1;
 
-        /** 이전 차수 ‘미종결’이 남아 있으면 금지 */
         boolean priorUnfinished = ipoOfferingRepository.existsByIpo_IdAndIpoOfferingStatusIn(
                 ipo.getId(),
-                EnumSet.of(
-                        IpoOfferingStatus.SCHEDULED, IpoOfferingStatus.OPEN
-                )
+                EnumSet.of(IpoOfferingStatus.SCHEDULED, IpoOfferingStatus.OPEN)
         );
         if (priorUnfinished) {
-            throw new IllegalStateException("이전 차수가 종결되지 않았습니다.");
+            throw new IllegalStateException("이전 공모 차수가 아직 종결되지 않았습니다.");
         }
 
-        // 공모 사용 여부 가드
+        // 5️⃣ IPO 자체 검증
         if (!Boolean.TRUE.equals(ipo.getIsOffering())) {
-            throw new IllegalStateException("해당 IPO는 공모 미사용(isOffering=false)으로 설정되어 있어 공모를 생성할 수 없습니다.");
+            throw new IllegalStateException("해당 IPO는 공모 미사용(isOffering=false)으로 설정되어 있습니다.");
+        }
+        if (ipo.getStatus() == IpoStatus.REJECTED) {
+            throw new IllegalStateException("심사 거절된 IPO에서는 공모를 생성할 수 없습니다.");
         }
 
-        // ✅ LISTED: 이미 상장 완료 → 공모 생성 불가
-        // ✅ REJECTED: 심사 거절 → 공모 생성 불가
-        // ⚠️ CANCELLED: 이전 공모 취소 가능성 → 재공모 허용
-        if (ipo.getStatus() == IpoStatus.LISTED || ipo.getStatus() == IpoStatus.REJECTED) {
-            throw new IllegalArgumentException("해당 상장(ipo) 상태에서는 공모를 생성할 수 없습니다." + ipo.getStatus());
-        }
-        // 2) 공모 차수 중복 방지 (ipo_id, round_no)
-        if (ipoOfferingRepository.existsByIpo_IdAndRoundNo(ipo.getId(), nextRound)) {
-            throw new IllegalArgumentException("이미 존재하는 공모 차수입니다. (roundNo = " + nextRound + ")");
-        }
-        // 3) 값 / 일정 / 최소*최대 검증
+        // 6️⃣ 수치 검증
         if (offeringReqDTO.getOfferQuantity() <= 0 || offeringReqDTO.getLotSize() <= 0) {
             throw new IllegalArgumentException("공모 물량/청약 단위는 양수여야 합니다.");
         }
         if (offeringReqDTO.getOfferQuantity() % offeringReqDTO.getLotSize() != 0) {
             throw new IllegalArgumentException("공모 물량은 청약 단위의 배수여야 합니다.");
         }
-        if (offeringReqDTO.getPriceBandMin() <= 0 || offeringReqDTO.getPriceBandMax() <= 0 || offeringReqDTO.getPriceBandMin() > offeringReqDTO.getPriceBandMax()) {
-            throw new IllegalArgumentException("희망 공모가 범위가 유효하지 않습니다.");
+        if (offeringReqDTO.getPriceBandMin() <= 0 ||
+                offeringReqDTO.getPriceBandMax() <= 0 ||
+                offeringReqDTO.getPriceBandMin() > offeringReqDTO.getPriceBandMax()) {
+            throw new IllegalArgumentException("희망 공모가 밴드가 유효하지 않습니다.");
         }
 
         long faceValue = ipo.getFaceValue();
-        if (faceValue > 0) {
-            if (offeringReqDTO.getPriceBandMin() < faceValue) {
-                throw new IllegalArgumentException(
-                        "희망공모가 최솟값은 액면가 이상이어야 합니다. (min = " + offeringReqDTO.getPriceBandMin() + ", " +
-                                "faceValue = " + faceValue + ")"
-                );
-            }
+        if (faceValue > 0 && offeringReqDTO.getPriceBandMin() < faceValue) {
+            throw new IllegalArgumentException("희망 공모가 최솟값은 액면가 이상이어야 합니다.");
         }
 
-//        long freeFloatCap = (long) Math.floor(ipo.getTotalShares() * (1.0 - ipo.getMajorShareholderRatio()));
-//        BigDecimal total = BigDecimal.valueOf(ipo.getTotalShares());
-//        BigDecimal ratio = BigDecimal.valueOf(ipo.getMajorShareholderRatio()); // 0.0~1.0
-//        long freeFloatCap = total.multiply(BigDecimal.ONE.subtract(ratio))
-//                .setScale(0, java.math.RoundingMode.FLOOR)
-//                .longValueExact();
-//        if (offeringReqDTO.getOfferQuantity() > freeFloatCap) {
-//            throw new IllegalArgumentException(
-//                    "공모 물량이 유통 한도(" + freeFloatCap + ")를 초과합니다. 요청=" + offeringReqDTO.getOfferQuantity());
-//        }
-
+        // 7️⃣ 공모 엔티티 생성
         IpoOffering ipoOffering = IpoOffering.builder()
                 .ipo(ipo)
                 .roundNo(nextRound)
+                .offeringType(type)
                 .offerQuantity(offeringReqDTO.getOfferQuantity())
+                .recordDate(offeringReqDTO.getRecordDate())
                 .lotSize(offeringReqDTO.getLotSize())
                 .priceBandMin(offeringReqDTO.getPriceBandMin())
                 .priceBandMax(offeringReqDTO.getPriceBandMax())
-                .offerPrice(null) // 생성 단계에서는 확정 공모가 없음
+                .offerPrice(null) // 생성 단계에서는 확정공모가 없음
                 .subscriptionStart(offeringReqDTO.getSubscriptionStart())
                 .subscriptionEnd(offeringReqDTO.getSubscriptionEnd())
                 .allocationDate(offeringReqDTO.getAllocationDate())
                 .refundDate(offeringReqDTO.getRefundDate())
                 .depositRate(offeringReqDTO.getDepositRate())
                 .competitionRatio(BigDecimal.ZERO)
-                .ipoOfferingStatus(IpoOfferingStatus.SCHEDULED)
+                .ipoOfferingStatus(IpoOfferingStatus.DRAFT)
                 .bookBuildingStart(offeringReqDTO.getBookBuildingStart())
                 .bookBuildingEnd(offeringReqDTO.getBookBuildingEnd())
                 .build();
 
-        return ipoOfferingRepository.save(ipoOffering);
+        // 8️⃣ DB에 저장 (영속 상태로 만들어야 거래정지 로직 실행 가능)
+        ipoOfferingRepository.save(ipoOffering);
+
+        // 9️⃣ Follow-on / Rights Issue일 경우 거래 정지 처리
+        if (type == IpoOfferingType.FOLLOW_ON || type == IpoOfferingType.RIGHTS_ISSUE) {
+            tradingLockService.suspendTradingForOffering(ipoOffering);
+        }
+
+        return ipoOffering;
+    }
+
+    /* 공모 요청 */
+    /**
+     * 발행사(기업)의 공모 요청
+     * - IPO 상태: LISTED or APPROVED 가능
+     * - 결과: IpoOfferingStatus = DRAFT
+     */
+    @Transactional
+    public IpoOffering offeringRequest(UUID ipoId, IpoOfferingReqDTO reqDTO) {
+        Ipo ipo = ipoRepository.findByIdForUpdate(ipoId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 IPO입니다."));
+
+        if (ipo.getStatus() == IpoStatus.REJECTED) {
+            throw new IllegalStateException("심사 거절된 기업은 공모 요청 불가");
+        }
+
+        // 기존 create 로직 재사용 (DRAFT 상태로 생성)
+        IpoOffering offering = create(ipoId, reqDTO);
+        offering.setIpoOfferingStatus(IpoOfferingStatus.DRAFT);
+        ipoOfferingRepository.save(offering);
+
+        return offering;
     }
 
     private void validateSchedule(
@@ -308,6 +335,21 @@ public class IpoOfferingService {
         if (offering.getIpoOfferingStatus() != IpoOfferingStatus.SCHEDULED)
             throw new IllegalStateException("SCHEDULED 상태에서만 수요예측 시작 가능");
         offering.setIpoOfferingStatus(IpoOfferingStatus.BOOK_BUILDING);
+        return offering;
+    }
+
+    /** DRAFT -> SCHEDULED */
+    @Transactional
+    public IpoOffering approve(UUID offeringId) {
+        IpoOffering offering = ipoOfferingRepository.findByIdForUpdate(offeringId)
+                .orElseThrow(() -> new IllegalArgumentException("공모 없음"));
+        offering.approveOffering(); // ✅ 엔티티 상태 전이 호출
+
+        // 거래정지 (N차 공모 시)
+        if (offering.getOfferingType() == IpoOfferingType.FOLLOW_ON
+                || offering.getOfferingType() == IpoOfferingType.RIGHTS_ISSUE) {
+            tradingLockService.suspendTradingForOffering(offering);
+        }
         return offering;
     }
 }

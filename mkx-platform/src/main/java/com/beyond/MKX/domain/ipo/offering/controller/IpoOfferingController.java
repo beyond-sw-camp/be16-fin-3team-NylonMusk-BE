@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,6 +23,23 @@ import java.util.*;
 @Validated
 public class IpoOfferingController {
     private final IpoOfferingService offeringService;
+
+    /** 기업이 공모 요청 (거래소 승인 전 단계) */
+    @PostMapping("/{ipoId}/request")
+    @PreAuthorize("hasRole('CORPORATION')")
+    public ResponseEntity<?> requestOffering(@PathVariable UUID ipoId,
+                                             @RequestBody @Valid IpoOfferingReqDTO reqDTO) {
+        IpoOffering offering = offeringService.offeringRequest(ipoId, reqDTO);
+        return ApiResponse.ok(IpoOfferingResDTO.from(offering), "공모 요청이 접수되었습니다. 거래소 승인 대기 중입니다.");
+    }
+
+    /** 거래소 관리자가 승인 (DRAFT → SCHEDULED) */
+    @PatchMapping("/{offeringId}/approve")
+    @PreAuthorize("hasRole('EXCHANGE')")
+    public ResponseEntity<?> approveOffering(@PathVariable UUID offeringId) {
+        IpoOffering offering = offeringService.approve(offeringId);
+        return ApiResponse.ok(IpoOfferingResDTO.from(offering), "거래소가 공모를 승인했습니다.");
+    }
 
     /* 공모 생성 */
     @PostMapping("/{ipoId}/offerings")

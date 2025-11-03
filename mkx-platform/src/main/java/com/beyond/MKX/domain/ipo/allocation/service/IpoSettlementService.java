@@ -5,11 +5,17 @@ import com.beyond.MKX.domain.account.brokerage.entity.BrokerageDepositAccount;
 import com.beyond.MKX.domain.account.brokerage.service.BrokerageDepositAccountService;
 import com.beyond.MKX.domain.account.corporation.service.CorporationAccountService;
 import com.beyond.MKX.domain.account.exchange.service.ExchangeAccountService;
+import com.beyond.MKX.domain.ipo.IpoAllocationOutbox.entity.IpoAllocationOutbox;
+import com.beyond.MKX.domain.ipo.IpoAllocationOutbox.entity.OutboxStatus;
+import com.beyond.MKX.domain.ipo.IpoAllocationOutbox.repository.IpoAllocationOutboxRepository;
 import com.beyond.MKX.domain.ipo.allocation.dto.IpoPayoutResDTO;
 import com.beyond.MKX.domain.ipo.allocation.dto.IpoSettlementResDTO;
 import com.beyond.MKX.domain.ipo.allocation.entity.IpoAllocation;
 import com.beyond.MKX.domain.ipo.allocation.repository.IpoAllocationRepository;
+import com.beyond.MKX.domain.ipo.ipo.dto.StockUpdateDTO;
+import com.beyond.MKX.domain.ipo.ipo.service.IpoAllocationFeign;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOffering;
+import com.beyond.MKX.domain.ipo.offering.entity.IpoOfferingType;
 import com.beyond.MKX.domain.ipo.offering.repository.IpoOfferingRepository;
 import com.beyond.MKX.domain.ipo.offering.service.MemberAccountFeign;
 import com.beyond.MKX.domain.ipo.subscription.entity.InvestorType;
@@ -32,7 +38,9 @@ public class IpoSettlementService {
     private final IpoOfferingRepository offeringRepository;
     private final IpoSubscriptionRepository subscriptionRepository;
     private final IpoAllocationRepository allocationRepository;
+    private final IpoAllocationOutboxRepository outboxRepository;
     private final MemberAccountFeign memberAccountFeign;
+    private final IpoAllocationFeign orderingFeign;
 
     private final ExchangeAccountService exchangeAccountService;
     private final CorporationAccountService corporationAccountService;
@@ -148,7 +156,7 @@ public class IpoSettlementService {
     @Transactional
     public List<IpoSettlementResDTO> settleAllPaymentsByOffering(UUID offeringId) {
         log.info("[BATCH-SETTLE] 공모 {} 정산 시작", offeringId);
-        IpoOffering offering = offeringRepository.findById(offeringId)
+        offeringRepository.findById(offeringId)
                 .orElseThrow(() -> new IllegalArgumentException("공모를 찾을 수 없습니다."));
 
         List<IpoSubscription> subs = subscriptionRepository
@@ -193,6 +201,82 @@ public class IpoSettlementService {
         offeringRepository.save(offering);
 
         log.info("[PAYOUT COMPLETE] 발행사 송금 완료 — 공모={}, 금액={}", offeringId, totalProceeds);
+
+        // ================================================================
+        // N차 공모인 경우 주식 보유 업데이트 처리
+        // ================================================================
+        if (offering.getOfferingType() == IpoOfferingType.FOLLOW_ON
+                || offering.getOfferingType() == IpoOfferingType.RIGHTS_ISSUE) {
+
+            try {
+                UUID ipoId = offering.getIpo().getId();
+                String ticker = Optional.ofNullable(offering.getIpo().getStockTicker()).orElse(null);
+
+                if (ticker == null || ticker.isBlank()) {
+                    log.warn("[PAYOUT-STOCK-UPDATE] 상장된 종목 티커를 찾을 수 없어 주식 업데이트를 건너뜁니다. offeringId={}", offeringId);
+                } else {
+                    Long offerPrice = offering.getOfferPrice();
+                    String reason = offering.getOfferingType() == IpoOfferingType.FOLLOW_ON
+                            ? "FOLLOW_ON_ALLOCATION"
+                            : "RIGHTS_ISSUE_ALLOCATION";
+
+                    log.info("[PAYOUT-STOCK-UPDATE] N차 공모 주식 배정 시작. offeringId={}, ipoId={}, ticker={}, price={}",
+                            offeringId, ipoId, ticker, offerPrice);
+
+                    List<IpoAllocationOutbox> events = new ArrayList<>(
+                            outboxRepository.findAllByIpoIdAndStatus(ipoId, OutboxStatus.PENDING)
+                    );
+                    events.removeIf(ev -> !offeringId.equals(ev.getOfferingId()));
+
+                    log.info("[PAYOUT-STOCK-UPDATE] 조회된 PENDING 이벤트 수: {}", events.size());
+
+                    if (!events.isEmpty()) {
+                        int ok = 0, fail = 0;
+
+                        for (var ev : events) {
+                            log.info("[PAYOUT-STOCK-UPDATE] 이벤트 처리 시작. allocationId={}, accountId={}, qty={}",
+                                    ev.getAllocationId(), ev.getAccountId(), ev.getQty());
+
+                            var dto = StockUpdateDTO.builder()
+                                    .idempotencyKey(ev.getAllocationId())
+                                    .allocationId(ev.getAllocationId())
+                                    .offeringId(ev.getOfferingId())
+                                    .memberAccountId(ev.getAccountId())
+                                    .brokerageId(ev.getBrokerageId())
+                                    .ticker(ticker)
+                                    .qtyDelta(ev.getQty())
+                                    .unitPrice(offerPrice)
+                                    .reason(reason)
+                                    .build();
+
+                            try {
+                                log.info("[PAYOUT-STOCK-UPDATE] ordering-service 호출 시작");
+                                orderingFeign.applyStockUpdate(dto);
+                                ev.markSent();
+                                ok++;
+                                log.info("[PAYOUT-STOCK-UPDATE] ordering-service 호출 성공");
+                            } catch (Exception sendEx) {
+                                ev.markFailed();
+                                fail++;
+                                log.error("[PAYOUT-STOCK-UPDATE] ordering-service 호출 실패. allocationId={}, error={}",
+                                        ev.getAllocationId(), sendEx.getMessage(), sendEx);
+                            }
+                        }
+
+                        outboxRepository.saveAll(events);
+                        log.info("[PAYOUT-STOCK-UPDATE] 주식 배정 완료. 성공={}, 실패={}", ok, fail);
+                    } else {
+                        log.warn("[PAYOUT-STOCK-UPDATE] PENDING 상태의 이벤트가 없습니다!");
+                    }
+                }
+            } catch (Exception ex) {
+                // 주식 업데이트 실패해도 발행사 송금은 완료되었으므로 로그만 남기고 계속 진행
+                log.error("[PAYOUT-STOCK-UPDATE] N차 공모 주식 배정 중 예외 발생. offeringId={}", offeringId, ex);
+            }
+        }
+
+
+
         return IpoPayoutResDTO.of(offering, totalProceeds);
     }
 }

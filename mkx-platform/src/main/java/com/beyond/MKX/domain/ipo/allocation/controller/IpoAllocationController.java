@@ -90,7 +90,7 @@ public class IpoAllocationController {
     }
 
     @PatchMapping("/{offeringId}/confirm")
-    @PreAuthorize("hasRole('CORPORATION')")
+    @PreAuthorize("hasRole('EXCHANGE')")
     public ResponseEntity<?> confirmAllocationByIssuer(@PathVariable UUID offeringId) {
         IpoAllocationSummaryResDTO resDTO = allocationService.confirmAllocation(offeringId);
         return ApiResponse.ok(resDTO, "발행사 배정 확정 완료(ALLOCATED 상태 전환)");

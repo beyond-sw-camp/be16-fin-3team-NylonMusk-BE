@@ -11,6 +11,7 @@ public enum TransactionType {
     IPO_PAID("공모 참가"),
     IPO_REFUND("공모 환불"),
     IPO_ADDITIONAL("공모 추가 납입"),
+    IPO_PAYOUT("공모 대금 송금"),
     DEPOSIT("입금"),
     WITHDRAWAL("출금"),
     TRANSFER("계좌이체");

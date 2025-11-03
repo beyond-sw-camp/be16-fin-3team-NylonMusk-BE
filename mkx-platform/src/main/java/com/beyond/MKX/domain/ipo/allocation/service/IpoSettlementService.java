@@ -100,6 +100,14 @@ public class IpoSettlementService {
                 brokerageDepositAccountService.deposit(brokerageDepositNo, additional);
                 brokerageDepositAccountService.withdraw(brokerageDepositNo, additional);
                 exchangeAccountService.deposit(exchangeAccountNo, additional);
+
+                // Kafka 이벤트 발행 (IPO_ADDITIONAL = 기업 추가 납입)
+                eventPublisher.publishWithdrawalEvent(
+                        corpAccountId.toString(),
+                        subscription.getAccountNumber(),
+                        additional.longValue(),
+                        "IPO_ADDITIONAL"
+                );
             }
 
             else if (subscription.getInvestorType() == InvestorType.INDIVIDUAL) {
@@ -108,6 +116,14 @@ public class IpoSettlementService {
                 brokerageDepositAccountService.deposit(brokerageDepositNo, additional);
                 brokerageDepositAccountService.withdraw(brokerageDepositNo, additional);
                 exchangeAccountService.deposit(exchangeAccountNo, additional);
+
+                // Kafka 이벤트 발행 (IPO_ADDITIONAL = 개인 추가 납입)
+                eventPublisher.publishWithdrawalEvent(
+                        subscription.getAccountId() != null ? subscription.getAccountId().toString() : "N/A",
+                        subscription.getAccountNumber(),
+                        additional.longValue(),
+                        "IPO_ADDITIONAL"
+                );
             }
         }
 
@@ -121,6 +137,14 @@ public class IpoSettlementService {
                 brokerageDepositAccountService.deposit(brokerageDepositNo, refund);
                 brokerageDepositAccountService.withdraw(brokerageDepositNo, refund);
                 corporationAccountService.deposit(corpAccountId, refund);
+
+                // ✅ Kafka 이벤트 발행 (IPO_REFUND)
+                eventPublisher.publishDepositEvent(
+                        corpAccountId.toString(),
+                        subscription.getAccountNumber(),
+                        refund.longValue(),
+                        "IPO_REFUND"
+                );
             }
 
             else if (subscription.getInvestorType() == InvestorType.INDIVIDUAL) {
@@ -129,6 +153,14 @@ public class IpoSettlementService {
                 brokerageDepositAccountService.deposit(brokerageDepositNo, refund);
                 brokerageDepositAccountService.withdraw(brokerageDepositNo, refund);
                 memberAccountFeign.deposit(memberAccNo, new AmountRequest(refund));
+
+                // ✅ Kafka 이벤트 발행 (개인 환불)
+                eventPublisher.publishDepositEvent(
+                        subscription.getAccountId() != null ? subscription.getAccountId().toString() : "N/A",
+                        subscription.getAccountNumber(),
+                        refund.longValue(),
+                        "IPO_REFUND"
+                );
             }
         }
 
@@ -198,6 +230,14 @@ public class IpoSettlementService {
         log.info(" └ 거래소 계좌 출금 완료 후 공모발행기업 예치 입금 완료");
         corporationAccountService.deposit(issuerAcc.getId(), totalProceeds);
         log.info(" └ 발행기업 계좌 입금 완료");
+
+        // ✅ Kafka 이벤트 발행 (IPO_PAYOUT = 발행사 송금)
+        eventPublisher.publishDepositEvent(
+                issuerAcc.getId().toString(),
+                issuerAcc.getAccountNumber(),
+                totalProceeds.longValue(),
+                "IPO_PAYOUT"
+        );
 
         offering.settle(Optional.ofNullable(offering.getAllocatedQuantity()).orElse(0L));
         offeringRepository.save(offering);

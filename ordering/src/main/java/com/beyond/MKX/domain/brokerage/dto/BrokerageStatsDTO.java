@@ -22,4 +22,6 @@ public class BrokerageStatsDTO {
     private Long sellCommission; // 매도 수수료 (이번 달)
     private Double volumeChangePercent; // 거래량 변화율 (전날 대비)
     private Double revenueChangePercent; // 수익 변화율 (전월 대비)
+    private Long customerChange; // 7일간 고객 수 변화
+    private Long accountChange; // 7일간 계좌 수 변화
 }

@@ -297,6 +297,26 @@ public class BrokerageDashboardService {
             revenueChangePercent = 100.0; // 이전 30일 수익이 없었는데 최근 30일 수익이 있으면 100% 증가
         }
         
+        // 8. 7일 전 데이터와 비교하여 변화량 계산
+        LocalDateTime sevenDaysAgo = now.minusDays(7);
+        
+        // 7일 전 기준 총 고객 수 (7일 전 이전에 생성된 계좌만)
+        long sevenDaysAgoTotalCustomers = allAccounts.stream()
+            .filter(acc -> acc.getCreatedAt() != null && acc.getCreatedAt().isBefore(sevenDaysAgo))
+            .map(MemberAccount::getMemberId)
+            .distinct()
+            .count();
+        
+        // 7일 전 기준 활성 계좌 수 (7일 전 이전에 생성되고 현재도 활성 상태인 계좌)
+        long sevenDaysAgoActiveAccounts = allAccounts.stream()
+            .filter(acc -> acc.getCreatedAt() != null && acc.getCreatedAt().isBefore(sevenDaysAgo))
+            .filter(acc -> acc.getStatus() == AccountStatus.ACTIVE)
+            .count();
+        
+        // 변화량 계산 (현재 - 7일 전)
+        long customerChange = totalCustomers - sevenDaysAgoTotalCustomers;
+        long accountChange = activeAccounts - sevenDaysAgoActiveAccounts;
+        
         return BrokerageStatsDTO.builder()
             .totalCustomers(totalCustomers)
             .activeAccounts(activeAccounts)
@@ -307,6 +327,8 @@ public class BrokerageDashboardService {
             .sellCommission(sellCommission)
             .volumeChangePercent(volumeChangePercent)
             .revenueChangePercent(revenueChangePercent)
+            .customerChange(customerChange)
+            .accountChange(accountChange)
             .build();
     }
 

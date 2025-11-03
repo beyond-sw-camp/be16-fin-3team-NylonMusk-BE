@@ -17,11 +17,11 @@ import java.util.Map;
 public interface PlatformClient {
 
 
-    // 대량 조회 (권장)
+    // 종목 이름 조회 - 리스트
     @GetMapping("/api/internal/stocks/names")
     Map<String, String> getNames(@RequestParam("tickers") List<String> tickers);
 
-    // 단건 조회 (fallback)
+    // 종목 정보 리스트 조회
     @GetMapping("/api/internal/stocks/briefs")
     List<StockBriefDTO> getBriefs(@RequestParam("tickers") List<String> tickers);
 

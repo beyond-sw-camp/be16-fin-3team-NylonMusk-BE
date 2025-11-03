@@ -4,7 +4,7 @@ import com.beyond.MKX.domain.execution.dto.ExecutionEventDTO;
 import com.beyond.MKX.domain.orderbook.entity.OrderBook;
 import com.beyond.MKX.domain.orderbook.service.OrderBookService;
 import com.beyond.MKX.domain.price.entity.CurrentPrice;
-import com.beyond.MKX.domain.price.websocket.CurrentPriceWebSocketHandler;
+// import com.beyond.MKX.domain.price.stomp.CurrentPriceStompController; // ✅ 순환 참조 방지: 제거
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +31,7 @@ public class CurrentPriceService {
 
     private final RedisTemplate<String, Object> redisTemplate;
     private final OrderBookService orderBookService;
-    private final CurrentPriceWebSocketHandler priceWebSocketHandler;
+    // private final CurrentPriceStompController priceStompController; // ✅ 순환 참조 방지: 제거
     private final ObjectMapper objectMapper;
 
     // Redis key prefix
@@ -40,6 +40,9 @@ public class CurrentPriceService {
     private static final String PREV_VOLUME_KEY_PREFIX = "price:prev_volume:";
     private static final String BUY_EXECUTION_VOLUME_KEY = "exec:buy:volume:";
     private static final String SELL_EXECUTION_VOLUME_KEY = "exec:sell:volume:";
+    
+    // Redis Pub/Sub 채널명
+    private static final String REDIS_CHANNEL = "market:price";
     
     // 현재가 데이터 TTL (1시간)
     private static final long PRICE_TTL_MINUTES = 60;
@@ -110,8 +113,8 @@ public class CurrentPriceService {
             // Redis에 저장
             saveCurrentPrice(currentPrice);
             
-            // WebSocket으로 실시간 전송
-            priceWebSocketHandler.broadcastPrice(ticker, currentPrice);
+            // STOMP로 실시간 전송 (Redis Pub/Sub) - 직접 발행
+            publishCurrentPrice(currentPrice);
             
             log.debug("[PRICE/UPDATE] ticker={}, price={} ({}{}), volume={}", 
                     ticker, currentPrice.getPrice(), 
@@ -349,5 +352,50 @@ public class CurrentPriceService {
      */
     private String buildRedisKey(String ticker) {
         return PRICE_KEY_PREFIX + ticker;
+    }
+
+    /**
+     * 현재가 데이터를 Redis Pub/Sub으로 발행 (순환 참조 방지)
+     *
+     * 채널: market:price (ticker 정보는 메시지 내부에 포함)
+     * RedisPubSubListener가 수신하여 /topic/price/{ticker}로 전송
+     *
+     * @param currentPrice 현재가 데이터
+     */
+    private void publishCurrentPrice(CurrentPrice currentPrice) {
+        try {
+            String ticker = currentPrice.getTicker();
+            
+            // 메시지 구성
+            java.util.Map<String, Object> message = new java.util.HashMap<>();
+            message.put("type", "price");
+            message.put("ticker", ticker);
+            message.put("data", java.util.Map.of(
+                    "ticker", currentPrice.getTicker(),
+                    "price", currentPrice.getPrice(),
+                    "change", currentPrice.getChange(),
+                    "changePercent", currentPrice.getChangeRate(),
+                    "volume", currentPrice.getVolume(),
+                    "high", currentPrice.getHigh(),
+                    "low", currentPrice.getLow(),
+                    "open", currentPrice.getOpen(),
+                    "previousClose", currentPrice.getPrevClose(),
+                    "timestamp", currentPrice.getTimestamp()
+            ));
+            message.put("timestamp", System.currentTimeMillis());
+            
+            // JSON 직렬화
+            String messageJson = objectMapper.writeValueAsString(message);
+            
+            // Redis Pub/Sub 발행
+            redisTemplate.convertAndSend(REDIS_CHANNEL, messageJson);
+            
+            log.debug("[PRICE-STOMP] 📤 Published: channel={}, ticker={}, price={}",
+                    REDIS_CHANNEL, ticker, currentPrice.getPrice());
+            
+        } catch (Exception e) {
+            log.error("[PRICE-STOMP] ❌ Failed to publish: ticker={}",
+                    currentPrice.getTicker(), e);
+        }
     }
 }

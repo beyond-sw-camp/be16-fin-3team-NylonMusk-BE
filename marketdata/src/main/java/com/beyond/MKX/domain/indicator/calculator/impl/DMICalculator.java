@@ -25,9 +25,13 @@ class DMICalculator implements IndicatorCalculator {
         // ADXCalculator와 유사한 로직 (간소화 버전)
         List<IndicatorResultDTO.IndicatorDataPoint> result = new ArrayList<>();
         for (int i = 0; i < candles.size(); i++) {
+            // ✅ 데이터가 부족한 경우 건너뛰기
+            if (i < period) {
+                continue;
+            }
             result.add(IndicatorResultDTO.IndicatorDataPoint.builder()
                     .time(candles.get(i).getTime())
-                    .values(Map.of("plusDI", i >= period ? 25.0 : Double.NaN, "minusDI", i >= period ? 20.0 : Double.NaN))
+                    .values(Map.of("plusDI", 25.0, "minusDI", 20.0))
                     .build());
         }
         return result;

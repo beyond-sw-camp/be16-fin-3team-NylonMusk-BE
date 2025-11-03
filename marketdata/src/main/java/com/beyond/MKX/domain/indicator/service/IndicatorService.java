@@ -99,6 +99,12 @@ public class IndicatorService {
             // 4. 지표 계산
             List<IndicatorResultDTO.IndicatorDataPoint> dataPoints = calculator.calculate(candles, params);
             
+            // ✅ 4.5. null 값 필터링 - 계산 완료된 데이터만 반환
+            dataPoints = filterValidDataPoints(dataPoints);
+            
+            // ✅ 4.6. 시간 범위 일관성 확인 - 캔들스틱과 동일한 시간 범위로 제한
+            dataPoints = alignWithCandleTimeRange(dataPoints, candles);
+            
             // 5. 결과 생성
             IndicatorResultDTO result = IndicatorResultDTO.builder()
                     .ticker(request.getTicker())
@@ -309,5 +315,73 @@ public class IndicatorService {
      */
     public Map<String, Object> getCacheStats(String ticker) {
         return cacheManager.getCacheStats(ticker);
+    }
+
+    /**
+     * ✅ null 값 필터링 - 계산 완료된 데이터만 반환
+     * 
+     * NaN, null, 무한대 값을 제거하고 유효한 데이터만 반환
+     * 
+     * @param dataPoints 원본 데이터 포인트 목록
+     * @return 필터링된 데이터 포인트 목록
+     */
+    private List<IndicatorResultDTO.IndicatorDataPoint> filterValidDataPoints(
+            List<IndicatorResultDTO.IndicatorDataPoint> dataPoints) {
+        
+        if (dataPoints == null || dataPoints.isEmpty()) {
+            return Collections.emptyList();
+        }
+        
+        return dataPoints.stream()
+                .filter(point -> point != null && point.getTime() != null)
+                .filter(point -> {
+                    // values가 null이거나 비어있으면 제외
+                    if (point.getValues() == null || point.getValues().isEmpty()) {
+                        return false;
+                    }
+                    
+                    // 모든 값이 유효한지 확인 (NaN, 무한대 제외)
+                    return point.getValues().values().stream()
+                            .allMatch(value -> value != null 
+                                    && !Double.isNaN(value) 
+                                    && !Double.isInfinite(value));
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * ✅ 시간 범위 일관성 확보 - 캔들스틱과 동일한 시간 범위로 제한
+     * 
+     * 캔들 데이터의 시작과 끝 시간에 포함되는 지표 데이터만 반환
+     * 
+     * @param dataPoints 지표 데이터 포인트 목록
+     * @param candles 참조 캔들 데이터
+     * @return 시간 범위가 일치하는 데이터 포인트 목록
+     */
+    private List<IndicatorResultDTO.IndicatorDataPoint> alignWithCandleTimeRange(
+            List<IndicatorResultDTO.IndicatorDataPoint> dataPoints, List<Candle> candles) {
+        
+        if (dataPoints == null || dataPoints.isEmpty() || candles == null || candles.isEmpty()) {
+            return dataPoints;
+        }
+        
+        // 캔들의 시간 범위 파악
+        Instant candleStart = candles.get(0).getTime();
+        Instant candleEnd = candles.get(candles.size() - 1).getTime();
+        
+        // 캔들 시간 범위 내의 데이터만 필터링
+        List<IndicatorResultDTO.IndicatorDataPoint> aligned = dataPoints.stream()
+                .filter(point -> {
+                    Instant pointTime = point.getTime();
+                    return pointTime != null 
+                            && !pointTime.isBefore(candleStart) 
+                            && !pointTime.isAfter(candleEnd);
+                })
+                .collect(Collectors.toList());
+        
+        log.debug("[INDICATOR/FILTER] Aligned data points: original={}, filtered={}, candle range=[{} ~ {}]",
+                dataPoints.size(), aligned.size(), candleStart, candleEnd);
+        
+        return aligned;
     }
 }

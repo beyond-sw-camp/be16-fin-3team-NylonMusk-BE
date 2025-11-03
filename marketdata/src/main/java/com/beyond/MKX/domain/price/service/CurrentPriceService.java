@@ -384,11 +384,9 @@ public class CurrentPriceService {
             ));
             message.put("timestamp", System.currentTimeMillis());
             
-            // JSON 직렬화
-            String messageJson = objectMapper.writeValueAsString(message);
-            
-            // Redis Pub/Sub 발행
-            redisTemplate.convertAndSend(REDIS_CHANNEL, messageJson);
+            // ✅ Map 객체를 그대로 전송 (RedisTemplate이 자동으로 직렬화)
+            // JSON 문자열로 직렬화하지 않음 - 이중 직렬화 방지
+            redisTemplate.convertAndSend(REDIS_CHANNEL, message);
             
             log.debug("[PRICE-STOMP] 📤 Published: channel={}, ticker={}, price={}",
                     REDIS_CHANNEL, ticker, currentPrice.getPrice());

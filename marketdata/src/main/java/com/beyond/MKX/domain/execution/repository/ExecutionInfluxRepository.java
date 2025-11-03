@@ -209,6 +209,95 @@ public class ExecutionInfluxRepository {
     }
 
     /**
+     * 페이징된 체결 데이터 조회
+     * 
+     * @param ticker 종목 코드
+     * @param start 시작 시각
+     * @param end 종료 시각
+     * @param offset 건너뛸 개수
+     * @param limit 조회할 개수
+     * @return 페이징된 체결 데이터 리스트
+     */
+    public List<Execution> findExecutionsWithPaging(String ticker, Instant start, Instant end, int offset, int limit) {
+        String flux = String.format(
+                "from(bucket: \"%s\") " +
+                "|> range(start: %s, stop: %s) " +
+                "|> filter(fn: (r) => r._measurement == \"%s\") " +
+                "|> filter(fn: (r) => r.ticker == \"%s\") " +
+                "|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\") " +
+                "|> sort(columns: [\"_time\"], desc: true) " +
+                "|> limit(n: %d, offset: %d)",
+                bucket, start.toString(), end.toString(), Execution.MEASUREMENT, ticker, limit, offset
+        );
+
+        try {
+            List<FluxTable> tables = influxDBClient.getQueryApi().query(flux, orgnaization);
+            List<Execution> executions = new ArrayList<>();
+
+            for (FluxTable table : tables) {
+                for (FluxRecord record : table.getRecords()) {
+                    Execution execution = Execution.builder()
+                            .ticker(ticker)
+                            .side((String) record.getValueByKey("side"))
+                            .execId((String) record.getValueByKey("execId"))
+                            .marketOrderId((String) record.getValueByKey("marketOrderId"))
+                            .counterOrderId((String) record.getValueByKey("counterOrderId"))
+                            .price(((Number) record.getValueByKey("price")).longValue())
+                            .quantity(BigDecimal.valueOf(((Number) record.getValueByKey("quantity")).doubleValue()))
+                            .timestamp(record.getTime())
+                            .build();
+                    executions.add(execution);
+                }
+            }
+
+            log.info("Retrieved {} executions for ticker: {} (offset: {}, limit: {})", 
+                    executions.size(), ticker, offset, limit);
+            return executions;
+        } catch (Exception e) {
+            log.error("Failed to retrieve paged executions from InfluxDB", e);
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * 특정 기간의 체결 데이터 총 개수 조회
+     * 
+     * @param ticker 종목 코드
+     * @param start 시작 시각
+     * @param end 종료 시각
+     * @return 체결 데이터 총 개수
+     */
+    public long countExecutions(String ticker, Instant start, Instant end) {
+        String flux = String.format(
+                "from(bucket: \"%s\") " +
+                "|> range(start: %s, stop: %s) " +
+                "|> filter(fn: (r) => r._measurement == \"%s\") " +
+                "|> filter(fn: (r) => r.ticker == \"%s\") " +
+                "|> filter(fn: (r) => r._field == \"price\") " +
+                "|> count()",
+                bucket, start.toString(), end.toString(), Execution.MEASUREMENT, ticker
+        );
+
+        try {
+            List<FluxTable> tables = influxDBClient.getQueryApi().query(flux, orgnaization);
+            
+            if (tables.isEmpty() || tables.get(0).getRecords().isEmpty()) {
+                return 0L;
+            }
+            
+            Object value = tables.get(0).getRecords().get(0).getValue();
+            long count = value instanceof Number ? ((Number) value).longValue() : 0L;
+            
+            log.info("Count executions for ticker: {} (period: {} ~ {}) = {}", 
+                    ticker, start, end, count);
+            return count;
+        } catch (Exception e) {
+            log.error("Failed to count executions from InfluxDB", e);
+            return 0L;
+        }
+    }
+
+    /**
      * OHLCV 데이터 내부 클래스
      */
     @Builder

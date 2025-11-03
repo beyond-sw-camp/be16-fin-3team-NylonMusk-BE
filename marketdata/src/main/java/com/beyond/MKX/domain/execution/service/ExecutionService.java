@@ -122,6 +122,74 @@ public class ExecutionService {
     }
 
     /**
+     * 페이징된 체결 데이터 조회
+     * 
+     * @param ticker 종목 코드
+     * @param start 시작 시각
+     * @param end 종료 시각
+     * @param page 페이지 번호 (0부터 시작)
+     * @param size 페이지 당 데이터 개수
+     * @return 페이징된 체결 데이터
+     */
+    public com.beyond.MKX.domain.execution.dto.PagedExecutionResponse getExecutionsWithPaging(
+            String ticker, Instant start, Instant end, int page, int size) {
+        try {
+            // 1. 총 개수 조회
+            long totalElements = executionInfluxRepository.countExecutions(ticker, start, end);
+            
+            // 2. 페이징된 데이터 조회
+            int offset = page * size;
+            java.util.List<Execution> executions = executionInfluxRepository.findExecutionsWithPaging(
+                    ticker, start, end, offset, size);
+            
+            // 3. Entity를 DTO로 변환
+            java.util.List<com.beyond.MKX.domain.execution.dto.ExecutionEventDTO> content = executions.stream()
+                    .map(this::convertToDTO)
+                    .collect(java.util.stream.Collectors.toList());
+            
+            // 4. 페이지 메타데이터 계산
+            int totalPages = (int) Math.ceil((double) totalElements / size);
+            boolean isFirst = page == 0;
+            boolean isLast = page >= totalPages - 1;
+            boolean hasNext = page < totalPages - 1;
+            boolean hasPrevious = page > 0;
+            boolean isEmpty = content.isEmpty();
+            
+            // 5. 응답 생성
+            return com.beyond.MKX.domain.execution.dto.PagedExecutionResponse.builder()
+                    .content(content)
+                    .page(page)
+                    .size(size)
+                    .totalElements(totalElements)
+                    .totalPages(totalPages)
+                    .first(isFirst)
+                    .last(isLast)
+                    .hasNext(hasNext)
+                    .hasPrevious(hasPrevious)
+                    .empty(isEmpty)
+                    .build();
+                    
+        } catch (Exception e) {
+            log.error("[EXECUTION/QUERY] Failed to get paged executions: ticker={}, page={}, size={}", 
+                    ticker, page, size, e);
+            
+            // 오류 시 빈 페이지 반환
+            return com.beyond.MKX.domain.execution.dto.PagedExecutionResponse.builder()
+                    .content(java.util.Collections.emptyList())
+                    .page(page)
+                    .size(size)
+                    .totalElements(0L)
+                    .totalPages(0)
+                    .first(true)
+                    .last(true)
+                    .hasNext(false)
+                    .hasPrevious(false)
+                    .empty(true)
+                    .build();
+        }
+    }
+
+    /**
      * Entity를 DTO로 변환
      */
     private ExecutionEventDTO convertToDTO(Execution entity) {
@@ -179,11 +247,9 @@ public class ExecutionService {
             ));
             message.put("timestamp", System.currentTimeMillis());
             
-            // JSON 직렬화
-            String messageJson = objectMapper.writeValueAsString(message);
-            
-            // Redis Pub/Sub 발행
-            redisTemplate.convertAndSend(REDIS_CHANNEL, messageJson);
+            // ✅ Map 객체를 그대로 전송 (RedisTemplate이 자동으로 직렬화)
+            // JSON 문자열로 직렬화하지 않음 - 이중 직렬화 방지
+            redisTemplate.convertAndSend(REDIS_CHANNEL, message);
             
             log.debug("[EXECUTION-STOMP] 📤 Published: channel={}, ticker={}, price={}, qty={}",
                     REDIS_CHANNEL, ticker, execution.getPrice(), execution.getQuantity());

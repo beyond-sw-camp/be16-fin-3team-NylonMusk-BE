@@ -2,8 +2,9 @@ package com.beyond.MKX.domain.chart.service;
 
 import com.beyond.MKX.domain.chart.entity.Candle;
 import com.beyond.MKX.domain.chart.repository.CandleInfluxRepository;
-// import com.beyond.MKX.domain.chart.stomp.ChartStompController; // ✅ 순환 참조 방지: 제거
 import com.beyond.MKX.domain.execution.dto.ExecutionEventDTO;
+import com.beyond.MKX.domain.execution.entity.Execution;
+import com.beyond.MKX.domain.execution.repository.ExecutionInfluxRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -11,7 +12,6 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
@@ -20,33 +20,31 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
- * 차트 데이터 관리 서비스 (하이브리드 방식)
+ * ✅ 개선된 차트 데이터 관리 서비스
  * 
- * OHLCV 캔들스틱 차트 데이터를 관리하고 실시간으로 업데이트
+ * 핵심 개선사항:
+ * 1. InfluxDB 체결 데이터를 Source of Truth로 사용
+ * 2. Redis는 캐싱 용도로만 사용
+ * 3. 캔들 재계산 기능 제공
+ * 4. 데이터 정합성 보장
  * 
- * 캔들 저장 전략:
- * 1. 현재 진행 중인 캔들: Redis (실시간 업데이트)
- * 2. 확정된 캔들: Redis (7일 TTL) + InfluxDB (영구 보관)
- * 
- * 조회 전략:
- * 1. 최근 데이터: Redis에서 조회 (빠름)
- * 2. 과거 데이터: InfluxDB에서 조회 (느림)
+ * 처리 방식:
+ * - 실시간: 체결 발생 시 Redis 증분 업데이트 (성능)
+ * - 확정: 스케줄러가 InfluxDB 체결 데이터로 재계산 (정확성)
+ * - 조회: InfluxDB 우선, Redis 캐시 활용
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class ChartService {
 
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final ExecutionInfluxRepository executionInfluxRepository;
     private final CandleInfluxRepository candleInfluxRepository;
-    // private final ChartStompController chartStompController; // ✅ 순환 참조 방지: 제거
+    private final RedisTemplate<String, Object> redisTemplate;
     private final ObjectMapper objectMapper;
 
-    // Redis key prefix
-    private static final String CURRENT_CANDLE_PREFIX = "candle:";  // 현재 진행 중인 캔들
-    private static final String CONFIRMED_CANDLE_PREFIX = "candle:confirmed:";  // 확정된 캔들
+    private static final String CURRENT_CANDLE_PREFIX = "candle:";
     
-    // 지원하는 캔들 간격
     private static final Map<String, Long> INTERVAL_MINUTES = Map.of(
             "1m", 1L,
             "5m", 5L,
@@ -58,18 +56,17 @@ public class ChartService {
     );
 
     /**
-     * 체결 데이터로 차트 업데이트
-     * 모든 interval에 대해 현재 진행 중인 캔들을 업데이트하고 WebSocket으로 전송
+     * ✅ 실시간 체결 데이터로 캔들 증분 업데이트
+     * 
+     * Redis에 임시 저장 (빠른 응답)
+     * 정확성은 스케줄러의 재계산으로 보장
      */
     public void updateChartData(ExecutionEventDTO execution) {
         try {
             log.debug("[CHART/UPDATE] Updating chart data for execution: {}", execution);
             
-            // 모든 interval에 대해 캔들 업데이트
             for (String interval : INTERVAL_MINUTES.keySet()) {
-                Candle candle = updateCurrentCandle(execution, interval);
-                
-                // STOMP로 실시간 전송 (Redis Pub/Sub) - 직접 발행
+                Candle candle = updateCurrentCandleIncremental(execution, interval);
                 publishCandle(candle);
             }
             
@@ -79,17 +76,116 @@ public class ChartService {
     }
 
     /**
-     * 특정 interval의 현재 진행 중인 캔들 업데이트
+     * ✅ 핵심: InfluxDB 체결 데이터 기반 캔들 재계산
+     * 
+     * Source of Truth = 체결 데이터
+     * 스케줄러가 주기적으로 호출하여 정확한 캔들 생성
+     * 
+     * @param ticker 종목 코드
+     * @param interval 캔들 간격
+     * @param candleTime 캔들 시작 시각
+     * @return 재계산된 정확한 캔들
      */
-    private Candle updateCurrentCandle(ExecutionEventDTO execution, String interval) {
+    public Candle recalculateCandleFromExecutions(String ticker, String interval, Instant candleTime) {
+        try {
+            long intervalMinutes = INTERVAL_MINUTES.get(interval);
+            Instant start = candleTime;
+            Instant end = candleTime.plus(intervalMinutes, ChronoUnit.MINUTES);
+            
+            log.info("[CHART/RECALC] Recalculating candle: ticker={}, interval={}, period={}~{}", 
+                    ticker, interval, start, end);
+            
+            // ✅ InfluxDB에서 해당 기간의 체결 데이터 조회
+            List<Execution> executions = executionInfluxRepository.findExecutions(ticker, start, end);
+            
+            if (executions.isEmpty()) {
+                log.warn("[CHART/RECALC] No executions found, creating empty candle");
+                return createEmptyCandleFromPrevious(ticker, interval, candleTime);
+            }
+            
+            // ✅ 체결 데이터로부터 정확한 OHLCV 계산
+            Candle candle = calculateOHLCVFromExecutions(ticker, interval, candleTime, executions);
+            
+            // InfluxDB에 확정된 캔들 저장
+            candleInfluxRepository.save(candle);
+            
+            // Redis에 캐싱 (조회 성능)
+            cacheCandle(candle, intervalMinutes);
+            
+            log.info("[CHART/RECALC] ✅ Recalculated: ticker={}, interval={}, O={}, H={}, L={}, C={}, V={}", 
+                    ticker, interval, candle.getOpen(), candle.getHigh(), 
+                    candle.getLow(), candle.getClose(), candle.getVolume());
+            
+            return candle;
+            
+        } catch (Exception e) {
+            log.error("[CHART/RECALC] Failed to recalculate candle", e);
+            throw new RuntimeException("Failed to recalculate candle", e);
+        }
+    }
+
+    /**
+     * ✅ 핵심 계산 로직: 체결 데이터 리스트로부터 OHLCV 계산
+     * 
+     * 이 메서드가 캔들 계산의 Source of Truth
+     */
+    private Candle calculateOHLCVFromExecutions(
+            String ticker, String interval, Instant candleTime, List<Execution> executions) {
+        
+        if (executions.isEmpty()) {
+            throw new IllegalArgumentException("Cannot calculate OHLCV from empty executions");
+        }
+        
+        // ✅ 시간순 정렬 (중요!)
+        executions = executions.stream()
+                .sorted(Comparator.comparing(Execution::getTimestamp))
+                .collect(Collectors.toList());
+        
+        // ✅ 정확한 OHLCV 계산
+        long open = executions.get(0).getPrice();  // 첫 체결가
+        long close = executions.get(executions.size() - 1).getPrice();  // 마지막 체결가
+        
+        long high = executions.stream()
+                .mapToLong(Execution::getPrice)
+                .max()
+                .orElse(open);
+        
+        long low = executions.stream()
+                .mapToLong(Execution::getPrice)
+                .min()
+                .orElse(open);
+        
+        BigDecimal volume = executions.stream()
+                .map(Execution::getQuantity)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
+        log.debug("[CHART/CALC] Calculated from {} executions: O={}, H={}, L={}, C={}, V={}", 
+                executions.size(), open, high, low, close, volume);
+        
+        return Candle.builder()
+                .ticker(ticker)
+                .interval(interval)
+                .time(candleTime)
+                .open(open)
+                .high(high)
+                .low(low)
+                .close(close)
+                .volume(volume)
+                .build();
+    }
+
+    /**
+     * 실시간 증분 업데이트 (성능 최적화)
+     * 
+     * Redis에서 현재 캔들을 가져와 업데이트
+     * 정확성은 스케줄러의 재계산으로 보장
+     */
+    private Candle updateCurrentCandleIncremental(ExecutionEventDTO execution, String interval) {
         String redisKey = buildCurrentCandleKey(execution.getTicker(), interval);
-        
-        // Redis에서 현재 캔들 조회
         Candle candle = getCandleFromRedis(redisKey);
-        
         Instant candleTime = getCandleTime(execution.getTimestamp(), interval);
         
-        // 캔들이 없거나 새로운 캔들 시작 시간인 경우
+        // 새 캔들 시작 또는 캔들이 없으면 생성
         if (candle == null || candle.getTime() == null || !candle.getTime().equals(candleTime)) {
             candle = Candle.builder()
                     .ticker(execution.getTicker())
@@ -103,31 +199,60 @@ public class ChartService {
                     .build();
         }
         
-        // 캔들 데이터 업데이트
+        // 증분 업데이트
         candle.update(execution.getPrice(), execution.getQuantity());
         
-        // Redis에 저장 (TTL: interval에 따라 다르게 설정)
-        long ttlMinutes = INTERVAL_MINUTES.get(interval) * 100;
+        // Redis 임시 저장 (짧은 TTL - 스케줄러가 재계산할 것)
+        long ttlMinutes = INTERVAL_MINUTES.get(interval) * 2;
         redisTemplate.opsForValue().set(redisKey, candle, ttlMinutes, TimeUnit.MINUTES);
         
-        // ✅ InfluxDB에도 즉시 저장 (이전 캔들 조회를 위해)
-        try {
-            candleInfluxRepository.save(candle);
-            log.debug("[CHART/UPDATE] Saved to InfluxDB: ticker={}, interval={}, time={}", 
-                    execution.getTicker(), interval, candleTime);
-        } catch (Exception e) {
-            log.error("[CHART/UPDATE] Failed to save to InfluxDB", e);
-        }
-        
-        log.debug("[CHART/UPDATE] Updated current candle: ticker={}, interval={}, time={}", 
-                execution.getTicker(), interval, candleTime);
+        log.debug("[CHART/UPDATE] Updated candle: ticker={}, interval={}, time={}, close={}", 
+                execution.getTicker(), interval, candleTime, candle.getClose());
         
         return candle;
     }
 
     /**
-     * 특정 종목의 캔들 데이터 조회
-     * InfluxDB를 우선 조회하고, 현재 진행중인 캔들은 Redis에서 추가
+     * 빈 캔들 생성 (거래 없는 구간)
+     * 이전 캔들의 종가를 그대로 사용
+     */
+    private Candle createEmptyCandleFromPrevious(String ticker, String interval, Instant candleTime) {
+        Candle previousCandle = candleInfluxRepository.findLatestCandle(ticker, interval);
+        
+        if (previousCandle == null) {
+            log.warn("[CHART/RECALC] No previous candle found for ticker={}, interval={}", ticker, interval);
+            return null;
+        }
+        
+        return Candle.builder()
+                .ticker(ticker)
+                .interval(interval)
+                .time(candleTime)
+                .open(previousCandle.getClose())
+                .high(previousCandle.getClose())
+                .low(previousCandle.getClose())
+                .close(previousCandle.getClose())
+                .volume(BigDecimal.ZERO)
+                .build();
+    }
+
+    /**
+     * 캔들 캐싱 (조회 성능 향상)
+     */
+    private void cacheCandle(Candle candle, long intervalMinutes) {
+        String redisKey = buildCurrentCandleKey(candle.getTicker(), candle.getInterval());
+        long ttlMinutes = intervalMinutes * 100;
+        redisTemplate.opsForValue().set(redisKey, candle, ttlMinutes, TimeUnit.MINUTES);
+        log.debug("[CHART/CACHE] Cached candle: ticker={}, interval={}, time={}", 
+                candle.getTicker(), candle.getInterval(), candle.getTime());
+    }
+
+    /**
+     * ✅ 개선된 캔들 조회
+     * 
+     * 1. InfluxDB 캔들 버킷에서 확정된 캔들 조회
+     * 2. Redis에서 현재 진행중인 캔들 추가
+     * 3. 없으면 체결 데이터로 재계산 가능
      */
     public List<Candle> getCandles(String ticker, String interval, Instant start, Instant end) {
         try {
@@ -136,19 +261,17 @@ public class ChartService {
             
             List<Candle> allCandles = new ArrayList<>();
             
-            // 1. ✅ InfluxDB에서 전체 데이터 조회 (확정된 캔들)
+            // 1. InfluxDB에서 확정된 캔들 조회
             List<Candle> influxCandles = candleInfluxRepository.findCandles(ticker, interval, start, end);
             allCandles.addAll(influxCandles);
             log.info("[CHART/QUERY] Retrieved {} candles from InfluxDB", influxCandles.size());
             
-            // 2. ✅ Redis에서 현재 진행중인 캔들 추가
+            // 2. Redis에서 현재 진행중인 캔들 추가
             String currentCandleKey = buildCurrentCandleKey(ticker, interval);
             Candle currentCandle = getCandleFromRedis(currentCandleKey);
             
             if (currentCandle != null && currentCandle.getTime() != null) {
-                // 시간 범위 내에 있으면 추가
                 if (!currentCandle.getTime().isBefore(start) && currentCandle.getTime().isBefore(end)) {
-                    // 중복 제거: InfluxDB에 이미 있는지 확인
                     boolean exists = allCandles.stream()
                             .anyMatch(c -> c.getTime().equals(currentCandle.getTime()));
                     
@@ -174,71 +297,21 @@ public class ChartService {
     }
 
     /**
-     * Redis에서 확정된 캔들 조회
-     * @deprecated InfluxDB 우선 조회 방식으로 변경됨
-     */
-    @Deprecated
-    private List<Candle> getCandlesFromRedis(String ticker, String interval, Instant start, Instant end) {
-        try {
-            // Redis에서 해당 ticker와 interval의 확정된 캔들 패턴 조회
-            String pattern = CONFIRMED_CANDLE_PREFIX + ticker + ":" + interval + ":*";
-            Set<String> keys = redisTemplate.keys(pattern);
-            
-            if (keys == null || keys.isEmpty()) {
-                return Collections.emptyList();
-            }
-            
-            List<Candle> candles = new ArrayList<>();
-            
-            for (String key : keys) {
-                Object data = redisTemplate.opsForValue().get(key);
-                if (data == null) {
-                    continue;
-                }
-                
-                Candle candle = convertToCandle(data);
-                if (candle != null && candle.getTime() != null) {
-                    // 시간 범위 필터링
-                    if (!candle.getTime().isBefore(start) && candle.getTime().isBefore(end)) {
-                        candles.add(candle);
-                    }
-                }
-            }
-            
-            return candles;
-            
-        } catch (Exception e) {
-            log.error("[CHART/QUERY] Failed to get candles from Redis", e);
-            return Collections.emptyList();
-        }
-    }
-
-    /**
      * 최근 N개의 캔들 조회 (STOMP 초기 구독 시 사용)
-     * 
-     * @param ticker 종목 코드
-     * @param interval 캔들 간격 (1m, 5m, 15m, 30m, 1h, 4h, 1d)
-     * @param limit 조회할 캔들 개수
-     * @return 최근 캔들 리스트
      */
     public List<Candle> getRecentCandles(String ticker, String interval, int limit) {
         try {
-            // 현재 시각 기준으로 과거 데이터 조회
             Instant end = Instant.now();
-            
-            // interval에 따라 시작 시각 계산
             long intervalMinutes = INTERVAL_MINUTES.getOrDefault(interval, 1L);
-            long lookbackMinutes = intervalMinutes * limit * 2; // 여유있게 2배로 설정
+            long lookbackMinutes = intervalMinutes * limit * 2;
             Instant start = end.minus(lookbackMinutes, ChronoUnit.MINUTES);
             
-            // InfluxDB에서 캔들 데이터 조회
             List<Candle> candles = getCandles(ticker, interval, start, end);
             
-            // 최신 순으로 정렬 후 limit 개수만큼 반환
             return candles.stream()
                     .sorted(Comparator.comparing(Candle::getTime).reversed())
                     .limit(limit)
-                    .sorted(Comparator.comparing(Candle::getTime)) // 다시 시간순으로 정렬
+                    .sorted(Comparator.comparing(Candle::getTime))
                     .collect(Collectors.toList());
                     
         } catch (Exception e) {
@@ -249,7 +322,7 @@ public class ChartService {
     }
 
     /**
-     * 최신 캔들 조회 (Redis에서 현재 진행 중인 캔들)
+     * 최신 캔들 조회
      */
     public Candle getLatestCandle(String ticker, String interval) {
         String redisKey = buildCurrentCandleKey(ticker, interval);
@@ -263,88 +336,50 @@ public class ChartService {
         return candle;
     }
 
-    /**
-     * Redis에서 Candle 객체를 안전하게 조회
-     */
-    private Candle getCandleFromRedis(String redisKey) {
-        try {
-            Object data = redisTemplate.opsForValue().get(redisKey);
-            
-            if (data == null) {
-                return null;
-            }
-            
-            return convertToCandle(data);
-            
-        } catch (Exception e) {
-            log.warn("[CHART/QUERY] Failed to deserialize Candle from Redis: {}", e.getMessage());
-            return null;
-        }
-    }
+    // ========== 유틸리티 메서드 ==========
 
-    /**
-     * 데이터를 Candle 객체로 변환
-     */
-    private Candle convertToCandle(Object data) {
-        try {
-            // 이미 Candle 타입인 경우
-            if (data instanceof Candle) {
-                return (Candle) data;
-            }
-            
-            // LinkedHashMap 등 다른 타입인 경우 ObjectMapper로 변환
-            return objectMapper.convertValue(data, Candle.class);
-            
-        } catch (Exception e) {
-            log.warn("[CHART/QUERY] Failed to convert data to Candle: {}", e.getMessage());
-            return null;
-        }
-    }
-
-    /**
-     * 현재 진행 중인 캔들의 Redis key 생성
-     */
-    private String buildCurrentCandleKey(String ticker, String interval) {
-        return CURRENT_CANDLE_PREFIX + ticker + ":" + interval;
-    }
-
-    /**
-     * 체결 시각을 캔들 시작 시각으로 변환 (UTC 기준)
-     */
     private Instant getCandleTime(long timestamp, String interval) {
         Instant instant = Instant.ofEpochMilli(timestamp);
         long intervalMinutes = INTERVAL_MINUTES.get(interval);
         
-        // 1일 캔들의 경우 UTC 날짜 기준으로 처리
         if ("1d".equals(interval)) {
-            return instant.atZone(ZoneId.of("UTC"))  // ✅ UTC 고정
+            return instant.atZone(ZoneId.of("UTC"))
                     .truncatedTo(ChronoUnit.DAYS)
                     .toInstant();
         }
         
-        // 분 단위 캔들의 경우
         long epochMinutes = instant.getEpochSecond() / 60;
         long candleMinutes = (epochMinutes / intervalMinutes) * intervalMinutes;
-        
         return Instant.ofEpochSecond(candleMinutes * 60);
     }
 
-    /**
-     * 캔들 데이터를 Redis Pub/Sub으로 발행 (순환 참조 방지)
-     *
-     * 채널: market:chart (ticker 정보는 메시지 내부에 포함)
-     * RedisPubSubListener가 수신하여 /topic/chart/{ticker}로 전송
-     *
-     * @param candle 캔들 데이터
-     */
+    private String buildCurrentCandleKey(String ticker, String interval) {
+        return CURRENT_CANDLE_PREFIX + ticker + ":" + interval;
+    }
+
+    private Candle getCandleFromRedis(String redisKey) {
+        try {
+            Object data = redisTemplate.opsForValue().get(redisKey);
+            if (data == null) {
+                return null;
+            }
+            
+            if (data instanceof Candle) {
+                return (Candle) data;
+            }
+            
+            return objectMapper.convertValue(data, Candle.class);
+        } catch (Exception e) {
+            log.warn("[CHART/QUERY] Failed to deserialize Candle from Redis", e);
+            return null;
+        }
+    }
+
     private void publishCandle(Candle candle) {
         try {
-            String ticker = candle.getTicker();
-            
-            // 메시지 구성
             Map<String, Object> message = new HashMap<>();
             message.put("type", "chart");
-            message.put("ticker", ticker);
+            message.put("ticker", candle.getTicker());
             message.put("data", Map.of(
                     "ticker", candle.getTicker(),
                     "interval", candle.getInterval(),
@@ -357,18 +392,13 @@ public class ChartService {
             ));
             message.put("timestamp", System.currentTimeMillis());
             
-            // JSON 직렬화
-            String messageJson = objectMapper.writeValueAsString(message);
-            
-            // Redis Pub/Sub 발행
-            redisTemplate.convertAndSend("market:chart", messageJson);
+            redisTemplate.convertAndSend("market:chart", message);
             
             log.debug("[CHART-STOMP] 📤 Published: channel=market:chart, ticker={}, interval={}, close={}",
-                    ticker, candle.getInterval(), candle.getClose());
+                    candle.getTicker(), candle.getInterval(), candle.getClose());
             
         } catch (Exception e) {
-            log.error("[CHART-STOMP] ❌ Failed to publish: ticker={}",
-                    candle.getTicker(), e);
+            log.error("[CHART-STOMP] ❌ Failed to publish: ticker={}", candle.getTicker(), e);
         }
     }
 }

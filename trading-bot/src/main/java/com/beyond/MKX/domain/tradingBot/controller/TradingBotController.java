@@ -108,4 +108,11 @@ public class TradingBotController {
         tradingBotService.createSimpleBots(ticker);
         return ApiResponse.ok(null, ticker + " 종목의 간단한 매수/매도 봇이 생성되었습니다!");
     }
+
+    /** 특정 봇의 상태 조회 (인증 없이 접근 가능) */
+    @GetMapping("/test/config/{id}/status")
+    public ResponseEntity<?> getBotStatus(@PathVariable UUID id) {
+        TradingBotConfigDTO res = tradingBotService.getBotConfig(id);
+        return ApiResponse.ok(res, "트레이딩 봇 상태 조회 성공");
+    }
 }

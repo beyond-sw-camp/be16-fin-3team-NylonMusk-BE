@@ -4,6 +4,7 @@ import com.beyond.MKX.common.dto.AmountRequest;
 import com.beyond.MKX.domain.account.brokerage.entity.BrokerageDepositAccount;
 import com.beyond.MKX.domain.account.brokerage.service.BrokerageDepositAccountService;
 import com.beyond.MKX.domain.account.corporation.service.CorporationAccountService;
+import com.beyond.MKX.domain.account.corporation.service.TransactionEventPublisher;
 import com.beyond.MKX.domain.account.exchange.service.ExchangeAccountService;
 import com.beyond.MKX.domain.ipo.IpoAllocationOutbox.entity.IpoAllocationOutbox;
 import com.beyond.MKX.domain.ipo.IpoAllocationOutbox.entity.OutboxStatus;
@@ -41,6 +42,7 @@ public class IpoSettlementService {
     private final IpoAllocationOutboxRepository outboxRepository;
     private final MemberAccountFeign memberAccountFeign;
     private final IpoAllocationFeign orderingFeign;
+    private final TransactionEventPublisher eventPublisher;
 
     private final ExchangeAccountService exchangeAccountService;
     private final CorporationAccountService corporationAccountService;

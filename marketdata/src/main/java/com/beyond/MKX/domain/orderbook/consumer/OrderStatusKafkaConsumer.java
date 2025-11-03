@@ -15,20 +15,14 @@ import org.springframework.stereotype.Component;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 주문 상태 이벤트 Kafka Consumer
  * 
- * matching-engine에서 발송하는 주문 상태 변화 이벤트를 수신하여 호가 업데이트
- * 
- * 주문 상태별 처리:
- * - NEW_ACCEPTED: 호가에 추가 (최초 1회만)
- * - WAITING: 이미 추가되었으므로 무시
- * - MARKET_PARTIAL: 부분 체결 시 남은 수량으로 업데이트
- * - MARKET_FILLED: 완전 체결 시 호가에서 제거
- * - CANCEL_OK: 취소 시 호가에서 제거
+ * ✅ 변경사항:
+ * - orderbook 업데이트 로직 제거 (matching-engine이 직접 관리)
+ * - 거래대금 통계 업데이트만 유지
+ * - WebSocket 업데이트 이벤트만 발행
  */
 @Slf4j
 @Component
@@ -37,9 +31,6 @@ public class OrderStatusKafkaConsumer {
 
     private final OrderBookService orderBookService;
     private final TurnoverWriterService turnoverWriterService;
-    
-    // 이미 처리된 주문 ID를 추적 (중복 방지)
-    private final Set<String> processedOrders = ConcurrentHashMap.newKeySet();
 
     /**
      * order-status 토픽으로부터 주문 상태 이벤트 수신
@@ -54,63 +45,53 @@ public class OrderStatusKafkaConsumer {
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             Acknowledgment acknowledgment) {
         try {
-            log.info("[KAFKA/ORDER-STATUS] 📨 Received from topic={}: orderId={}, status={}, ticker={}, side={}, price={}, remaining={}, notional={}",
-                    topic,
+            log.debug("[KAFKA/ORDER-STATUS] Received: orderId={}, status={}, ticker={}, notional={}",
                     orderStatus.getOrderId(), orderStatus.getStatus(),
-                    orderStatus.getTicker(), orderStatus.getSide(),
-                    orderStatus.getPrice(), orderStatus.getRemaining(),
-                    orderStatus.getNotional()
-            );
+                    orderStatus.getTicker(), orderStatus.getNotional());
 
-            // 주문 상태에 따라 처리
             String status = orderStatus.getStatus();
-            String orderId = orderStatus.getOrderId();
+            String ticker = orderStatus.getTicker();
+
+            // ✅ orderbook 업데이트 로직 제거 - matching-engine이 직접 관리
+            // 호가 변경 시나리오:
+            // 1. NEW_ACCEPTED: 새 주문이 호가에 추가됨 → 호가 업데이트 필요
+            // 2. MARKET_PARTIAL/MARKET_FILLED: 체결 발생 → 호가 업데이트 + 거래대금 통계 필요
+            // 3. CANCELLED: 주문 취소 → 호가 업데이트 필요
             
-            if ("NEW_ACCEPTED".equals(status)) {
-                // 새로운 주문 → 호가에 추가 (최초 1회만)
-                if (!processedOrders.contains(orderId)) {
-                    orderBookService.addOrderToBook(orderStatus);
-                    processedOrders.add(orderId);
-                    log.info("[ORDER-STATUS] ✅ Added to orderbook: orderId={}, ticker={}, side={}, price={}, qty={}", 
-                            orderId, orderStatus.getTicker(), orderStatus.getSide(), 
-                            orderStatus.getPrice(), orderStatus.getRemaining());
-                } else {
-                    log.warn("[ORDER-STATUS] ⚠️ Duplicate NEW_ACCEPTED ignored: orderId={}", orderId);
-                }
-                
-            } else if ("WAITING".equals(status)) {
-                // WAITING은 이미 NEW_ACCEPTED에서 추가했으므로 무시
-                log.debug("[ORDER-STATUS] Order already in orderbook (WAITING): orderId={}", orderId);
-                
-            } else if ("MARKET_PARTIAL".equals(status)) {
-                // 부분 체결 → 남은 수량으로 업데이트
-                orderBookService.updateOrderQuantity(orderStatus);
-
-                // long타입 시간 -> KST기준 날짜로 변환
+            boolean shouldUpdateOrderBook = false;
+            boolean shouldUpdateTurnover = false;
+            
+            if ("NEW_ACCEPTED".equals(status) || "LIMIT_ACCEPTED".equals(status)) {
+                // 새 주문이 호가에 추가됨
+                shouldUpdateOrderBook = true;
+                log.debug("[ORDER-STATUS] New order accepted - orderbook update required: ticker={}, status={}", 
+                        ticker, status);
+            } else if ("MARKET_PARTIAL".equals(status) || "MARKET_FILLED".equals(status)) {
+                // 체결 발생 - 호가 업데이트 + 거래대금 통계
+                shouldUpdateOrderBook = true;
+                shouldUpdateTurnover = true;
+                log.debug("[ORDER-STATUS] Execution occurred - orderbook & turnover update required: ticker={}, status={}", 
+                        ticker, status);
+            } else if ("CANCELLED".equals(status)) {
+                // 주문 취소 - 호가 업데이트 필요
+                shouldUpdateOrderBook = true;
+                log.debug("[ORDER-STATUS] Order cancelled - orderbook update required: ticker={}, status={}", 
+                        ticker, status);
+            }
+            
+            // 거래대금 통계 업데이트 (체결 시에만)
+            if (shouldUpdateTurnover) {
                 LocalDate tradingDate = translateTradingDate(orderStatus);
-                // 종목 별 거래대금 순위 캐싱
-                turnoverWriterService.addExecution(orderStatus.getTicker(), orderStatus.getNotional(), tradingDate);
-
-                log.info("[ORDER-STATUS] ✅ Updated quantity (PARTIAL): orderId={}, remaining={}", 
-                        orderId, orderStatus.getRemaining());
-                
-            } else if ("MARKET_FILLED".equals(status)) {
-                // 완전 체결 → 호가에서 제거
-                orderBookService.removeOrderFromBook(orderStatus);
-                processedOrders.remove(orderId);
-
-                // long타입 시간 -> KST기준 날짜로 변환
-                LocalDate tradingDate = translateTradingDate(orderStatus);
-                // 종목 별 거래대금 순위 캐싱
-                turnoverWriterService.addExecution(orderStatus.getTicker(), orderStatus.getNotional(), tradingDate);
-                log.info("[ORDER-STATUS] ✅ Removed from orderbook (FILLED): orderId={}, ticker={}, side={}, price={}", 
-                        orderId, orderStatus.getTicker(), orderStatus.getSide(), orderStatus.getPrice());
-                
-            } else if ("CANCEL_OK".equals(status)) {
-                // 주문 취소 → 호가에서 제거
-                orderBookService.removeOrderFromBook(orderStatus);
-                processedOrders.remove(orderId);
-                log.info("[ORDER-STATUS] ✅ Removed from orderbook (CANCELLED): orderId={}", orderId);
+                turnoverWriterService.addExecution(ticker, orderStatus.getNotional(), tradingDate);
+                log.debug("[ORDER-STATUS] Updated turnover stats: ticker={}, notional={}", 
+                        ticker, orderStatus.getNotional());
+            }
+            
+            // 호가 업데이트 이벤트 발행 (주문 추가/체결/취소 모두)
+            if (shouldUpdateOrderBook) {
+                // ✅ 호가 업데이트 이벤트 직접 발행 (ExecutionEventDTO 없이)
+                orderBookService.triggerOrderBookUpdate(ticker);
+                log.info("[ORDER-STATUS] ✅ Triggered orderbook update: ticker={}, status={}", ticker, status);
             }
 
             // 수동 커밋
@@ -128,12 +109,9 @@ public class OrderStatusKafkaConsumer {
     }
 
     private static LocalDate translateTradingDate(OrderStatusEventDTO orderStatus) {
-        long timestamp = orderStatus.getTimestamp(); // 1. 타임스탬프 가져오기
-        // 2. KST 기준 날짜로 변환 (위의 1~4단계를 한 줄로 표현)
+        long timestamp = orderStatus.getTimestamp();
         return Instant.ofEpochMilli(timestamp)
                 .atZone(ZoneId.of("Asia/Seoul"))
                 .toLocalDate();
     }
-
-
 }

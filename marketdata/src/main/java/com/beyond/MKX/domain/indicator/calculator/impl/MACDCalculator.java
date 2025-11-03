@@ -54,21 +54,15 @@ public class MACDCalculator implements IndicatorCalculator {
         // Histogram = MACD Line - Signal Line
         List<IndicatorResultDTO.IndicatorDataPoint> result = new ArrayList<>();
         for (int i = 0; i < candles.size(); i++) {
+            // ✅ NaN 값을 포함하는 데이터 포인트는 건너뛰기
+            if (Double.isNaN(macdLine.get(i)) || Double.isNaN(signalLine.get(i))) {
+                continue;
+            }
+            
             Map<String, Double> values = new HashMap<>();
-            
-            if (!Double.isNaN(macdLine.get(i))) {
-                values.put("macd", macdLine.get(i));
-            } else {
-                values.put("macd", Double.NaN);
-            }
-            
-            if (!Double.isNaN(signalLine.get(i))) {
-                values.put("signal", signalLine.get(i));
-                values.put("histogram", macdLine.get(i) - signalLine.get(i));
-            } else {
-                values.put("signal", Double.NaN);
-                values.put("histogram", Double.NaN);
-            }
+            values.put("macd", macdLine.get(i));
+            values.put("signal", signalLine.get(i));
+            values.put("histogram", macdLine.get(i) - signalLine.get(i));
             
             result.add(IndicatorResultDTO.IndicatorDataPoint.builder()
                     .time(candles.get(i).getTime())

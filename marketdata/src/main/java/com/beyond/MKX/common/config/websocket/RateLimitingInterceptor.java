@@ -72,17 +72,43 @@ public class RateLimitingInterceptor implements ChannelInterceptor {
 
     /**
      * 연결 종료 시 Rate Limiter 정리
+     * 
+     * postSend에서 DISCONNECT를 처리하면 세션이 이미 정리된 후라
+     * "No session" 경고가 발생할 수 있습니다.
+     * 대신 afterSendCompletion을 사용하거나, 
+     * WebSocketEventListener에서 처리하는 것이 더 안전합니다.
      */
     @Override
-    public void postSend(Message<?> message, MessageChannel channel, boolean sent) {
+    public void afterSendCompletion(Message<?> message, MessageChannel channel, boolean sent, Exception ex) {
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
 
         if (accessor != null && StompCommand.DISCONNECT.equals(accessor.getCommand())) {
             String sessionId = accessor.getSessionId();
             if (sessionId != null) {
-                rateLimiters.remove(sessionId);
-                log.debug("[RATE-LIMIT] 🗑️ Removed rate limiter for session: {}", sessionId);
+                RateLimiter removed = rateLimiters.remove(sessionId);
+                if (removed != null) {
+                    log.debug("[RATE-LIMIT] 🗑️ Removed rate limiter for session: {}", sessionId);
+                } else {
+                    log.trace("[RATE-LIMIT] ℹ️ No rate limiter found for session: {} (already cleaned)", sessionId);
+                }
             }
+        }
+    }
+
+    /**
+     * 활성 Rate Limiter 수 반환 (모니터링용)
+     */
+    public int getActiveRateLimiterCount() {
+        return rateLimiters.size();
+    }
+
+    /**
+     * 특정 세션의 Rate Limiter 제거 (외부 호출용)
+     */
+    public void removeRateLimiter(String sessionId) {
+        if (sessionId != null) {
+            rateLimiters.remove(sessionId);
+            log.debug("[RATE-LIMIT] 🗑️ Manually removed rate limiter for session: {}", sessionId);
         }
     }
 }

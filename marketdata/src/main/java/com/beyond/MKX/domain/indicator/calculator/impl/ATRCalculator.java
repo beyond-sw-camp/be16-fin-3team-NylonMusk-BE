@@ -32,11 +32,7 @@ public class ATRCalculator implements IndicatorCalculator {
         List<IndicatorResultDTO.IndicatorDataPoint> result = new ArrayList<>();
         List<Double> trueRanges = new ArrayList<>();
         
-        // 첫 번째 캔들
-        result.add(IndicatorResultDTO.IndicatorDataPoint.builder()
-                .time(candles.get(0).getTime())
-                .values(Map.of("atr", Double.NaN, "tr", Double.NaN))
-                .build());
+        // ✅ 첫 번째 캔들은 TR 계산 불가능하므로 건너뛰기
         trueRanges.add(Double.NaN);
         
         // True Range 계산
@@ -65,10 +61,8 @@ public class ATRCalculator implements IndicatorCalculator {
         
         for (int i = 1; i < candles.size(); i++) {
             if (i < period) {
-                result.add(IndicatorResultDTO.IndicatorDataPoint.builder()
-                        .time(candles.get(i).getTime())
-                        .values(Map.of("atr", Double.NaN, "tr", trueRanges.get(i)))
-                        .build());
+                // ✅ 데이터가 부족한 경우 건너뛰기
+                continue;
             } else if (i == period) {
                 result.add(IndicatorResultDTO.IndicatorDataPoint.builder()
                         .time(candles.get(i).getTime())

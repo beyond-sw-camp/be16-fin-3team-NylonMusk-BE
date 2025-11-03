@@ -21,8 +21,7 @@ class ADXCalculator implements IndicatorCalculator {
 
         // +DM, -DM, TR 계산
         List<Double> plusDM = new ArrayList<>(), minusDM = new ArrayList<>(), tr = new ArrayList<>();
-        result.add(IndicatorResultDTO.IndicatorDataPoint.builder()
-                .time(candles.get(0).getTime()).values(Map.of("adx", Double.NaN, "plusDI", Double.NaN, "minusDI", Double.NaN)).build());
+        // ✅ 첫 번째 캔들은 건너뛰기 (계산 불가)
 
         for (int i = 1; i < candles.size(); i++) {
             double highDiff = candles.get(i).getHigh() - candles.get(i-1).getHigh();
@@ -44,8 +43,7 @@ class ADXCalculator implements IndicatorCalculator {
         List<Double> dx = new ArrayList<>();
         for (int i = 1; i < candles.size(); i++) {
             if (i < period) {
-                result.add(IndicatorResultDTO.IndicatorDataPoint.builder()
-                        .time(candles.get(i).getTime()).values(Map.of("adx", Double.NaN, "plusDI", Double.NaN, "minusDI", Double.NaN)).build());
+                // ✅ 데이터가 부족한 경우 건너뛰기
                 dx.add(Double.NaN);
                 continue;
             }

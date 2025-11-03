@@ -50,19 +50,12 @@ public class RSICalculator implements IndicatorCalculator {
         avgGain /= period;
         avgLoss /= period;
         
-        // 첫 데이터는 NaN
-        result.add(IndicatorResultDTO.IndicatorDataPoint.builder()
-                .time(candles.get(0).getTime())
-                .values(Map.of("rsi", Double.NaN))
-                .build());
+        // ✅ 데이터가 부족한 경우는 이후 필터링에서 제거되므로 건너뛰기
         
         // RSI 계산
         for (int i = 0; i < gains.size(); i++) {
             if (i < period - 1) {
-                result.add(IndicatorResultDTO.IndicatorDataPoint.builder()
-                        .time(candles.get(i + 1).getTime())
-                        .values(Map.of("rsi", Double.NaN))
-                        .build());
+                // ✅ 계산 불가능한 경우 건너뛰기
                 continue;
             }
             

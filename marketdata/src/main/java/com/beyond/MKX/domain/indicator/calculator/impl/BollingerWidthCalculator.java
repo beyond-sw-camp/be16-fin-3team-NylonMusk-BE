@@ -27,8 +27,7 @@ class BollingerWidthCalculator implements IndicatorCalculator {
 
         for (int i = 0; i < candles.size(); i++) {
             if (i < period - 1) {
-                result.add(IndicatorResultDTO.IndicatorDataPoint.builder()
-                        .time(candles.get(i).getTime()).values(Map.of("width", Double.NaN)).build());
+                // ✅ 데이터가 부족한 경우 건너뛰기
                 continue;
             }
             double sum = 0.0;

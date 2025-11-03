@@ -1,11 +1,17 @@
 package com.beyond.MKX.domain.tradingBot.service;
 
-import com.beyond.MKX.domain.order.client.MatchingEngineClient;
-import com.beyond.MKX.domain.order.entity.OrderEvent;
+import com.beyond.MKX.common.apiResponse.CommonDTO;
+import com.beyond.MKX.domain.tradingBot.entity.OrderKind;
+import com.beyond.MKX.domain.tradingBot.entity.Side;
+import com.beyond.MKX.domain.tradingBot.dto.OrderRequestDTO;
+import com.beyond.MKX.domain.tradingBot.client.CurrentPriceClient;
+import com.beyond.MKX.domain.tradingBot.client.OrderClient;
 import com.beyond.MKX.domain.tradingBot.dto.CreateTradingBotConfigRequest;
 import com.beyond.MKX.domain.tradingBot.dto.TradingBotConfigDTO;
 import com.beyond.MKX.domain.tradingBot.dto.UpdateTradingBotStatusRequest;
+import com.beyond.MKX.domain.tradingBot.entity.BotExecutionStatus;
 import com.beyond.MKX.domain.tradingBot.entity.TradingBotConfig;
+import com.beyond.MKX.domain.tradingBot.entity.TradingStrategy;
 import com.beyond.MKX.domain.tradingBot.repository.TradingBotConfigRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,12 +20,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 @RequiredArgsConstructor
@@ -27,23 +34,33 @@ import java.util.stream.Collectors;
 @Transactional
 public class TradingBotService {
 
-    private final MatchingEngineClient matchingEngineClient;
+    private final CurrentPriceClient currentPriceClient;
+    private final OrderClient orderClient;
     private final TradingBotConfigRepository configRepository;
+    private final ObjectMapper objectMapper;
 
     /**
      * 봇 설정 생성
      */
     public TradingBotConfigDTO createBotConfig(CreateTradingBotConfigRequest request) {
+        // buyAccountId 또는 sellAccountId 중 하나는 필수
+        if (request.getBuyAccountId() == null && request.getSellAccountId() == null) {
+            throw new IllegalArgumentException("buyAccountId 또는 sellAccountId 중 하나는 필수입니다.");
+        }
+
         TradingBotConfig config = TradingBotConfig.builder()
                 .ticker(request.getTicker())
                 .status(request.getStatus())
                 .priceLimitHigh(request.getPriceLimitHigh())
                 .priceLimitLow(request.getPriceLimitLow())
                 .quantity(request.getQuantity())
-                .side(request.getSide())
+                .side(request.getSide()) // 하위 호환성을 위해 유지
                 .orderType(request.getOrderType())
                 .brokerageId(request.getBrokerageId())
                 .description(request.getDescription())
+                .buyAccountId(request.getBuyAccountId())
+                .sellAccountId(request.getSellAccountId())
+                .tradingStrategy(request.getTradingStrategy())
                 .isActive(true)
                 .build();
 
@@ -103,7 +120,7 @@ public class TradingBotService {
     }
 
     /**
-     * 자동 트레이딩 실행 (5초마다 실행)
+     * 자동 트레이딩 실행 (50ms마다 실행)
      */
     @Scheduled(fixedDelay = 50)
     public void executeTrading() {
@@ -121,6 +138,7 @@ public class TradingBotService {
                     executeOrder(bot);
                 } catch (Exception e) {
                     log.error("Failed to execute order for bot {}: {}", bot.getId(), e.getMessage());
+                    updateBotStatus(bot, BotExecutionStatus.ERROR, "예상치 못한 에러: " + e.getMessage());
                 }
             }
         } catch (Exception e) {
@@ -130,123 +148,417 @@ public class TradingBotService {
 
     /**
      * 개별 봇 주문 실행
+     * buyAccountId와 sellAccountId 둘 다 활용하여 매수/매도 주문 모두 실행
      */
     private void executeOrder(TradingBotConfig bot) {
-        // 현재 시장가격 조회 (테스트용)
-        Long currentPrice = getCurrentPrice(bot.getTicker());
-
-        log.info("Bot {} checking price: {} (range: {} ~ {})",
-                bot.getId(), currentPrice, bot.getPriceLimitLow(), bot.getPriceLimitHigh());
-
-        // 가격 범위 체크
-        if (currentPrice >= bot.getPriceLimitLow() &&
-                currentPrice <= bot.getPriceLimitHigh()) {
-
-            OrderEvent orderEvent = OrderEvent.builder()
-                    .brokerageId(bot.getBrokerageId())
-                    .orderId(UUID.randomUUID().toString())
-                    .ticker(bot.getTicker())
-                    .side(bot.getSide())
-                    .orderType(bot.getOrderType())
-                    .price(currentPrice)
-                    .quantity(bot.getQuantity())
-                    .createdAt(LocalDateTime.now())
-                    .build();
-
-            try {
-                matchingEngineClient.sendOrder(orderEvent);
-                log.info("✅ ORDER SENT! Bot: {}, Ticker: {}, Price: {}, Quantity: {}, Side: {}",
-                        bot.getId(), bot.getTicker(), currentPrice, bot.getQuantity(), bot.getSide());
-            } catch (Exception e) {
-                log.error("❌ Failed to send order to matching engine for bot {}: {}", bot.getId(), e.getMessage());
+        try {
+            // 1. 현재가 조회
+            Long currentPrice = getCurrentPriceFromApi(bot.getTicker());
+            if (currentPrice == null) {
+                log.warn("Bot {}: 현재가 조회 실패 (ticker: {})", bot.getId(), bot.getTicker());
+                updateBotStatus(bot, BotExecutionStatus.ERROR, "현재가 조회 실패");
+                return;
             }
+
+            // 2. 매수/매도 가격 계산 (각각 다른 가격대)
+            Long buyPrice = null;
+            Long sellPrice = null;
+            
+            if (bot.getBuyAccountId() != null) {
+                buyPrice = calculateBuyPrice(currentPrice, bot.getTradingStrategy());
+                if (buyPrice == null) {
+                    log.warn("Bot {}: 매수 가격 계산 실패", bot.getId());
+                }
+            }
+            
+            if (bot.getSellAccountId() != null) {
+                sellPrice = calculateSellPrice(currentPrice, bot.getTradingStrategy());
+                if (sellPrice == null) {
+                    log.warn("Bot {}: 매도 가격 계산 실패", bot.getId());
+                }
+            }
+
+            // 3. 주문 수량 결정 (기본 수량 사용)
+            Long quantity = bot.getQuantity().longValue();
+            int successCount = 0;
+            boolean hasFailure = false;
+
+            // 4. 매수 주문 실행 (buyAccountId가 있는 경우)
+            if (bot.getBuyAccountId() != null && buyPrice != null) {
+                try {
+                    // 30% 확률로 시장가 주문, 70% 확률로 지정가 주문
+                    boolean useMarketOrder = Math.random() < 0.3;
+                    executeBuyOrder(bot, buyPrice, quantity, useMarketOrder);
+                    successCount++;
+                } catch (Exception e) {
+                    log.warn("Bot {}: 매수 주문 실패 - {}", bot.getId(), e.getMessage());
+                    hasFailure = true;
+                }
+            }
+
+            // 5. 매도 주문 실행 (sellAccountId가 있는 경우)
+            if (bot.getSellAccountId() != null && sellPrice != null) {
+                try {
+                    // 30% 확률로 시장가 주문, 70% 확률로 지정가 주문
+                    boolean useMarketOrder = Math.random() < 0.3;
+                    executeSellOrder(bot, sellPrice, quantity, useMarketOrder);
+                    successCount++;
+                } catch (Exception e) {
+                    log.warn("Bot {}: 매도 주문 실패 - {}", bot.getId(), e.getMessage());
+                    hasFailure = true;
+                }
+            }
+
+            // 6. 계좌 ID가 하나도 없는 경우
+            if (bot.getBuyAccountId() == null && bot.getSellAccountId() == null) {
+                log.warn("Bot {}: 매수/매도 계좌 ID가 모두 없습니다.", bot.getId());
+                updateBotStatus(bot, BotExecutionStatus.ERROR, "계좌 ID 없음");
+                return;
+            }
+
+            // 7. 상태 업데이트
+            if (successCount > 0 && !hasFailure) {
+                updateBotStatus(bot, BotExecutionStatus.SUCCESS, null);
+                bot.setTotalOrderCount(bot.getTotalOrderCount() + successCount);
+                bot.setConsecutiveSkipCount(0);
+            } else if (hasFailure) {
+                bot.setTotalSkipCount(bot.getTotalSkipCount() + 1);
+                bot.setConsecutiveSkipCount(bot.getConsecutiveSkipCount() + 1);
+            }
+
+        } catch (Exception e) {
+            log.error("Bot {}: 주문 실행 중 예외 발생: {}", bot.getId(), e.getMessage(), e);
+            updateBotStatus(bot, BotExecutionStatus.ERROR, "주문 실행 예외: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 매수 주문 실행
+     */
+    private void executeBuyOrder(TradingBotConfig bot, Long orderPrice, Long quantity, boolean useMarketOrder) {
+        OrderKind orderKind = useMarketOrder ? OrderKind.MARKET : OrderKind.LIMIT;
+        Long price = useMarketOrder ? null : orderPrice;
+        
+        OrderRequestDTO orderRequest = new OrderRequestDTO(
+                orderKind,
+                Side.BUY,
+                bot.getBuyAccountId(),
+                bot.getTicker(),
+                price,
+                quantity
+        );
+
+        CommonDTO response = orderClient.placeOrder(orderRequest);
+        
+        if (response != null && response.getResult() != null) {
+            String orderTypeStr = useMarketOrder ? "시장가" : "지정가";
+            log.info("✅ 매수 주문 성공! Bot: {}, Ticker: {}, Type: {}, Price: {}, Quantity: {}",
+                    bot.getId(), bot.getTicker(), orderTypeStr, price != null ? price : "시장가", quantity);
         } else {
-            log.info("⏳ Price {} not in range [{}, {}] for bot {} - waiting...",
-                    currentPrice, bot.getPriceLimitLow(), bot.getPriceLimitHigh(), bot.getId());
-        }
-    }
-
-    // 가격 변동 시뮬레이션을 위한 상태 저장
-    private final Map<String, PriceState> priceStates = new ConcurrentHashMap<>();
-
-    /**
-     * 가격 상태 클래스
-     */
-    private static class PriceState {
-        private long currentPrice;
-        private long basePrice;
-        private int trendDirection; // -1: 하락, 0: 횡보, 1: 상승
-        private int volatility; // 변동성 (1-5)
-
-        public PriceState(long basePrice) {
-            this.basePrice = basePrice;
-            this.currentPrice = basePrice;
-            this.trendDirection = 0;
-            this.volatility = 3;
+            log.warn("Bot {}: 매수 주문 응답이 비정상입니다.", bot.getId());
+            throw new RuntimeException("주문 응답 비정상");
         }
     }
 
     /**
-     * 다이나믹한 가격 생성 (봇들의 거래에 따라 변동)
+     * 매도 주문 실행
      */
-    private Long getCurrentPrice(String ticker) {
-        PriceState state = priceStates.computeIfAbsent(ticker, k -> {
-            // 종목별 기본 가격 설정 (실제 종목 데이터 기반)
-            long basePrice = getBasePrice(k);
-            return new PriceState(basePrice);
-        });
+    private void executeSellOrder(TradingBotConfig bot, Long orderPrice, Long quantity, boolean useMarketOrder) {
+        OrderKind orderKind = useMarketOrder ? OrderKind.MARKET : OrderKind.LIMIT;
+        Long price = useMarketOrder ? null : orderPrice;
+        
+        OrderRequestDTO orderRequest = new OrderRequestDTO(
+                orderKind,
+                Side.SELL,
+                bot.getSellAccountId(),
+                bot.getTicker(),
+                price,
+                quantity
+        );
 
-        // 봇들의 거래 활동에 따른 가격 변동 시뮬레이션
-        simulatePriceMovement(state, ticker);
-
-        return state.currentPrice;
-    }
-
-    /**
-     * 가격 변동 시뮬레이션
-     */
-    private void simulatePriceMovement(PriceState state, String ticker) {
-        // 현재 활성화된 봇들의 거래 패턴 분석
-        List<TradingBotConfig> activeBots = configRepository.findByTickerAndStatusAndIsActiveTrue(ticker, "START");
-
-        int buyBots = (int) activeBots.stream().filter(bot -> "BUY".equals(bot.getSide())).count();
-        int sellBots = (int) activeBots.stream().filter(bot -> "SELL".equals(bot.getSide())).count();
-
-        // 매수 봇이 많으면 상승 압력, 매도 봇이 많으면 하락 압력
-        int pressure = buyBots - sellBots;
-
-        // 트렌드 방향 결정
-        if (pressure > 0) {
-            state.trendDirection = Math.min(state.trendDirection + 1, 2);
-        } else if (pressure < 0) {
-            state.trendDirection = Math.max(state.trendDirection - 1, -2);
+        CommonDTO response = orderClient.placeOrder(orderRequest);
+        
+        if (response != null && response.getResult() != null) {
+            String orderTypeStr = useMarketOrder ? "시장가" : "지정가";
+            log.info("✅ 매도 주문 성공! Bot: {}, Ticker: {}, Type: {}, Price: {}, Quantity: {}",
+                    bot.getId(), bot.getTicker(), orderTypeStr, price != null ? price : "시장가", quantity);
         } else {
-            // 횡보 유지
-            state.trendDirection = state.trendDirection > 0 ? Math.max(state.trendDirection - 1, 0)
-                    : Math.min(state.trendDirection + 1, 0);
+            log.warn("Bot {}: 매도 주문 응답이 비정상입니다.", bot.getId());
+            throw new RuntimeException("주문 응답 비정상");
+        }
+    }
+
+    /**
+     * 주문 실패 시 적응형 처리
+     */
+    private void handleOrderFailure(TradingBotConfig bot, Exception e, OrderRequestDTO originalRequest, Long orderPrice) {
+        String errorMessage = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+        log.warn("Bot {}: 주문 실패 - {}", bot.getId(), errorMessage);
+
+        // 에러 메시지로 적응형 처리 결정
+        if (errorMessage.contains("잔고") || errorMessage.contains("부족")) {
+            // 잔고 부족 - 수량 조정 시도
+            if (originalRequest.side() == Side.BUY) {
+                Long adjustedQuantity = adjustBuyQuantity(bot, orderPrice, originalRequest.quantity());
+                if (adjustedQuantity != null && adjustedQuantity > 0) {
+                    try {
+                        OrderRequestDTO adjustedRequest = new OrderRequestDTO(
+                                originalRequest.orderKind(),
+                                originalRequest.side(),
+                                originalRequest.accountId(),
+                                originalRequest.ticker(),
+                                originalRequest.price(),
+                                adjustedQuantity
+                        );
+                        CommonDTO response = orderClient.placeOrder(adjustedRequest);
+                        
+                        if (response != null && response.getResult() != null) {
+                            log.info("✅ 수량 조정 후 주문 성공! Bot: {}, Adjusted Quantity: {}", 
+                                    bot.getId(), adjustedQuantity);
+                            updateBotStatus(bot, BotExecutionStatus.ADJUSTED_QUANTITY, 
+                                    "수량 조정: " + originalRequest.quantity() + " -> " + adjustedQuantity);
+                            bot.setTotalOrderCount(bot.getTotalOrderCount() + 1);
+                            bot.setConsecutiveSkipCount(0);
+                            return;
+                        }
+                    } catch (Exception ex) {
+                        log.warn("Bot {}: 수량 조정 후 주문도 실패", bot.getId());
+                    }
+                }
+            }
+            updateBotStatus(bot, BotExecutionStatus.INSUFFICIENT_BALANCE, errorMessage);
+            
+        } else if (errorMessage.contains("보유") || errorMessage.contains("주식") || errorMessage.contains("수량")) {
+            // 보유주식 부족 - 수량 조정 시도
+            if (originalRequest.side() == Side.SELL) {
+                Long adjustedQuantity = adjustSellQuantity(bot, originalRequest.quantity());
+                if (adjustedQuantity != null && adjustedQuantity > 0) {
+                    try {
+                        OrderRequestDTO adjustedRequest = new OrderRequestDTO(
+                                originalRequest.orderKind(),
+                                originalRequest.side(),
+                                originalRequest.accountId(),
+                                originalRequest.ticker(),
+                                originalRequest.price(),
+                                adjustedQuantity
+                        );
+                        CommonDTO response = orderClient.placeOrder(adjustedRequest);
+                        
+                        if (response != null && response.getResult() != null) {
+                            log.info("✅ 수량 조정 후 주문 성공! Bot: {}, Adjusted Quantity: {}", 
+                                    bot.getId(), adjustedQuantity);
+                            updateBotStatus(bot, BotExecutionStatus.ADJUSTED_QUANTITY, 
+                                    "수량 조정: " + originalRequest.quantity() + " -> " + adjustedQuantity);
+                            bot.setTotalOrderCount(bot.getTotalOrderCount() + 1);
+                            bot.setConsecutiveSkipCount(0);
+                            return;
+                        }
+                    } catch (Exception ex) {
+                        log.warn("Bot {}: 수량 조정 후 주문도 실패", bot.getId());
+                    }
+                }
+            }
+            updateBotStatus(bot, BotExecutionStatus.INSUFFICIENT_STOCK, errorMessage);
+            
+        } else {
+            // 기타 에러
+            updateBotStatus(bot, BotExecutionStatus.ERROR, errorMessage);
         }
 
-        // 가격 변동 계산
-        double volatilityFactor = state.volatility * 0.01; // 1-5% 변동
-        double trendFactor = state.trendDirection * 0.005; // 트렌드에 따른 변동
+        // 스킵 처리
+        bot.setTotalSkipCount(bot.getTotalSkipCount() + 1);
+        bot.setConsecutiveSkipCount(bot.getConsecutiveSkipCount() + 1);
+        log.info("⏳ Bot {}: 주문 스킵 (연속 스킵: {}회)", bot.getId(), bot.getConsecutiveSkipCount());
+    }
 
-        // 랜덤 변동 + 트렌드 + 거래 압력
-        double randomChange = (Math.random() - 0.5) * volatilityFactor;
-        double trendChange = trendFactor;
-        double pressureChange = pressure * 0.001; // 거래 압력에 따른 변동
+    /**
+     * 매수 주문 수량 조정 (잔고 기반)
+     * 실제로는 주문 API가 에러를 반환하므로, 간단히 반으로 줄여서 재시도
+     */
+    private Long adjustBuyQuantity(TradingBotConfig bot, Long price, Long originalQuantity) {
+        // 간단한 로직: 수량을 절반으로 줄임
+        Long adjusted = originalQuantity / 2;
+        return adjusted >= 1 ? adjusted : null;
+    }
 
-        double totalChange = randomChange + trendChange + pressureChange;
+    /**
+     * 매도 주문 수량 조정 (보유주식 기반)
+     * 실제로는 주문 API가 에러를 반환하므로, 간단히 반으로 줄여서 재시도
+     */
+    private Long adjustSellQuantity(TradingBotConfig bot, Long originalQuantity) {
+        // 간단한 로직: 수량을 절반으로 줄임
+        Long adjusted = originalQuantity / 2;
+        return adjusted >= 1 ? adjusted : null;
+    }
 
-        // 가격 업데이트
-        long priceChange = (long) (state.currentPrice * totalChange);
-        state.currentPrice = (long) Math.max(state.currentPrice + priceChange, state.basePrice * 0.5); // 최소 50% 이상 유지
+    /**
+     * 현재가 조회 (FeignClient 사용)
+     */
+    private Long getCurrentPriceFromApi(String ticker) {
+        try {
+            CommonDTO response = currentPriceClient.getCurrentPrice(ticker);
+            log.debug("현재가 조회 응답 (ticker: {}): status_code={}, result 타입={}", 
+                    ticker, 
+                    response != null ? response.getStatus_code() : null,
+                    response != null && response.getResult() != null ? response.getResult().getClass().getName() : null);
+            
+            if (response == null) {
+                log.warn("현재가 조회 실패 (ticker: {}): 응답이 null입니다.", ticker);
+                return null;
+            }
+            
+            if (response.getResult() == null) {
+                log.warn("현재가 조회 실패 (ticker: {}): result가 null입니다. status_code={}, status_message={}", 
+                        ticker, response.getStatus_code(), response.getStatus_message());
+                return null;
+            }
+            
+            // result가 Map인 경우 직접 처리
+            if (response.getResult() instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> priceMap = (Map<String, Object>) response.getResult();
+                Object priceObj = priceMap.get("price");
+                
+                if (priceObj == null) {
+                    log.warn("현재가 조회 실패 (ticker: {}): result Map에 'price' 필드가 없습니다. Map keys: {}", 
+                            ticker, priceMap.keySet());
+                    return null;
+                }
+                
+                if (priceObj instanceof Number) {
+                    Long price = ((Number) priceObj).longValue();
+                    log.debug("현재가 조회 성공 (ticker: {}): price={}", ticker, price);
+                    return price;
+                } else {
+                    log.warn("현재가 조회 실패 (ticker: {}): price 필드가 Number 타입이 아닙니다. 타입: {}", 
+                            ticker, priceObj.getClass().getName());
+                    return null;
+                }
+            }
+            
+            // result가 Map이 아닌 경우 ObjectMapper를 사용하여 변환 시도
+            try {
+                Map<String, Object> priceMap = objectMapper.convertValue(response.getResult(), Map.class);
+                Object priceObj = priceMap.get("price");
+                if (priceObj instanceof Number) {
+                    Long price = ((Number) priceObj).longValue();
+                    log.debug("현재가 조회 성공 (ObjectMapper 사용, ticker: {}): price={}", ticker, price);
+                    return price;
+                }
+            } catch (Exception mapperEx) {
+                log.warn("현재가 조회 실패 (ticker: {}): ObjectMapper 변환 실패 - {}", ticker, mapperEx.getMessage());
+            }
+            
+            log.warn("현재가 조회 실패 (ticker: {}): result를 처리할 수 없습니다. result 타입: {}", 
+                    ticker, response.getResult().getClass().getName());
+            return null;
+            
+        } catch (Exception e) {
+            log.error("현재가 조회 실패 (ticker: {}): 예외 발생 - {}", ticker, e.getMessage(), e);
+            return null;
+        }
+    }
 
-        // 변동성 조정 (거래량이 많을수록 변동성 증가)
-        int totalBots = buyBots + sellBots;
-        state.volatility = Math.min(Math.max(totalBots, 1), 5);
+    /**
+     * 매수 가격 계산 (현재가보다 낮게 설정하여 체결 유도)
+     * 10원 단위로 가격 변동
+     */
+    private Long calculateBuyPrice(Long currentPrice, TradingStrategy strategy) {
+        if (currentPrice == null || currentPrice <= 0) {
+            return null;
+        }
 
-        log.debug("Price simulation for {}: price={}, trend={}, pressure={}, volatility={}",
-                ticker, state.currentPrice, state.trendDirection, pressure, state.volatility);
+        // 기본: 현재가보다 10원 ~ 100원 낮게 매수
+        long baseOffset = 10 + (long)(Math.random() * 90); // 10 ~ 100원
+        
+        if (strategy == null) {
+            return Math.max(currentPrice - baseOffset, 1L);
+        }
+
+        long offset;
+        switch (strategy) {
+            case SIDEWAYS:
+                // 횡보: 현재가 -10원 ~ -100원
+                offset = 10 + (long)(Math.random() * 90);
+                break;
+            case DOWNWARD:
+                // 하락: 현재가 -20원 ~ -200원
+                offset = 20 + (long)(Math.random() * 180);
+                break;
+            case UPWARD:
+                // 상승: 현재가 -5원 ~ -50원 (약간만 낮게)
+                offset = 5 + (long)(Math.random() * 45);
+                break;
+            case SHARP_DOWN:
+                // 급하락: 현재가 -50원 ~ -500원
+                offset = 50 + (long)(Math.random() * 450);
+                break;
+            case SHARP_UP:
+                // 급상승: 현재가 -5원 ~ -30원 (매우 작게)
+                offset = 5 + (long)(Math.random() * 25);
+                break;
+            default:
+                offset = 10 + (long)(Math.random() * 90);
+        }
+
+        long calculatedPrice = currentPrice - offset;
+        // 가격은 최소 1원 이상
+        return Math.max(calculatedPrice, 1L);
+    }
+
+    /**
+     * 매도 가격 계산 (현재가보다 높게 설정하여 체결 유도)
+     * 10원 단위로 가격 변동
+     */
+    private Long calculateSellPrice(Long currentPrice, TradingStrategy strategy) {
+        if (currentPrice == null || currentPrice <= 0) {
+            return null;
+        }
+
+        // 기본: 현재가보다 10원 ~ 100원 높게 매도
+        long baseOffset = 10 + (long)(Math.random() * 90); // 10 ~ 100원
+        
+        if (strategy == null) {
+            return currentPrice + baseOffset;
+        }
+
+        long offset;
+        switch (strategy) {
+            case SIDEWAYS:
+                // 횡보: 현재가 +10원 ~ +100원
+                offset = 10 + (long)(Math.random() * 90);
+                break;
+            case DOWNWARD:
+                // 하락: 현재가 +5원 ~ +50원 (약간만 높게)
+                offset = 5 + (long)(Math.random() * 45);
+                break;
+            case UPWARD:
+                // 상승: 현재가 +20원 ~ +200원
+                offset = 20 + (long)(Math.random() * 180);
+                break;
+            case SHARP_DOWN:
+                // 급하락: 현재가 +5원 ~ +30원 (매우 작게)
+                offset = 5 + (long)(Math.random() * 25);
+                break;
+            case SHARP_UP:
+                // 급상승: 현재가 +50원 ~ +500원
+                offset = 50 + (long)(Math.random() * 450);
+                break;
+            default:
+                offset = 10 + (long)(Math.random() * 90);
+        }
+
+        return currentPrice + offset;
+    }
+
+    /**
+     * 봇 상태 업데이트
+     */
+    private void updateBotStatus(TradingBotConfig bot, BotExecutionStatus status, String errorMessage) {
+        bot.setLastExecutionStatus(status);
+        bot.setLastErrorMessage(errorMessage);
+        bot.setLastExecutionTime(LocalDateTime.now());
+        configRepository.save(bot);
     }
 
     /**
@@ -431,6 +743,15 @@ public class TradingBotService {
                 .brokerageId(config.getBrokerageId())
                 .isActive(config.getIsActive())
                 .description(config.getDescription())
+                .buyAccountId(config.getBuyAccountId())
+                .sellAccountId(config.getSellAccountId())
+                .tradingStrategy(config.getTradingStrategy())
+                .lastExecutionStatus(config.getLastExecutionStatus())
+                .lastErrorMessage(config.getLastErrorMessage())
+                .lastExecutionTime(config.getLastExecutionTime())
+                .consecutiveSkipCount(config.getConsecutiveSkipCount())
+                .totalOrderCount(config.getTotalOrderCount())
+                .totalSkipCount(config.getTotalSkipCount())
                 .build();
     }
 }

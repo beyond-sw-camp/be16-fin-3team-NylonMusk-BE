@@ -17,5 +17,6 @@ public class MemberAccountAdminSummaryDto {
     private String email;
     private String accountNumber; // 회원 계좌번호
     private String accountStatus; // 회원 계좌 상태
+    private Long accountBalance; // 계좌 잔고
 }
 

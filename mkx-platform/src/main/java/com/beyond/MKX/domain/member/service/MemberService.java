@@ -128,12 +128,23 @@ public class MemberService {
                 MemberAccountInternalClient.MemberAccountSummaryRes acc = memberAccountInternalClient.getByMember(m.getId());
                 String accNo = acc != null ? acc.accountNumber() : null;
                 String accStatus = acc != null ? acc.status() : null;
+                
+                // 잔고 정보를 위해 상세 조회 시도
+                Long balance = null;
+                try {
+                    MemberAccountInternalClient.MemberAccountDetailRes detailAcc = memberAccountInternalClient.getDetailByMember(m.getId());
+                    balance = detailAcc != null ? detailAcc.balance() : null;
+                } catch (Exception ignore) {
+                    // 상세 조회 실패 시 잔고는 null 유지
+                }
+                
                 return MemberAccountAdminSummaryDto.builder()
                         .memberId(m.getId())
                         .name(m.getName())
                         .email(m.getEmail())
                         .accountNumber(accNo)
                         .accountStatus(accStatus)
+                        .accountBalance(balance)
                         .build();
             } catch (Exception ignore) {
                 return MemberAccountAdminSummaryDto.builder()
@@ -142,6 +153,7 @@ public class MemberService {
                         .email(m.getEmail())
                         .accountNumber(null)
                         .accountStatus(null)
+                        .accountBalance(null)
                         .build();
             }
         }).filter(dto -> {

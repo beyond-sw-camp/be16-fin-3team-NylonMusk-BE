@@ -1,8 +1,10 @@
 package com.beyond.MKX.domain.tradingBot.dto;
 
+import com.beyond.MKX.domain.tradingBot.entity.TradingStrategy;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 @Data
 @Builder
@@ -19,4 +21,9 @@ public class CreateTradingBotConfigRequest {
     private String orderType;        // LIMIT/MARKET
     private String brokerageId;      // 증권사 ID
     private String description;      // 설명
+    
+    // 새로운 필드들
+    private UUID buyAccountId;       // 매수 계좌 ID
+    private UUID sellAccountId;      // 매도 계좌 ID
+    private TradingStrategy tradingStrategy;  // 트렌드 전략
 }

@@ -91,31 +91,43 @@ public class IchimokuCalculator implements IndicatorCalculator {
         
         // 결과 생성
         for (int i = 0; i < candles.size(); i++) {
+            // ✅ 기본 지표가 계산되지 않은 경우 건너뛰기
+            if (Double.isNaN(tenkanSen.get(i)) && Double.isNaN(kijunSen.get(i))) {
+                continue;
+            }
+            
             Map<String, Double> values = new HashMap<>();
             
-            values.put("tenkanSen", tenkanSen.get(i));
-            values.put("kijunSen", kijunSen.get(i));
+            // NaN이 아닌 값만 추가
+            if (!Double.isNaN(tenkanSen.get(i))) {
+                values.put("tenkanSen", tenkanSen.get(i));
+            }
+            if (!Double.isNaN(kijunSen.get(i))) {
+                values.put("kijunSen", kijunSen.get(i));
+            }
             
             // 선행스팬 (26일 앞으로 이동)
             if (i >= displacement) {
-                values.put("senkouSpanA", senkouSpanA.get(i - displacement));
-                values.put("senkouSpanB", senkouSpanB.get(i - displacement));
-            } else {
-                values.put("senkouSpanA", Double.NaN);
-                values.put("senkouSpanB", Double.NaN);
+                if (!Double.isNaN(senkouSpanA.get(i - displacement))) {
+                    values.put("senkouSpanA", senkouSpanA.get(i - displacement));
+                }
+                if (!Double.isNaN(senkouSpanB.get(i - displacement))) {
+                    values.put("senkouSpanB", senkouSpanB.get(i - displacement));
+                }
             }
             
             // 후행스팬 (26일 뒤로 이동)
             if (i + displacement < candles.size()) {
                 values.put("chikouSpan", chikouSpan.get(i + displacement));
-            } else {
-                values.put("chikouSpan", Double.NaN);
             }
             
-            result.add(IndicatorResultDTO.IndicatorDataPoint.builder()
-                    .time(candles.get(i).getTime())
-                    .values(values)
-                    .build());
+            // 유효한 값이 있는 경우에만 데이터 포인트 추가
+            if (!values.isEmpty()) {
+                result.add(IndicatorResultDTO.IndicatorDataPoint.builder()
+                        .time(candles.get(i).getTime())
+                        .values(values)
+                        .build());
+            }
         }
         
         log.debug("[ICHIMOKU] Calculated {} data points", result.size());

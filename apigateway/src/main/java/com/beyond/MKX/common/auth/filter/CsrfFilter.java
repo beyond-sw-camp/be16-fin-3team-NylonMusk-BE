@@ -53,6 +53,7 @@ public class CsrfFilter implements GlobalFilter, Ordered {
             "/ipo/**",
             "/my-stocks",
             "/swagger-ui/**",
+            "/ws/**",      // WebSocket 연결 (STOMP/SockJS) - CSRF 검증 제외
             "/trading-home/**"
     );
 

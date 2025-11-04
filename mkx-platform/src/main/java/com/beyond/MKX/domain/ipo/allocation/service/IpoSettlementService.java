@@ -101,7 +101,8 @@ public class IpoSettlementService {
 
             if (subscription.getInvestorType() == InvestorType.CORPORATION) {
                 UUID corpAccountId = subscription.getAccountId();
-                corporationAccountService.withdraw(corpAccountId, additional);
+                // transactionType을 지정하여 중복 이벤트 발행 방지
+                corporationAccountService.withdraw(corpAccountId, additional, "IPO_ADDITIONAL");
                 // Kafka 이벤트 발행 (IPO_ADDITIONAL = 기업 추가 납입)
                 eventPublisher.publishWithdrawalEventWithType(
                         corpAccountId.toString(),

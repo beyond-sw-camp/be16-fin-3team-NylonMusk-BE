@@ -134,7 +134,8 @@ public class IpoSubscriptionService {
             String brokerageDepositNo = brokerageDeposit.getAccountNumber();
 
             // 출금(기업 계좌 UUID 기준) → 입금(증권사 예치 계좌번호 기준)
-            corporationAccountService.withdraw(subReqDto.accountId(), BigInteger.valueOf(requiredDeposit));
+            // transactionType을 지정하여 중복 이벤트 발행 방지
+            corporationAccountService.withdraw(subReqDto.accountId(), BigInteger.valueOf(requiredDeposit), "IPO_PAID");
             // Kafka 이벤트 발행 (IPO_PAID = 공모 납입 / 기업 입장에서 출금)
             eventPublisher.publishWithdrawalEventWithType(
                     subReqDto.accountId().toString(),

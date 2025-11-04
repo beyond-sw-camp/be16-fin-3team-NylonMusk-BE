@@ -5,6 +5,7 @@ import com.beyond.MKX.domain.orderbook.entity.OrderBook;
 import com.beyond.MKX.domain.orderbook.service.OrderBookService;
 import com.beyond.MKX.domain.price.entity.CurrentPrice;
 // import com.beyond.MKX.domain.price.stomp.CurrentPriceStompController; // ✅ 순환 참조 방지: 제거
+import com.beyond.MKX.domain.ranking.service.TradingRankService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +34,7 @@ public class CurrentPriceService {
     private final OrderBookService orderBookService;
     // private final CurrentPriceStompController priceStompController; // ✅ 순환 참조 방지: 제거
     private final ObjectMapper objectMapper;
+    private final TradingRankService tradingRankService;
 
     // Redis key prefix
     private static final String PRICE_KEY_PREFIX = "price:";
@@ -112,6 +114,9 @@ public class CurrentPriceService {
             
             // Redis에 저장
             saveCurrentPrice(currentPrice);
+
+            // 동락률 랭킹 업데이트
+            tradingRankService.updateChangeRateRank(currentPrice);
             
             // STOMP로 실시간 전송 (Redis Pub/Sub) - 직접 발행
             publishCurrentPrice(currentPrice);

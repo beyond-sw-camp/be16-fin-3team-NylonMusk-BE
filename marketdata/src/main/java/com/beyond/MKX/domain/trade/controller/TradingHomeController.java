@@ -29,6 +29,7 @@ public class TradingHomeController {
         return ApiResponse.ok(resDTOList);
     }
 
+    // 종목의 현재가, 동락률 조회
     @PostMapping("/ranking/detail")
     public ResponseEntity<?> getTradeDetail(@RequestBody List<String> tickerList) {
         List<TradingItemDetailResDTO> resDTOList = tradingHomeService.getTickerDetail(tickerList);

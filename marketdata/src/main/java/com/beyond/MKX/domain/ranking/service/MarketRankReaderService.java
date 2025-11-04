@@ -34,9 +34,9 @@ public class MarketRankReaderService {
     private final StockMetaService stockMetaService;
 
     // Redis Key 상수
-    private static final String RANK_VALUE_KEY = "market:rank:trading-value";      // 거래 대금
-    private static final String RANK_VOLUME_KEY = "market:rank:trading-volume";    // 거래량
-    private static final String RANK_CHANGE_RATE_KEY = "market:rank:change-rate";  // 등락률
+    private static final String RANK_VALUE_KEY = "market:rank:trading-value:";      // 거래 대금
+    private static final String RANK_VOLUME_KEY = "market:rank:trading-volume:";    // 거래량
+    private static final String RANK_CHANGE_RATE_KEY = "market:rank:change-rate:";  // 등락률
 
     /**
      * 오늘 날짜의 등락률 상위 30개 조회 (상승률)

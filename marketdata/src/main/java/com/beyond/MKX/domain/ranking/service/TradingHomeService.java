@@ -26,7 +26,7 @@ public class TradingHomeService {
     private final CurrentPriceService currentPriceService;
     private final StockMetaService stockMetaService;
 
-    private static final String TURNOVER_KEY_PREFIX = "market:rank:trading-value"; // yyyyMMdd
+    private static final String TURNOVER_KEY_PREFIX = "market:rank:trading-value:"; // yyyyMMdd
 
     public List<TradingHomeItemResDTO> getTopByTurnoverWithMeta(int limit, ZoneId zone) {
         String zkey = TURNOVER_KEY_PREFIX + LocalDate.now(zone).format(DateTimeFormatter.BASIC_ISO_DATE);

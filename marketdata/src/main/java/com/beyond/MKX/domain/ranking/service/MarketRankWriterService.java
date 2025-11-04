@@ -20,9 +20,9 @@ public class MarketRankWriterService {
     private final RedisTemplate<String, Object> redisTemplate;
 
     // Redis Key 상수
-    private static final String RANK_VALUE_KEY = "market:rank:trading-value";      // 거래 대금
-    private static final String RANK_VOLUME_KEY = "market:rank:trading-volume";    // 거래량
-    private static final String RANK_CHANGE_RATE_KEY = "market:rank:change-rate";  // 동락률
+    private static final String RANK_VALUE_KEY = "market:rank:trading-value:";      // 거래 대금
+    private static final String RANK_VOLUME_KEY = "market:rank:trading-volume:";    // 거래량
+    private static final String RANK_CHANGE_RATE_KEY = "market:rank:change-rate:";  // 동락률
     private static final String RANK_DETAIL_KEY = "market:rank:detail:";
 
     /**

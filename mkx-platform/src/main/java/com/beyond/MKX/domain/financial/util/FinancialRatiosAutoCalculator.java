@@ -102,6 +102,39 @@ public class FinancialRatiosAutoCalculator {
         return equityBigDecimal.divide(sharesBigDecimal, 2, RoundingMode.HALF_UP);
     }
 
+    /**
+     * PER(Price-to-Earnings Ratio) = 현재가 / EPS
+     * - 현재가가 0이거나 EPS가 0이면 0.00 반환
+     */
+    public BigDecimal calculatePER(Long currentPrice, BigDecimal eps) {
+        if (currentPrice == null || currentPrice == 0 || eps == null || eps.compareTo(BigDecimal.ZERO) == 0) {
+            return BigDecimal.ZERO;
+        }
+        return BigDecimal.valueOf(currentPrice).divide(eps, 2, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * PBR(Price-to-Book Ratio) = 현재가 / BPS
+     * - 현재가가 0이거나 BPS가 0이면 0.00 반환
+     */
+    public BigDecimal calculatePBR(Long currentPrice, BigDecimal bps) {
+        if (currentPrice == null || currentPrice == 0 || bps == null || bps.compareTo(BigDecimal.ZERO) == 0) {
+            return BigDecimal.ZERO;
+        }
+        return BigDecimal.valueOf(currentPrice).divide(bps, 2, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * PSR(Price-to-Sales Ratio) = 시가총액 / 매출액
+     * - 시가총액이 0이거나 매출액이 0이면 0.00 반환
+     */
+    public BigDecimal calculatePSR(Long marketCap, Long revenue) {
+        if (marketCap == null || marketCap == 0 || revenue == null || revenue == 0) {
+            return BigDecimal.ZERO;
+        }
+        return BigDecimal.valueOf(marketCap).divide(BigDecimal.valueOf(revenue), 2, RoundingMode.HALF_UP);
+    }
+
     /** Long → double null-safe 변환 */
     private static double toDouble(Long v) { return v == null ? 0.0 : v.doubleValue(); }
 

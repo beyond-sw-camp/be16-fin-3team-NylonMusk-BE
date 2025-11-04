@@ -15,6 +15,9 @@ import com.beyond.MKX.domain.ipo.offering.entity.IpoOfferingStatus;
 import com.beyond.MKX.domain.ipo.ipo.entity.IpoStatus;
 import com.beyond.MKX.domain.ipo.offering.repository.IpoOfferingRepository;
 import com.beyond.MKX.domain.ipo.ipo.repository.IpoRepository;
+import com.beyond.MKX.domain.ipo.subscription.entity.IpoSubscription;
+import com.beyond.MKX.domain.ipo.subscription.entity.SubscriptionStatus;
+import com.beyond.MKX.domain.ipo.subscription.repository.IpoSubscriptionRepository;
 import com.beyond.MKX.domain.stock.entity.Stock;
 import com.beyond.MKX.domain.stock.repository.StockRepository;
 import com.beyond.MKX.domain.stock.util.StockTickerGenerator;
@@ -48,6 +51,7 @@ public class IpoService {
 
     private final IpoRepository ipoRepository;
     private final IpoOfferingRepository ipoOfferingRepository;
+    private final IpoSubscriptionRepository subscriptionRepository;
     private final CorporationRepository corporationRepository;
     private final StockRepository stockRepository;
     private final IpoAllocationOutboxRepository outboxRepository;
@@ -170,6 +174,15 @@ public class IpoService {
             IpoOffering last = ipoOfferingRepository.findTopByIpo_IdOrderByRoundNoDesc(ipoId)
                     .orElseThrow(() -> new IllegalStateException("공모 정보가 없습니다."));
             if (last.getOfferPrice() == null) throw new IllegalStateException("확정 공모가 없음.");
+
+            // 정산 미완료 청약 확인
+            List<IpoSubscription> unsettledSubscriptions = subscriptionRepository.findAllByOfferingIdAndStatus(
+                    last.getId(), SubscriptionStatus.ALLOCATED);
+            if (!unsettledSubscriptions.isEmpty()) {
+                throw new IllegalStateException(
+                        String.format("정산이 완료되지 않은 청약이 %d건 있습니다. 모든 청약의 정산을 완료한 후 상장할 수 있습니다.", unsettledSubscriptions.size())
+                );
+            }
 
             issued = Optional.ofNullable(last.getIssuedQuantity()).orElse(0L);
             long total = Math.addExact(pre, issued);

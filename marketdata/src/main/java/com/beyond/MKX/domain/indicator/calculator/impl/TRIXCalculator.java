@@ -30,14 +30,14 @@ class TRIXCalculator implements IndicatorCalculator {
         List<Double> ema3 = calculateEMAFromValues(ema2, period);
 
         List<IndicatorResultDTO.IndicatorDataPoint> result = new ArrayList<>();
-        result.add(IndicatorResultDTO.IndicatorDataPoint.builder()
-                .time(candles.get(0).getTime()).values(Map.of("trix", Double.NaN)).build());
+        // ✅ 첫 번째 캔들은 이전 값이 없어 TRIX 계산 불가
 
         for (int i = 1; i < candles.size(); i++) {
-            double trix = Double.NaN;
-            if (!Double.isNaN(ema3.get(i)) && !Double.isNaN(ema3.get(i-1)) && ema3.get(i-1) != 0) {
-                trix = ((ema3.get(i) - ema3.get(i-1)) / ema3.get(i-1)) * 100.0;
+            // ✅ EMA3가 유효하지 않거나 이전 값이 0인 경우 건너뛰기
+            if (Double.isNaN(ema3.get(i)) || Double.isNaN(ema3.get(i-1)) || ema3.get(i-1) == 0) {
+                continue;
             }
+            double trix = ((ema3.get(i) - ema3.get(i-1)) / ema3.get(i-1)) * 100.0;
             result.add(IndicatorResultDTO.IndicatorDataPoint.builder()
                     .time(candles.get(i).getTime()).values(Map.of("trix", trix)).build());
         }

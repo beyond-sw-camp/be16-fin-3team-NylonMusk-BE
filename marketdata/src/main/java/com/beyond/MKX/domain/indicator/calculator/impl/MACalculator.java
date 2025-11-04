@@ -31,11 +31,8 @@ public class MACalculator implements IndicatorCalculator {
         
         for (int i = 0; i < candles.size(); i++) {
             if (i < period - 1) {
-                // 데이터가 부족한 경우 null
-                result.add(IndicatorResultDTO.IndicatorDataPoint.builder()
-                        .time(candles.get(i).getTime())
-                        .values(Map.of("ma", Double.NaN))
-                        .build());
+                // ✅ 데이터가 부족한 경우 건너뛰기 (null 값 반환하지 않음)
+                // 계산 완료된 데이터만 반환하여 프론트엔드에서 오류 방지
                 continue;
             }
             

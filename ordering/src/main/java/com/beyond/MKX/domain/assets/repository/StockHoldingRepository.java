@@ -20,4 +20,9 @@ public interface StockHoldingRepository extends JpaRepository<StockHolding, UUID
      */
     @Query("SELECT sh FROM StockHolding sh WHERE sh.ticker = :ticker AND sh.totalQuantity > 0")
     List<StockHolding> findAllByTicker(@Param("ticker") String ticker);
+
+    /**
+     * 증권사별 보유 종목 조회
+     */
+    List<StockHolding> findAllByBrokerageId(UUID brokerageId);
 }

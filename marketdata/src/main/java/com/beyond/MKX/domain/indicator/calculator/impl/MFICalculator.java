@@ -28,13 +28,11 @@ public class MFICalculator implements IndicatorCalculator {
             rawMoneyFlow.add(rmf);
         }
         
-        result.add(IndicatorResultDTO.IndicatorDataPoint.builder()
-                .time(candles.get(0).getTime()).values(Map.of("mfi", Double.NaN)).build());
+        // ✅ 첫 번째 캔들은 계산 불가 (이전 캔들 필요)
         
         for (int i = 1; i < candles.size(); i++) {
             if (i < period) {
-                result.add(IndicatorResultDTO.IndicatorDataPoint.builder()
-                        .time(candles.get(i).getTime()).values(Map.of("mfi", Double.NaN)).build());
+                // ✅ 데이터가 부족한 경우 건너뛰기
                 continue;
             }
             double positiveFlow = 0.0, negativeFlow = 0.0;

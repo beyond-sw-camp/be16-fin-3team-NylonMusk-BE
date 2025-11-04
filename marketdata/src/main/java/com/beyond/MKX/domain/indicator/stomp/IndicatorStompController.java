@@ -1,10 +1,9 @@
 package com.beyond.MKX.domain.indicator.stomp;
 
 import com.beyond.MKX.domain.indicator.dto.IndicatorResultDTO;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
@@ -22,8 +21,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class IndicatorStompController {
 
-    private final StringRedisTemplate redisTemplate;
-    private final ObjectMapper objectMapper;
+    private final RedisTemplate<String, Object> redisTemplate;
 
     // Redis Pub/Sub 채널명 (간소화)
     private static final String REDIS_CHANNEL = "market:indicator";
@@ -39,6 +37,13 @@ public class IndicatorStompController {
      */
     public void publishIndicator(String ticker, IndicatorResultDTO indicatorResult) {
         try {
+            // ✅ 계산되지 않은 데이터는 발행하지 않음
+            if (indicatorResult == null || indicatorResult.getData() == null || indicatorResult.getData().isEmpty()) {
+                log.debug("[INDICATOR-STOMP] ⚠️ Skip publish: no data available for ticker={}, indicator={}",
+                        ticker, indicatorResult != null ? indicatorResult.getIndicatorType() : "unknown");
+                return;
+            }
+
             // 메시지 구성
             Map<String, Object> message = new HashMap<>();
             message.put("type", "indicator");
@@ -46,14 +51,13 @@ public class IndicatorStompController {
             message.put("data", indicatorResult);
             message.put("timestamp", System.currentTimeMillis());
 
-            // JSON 직렬화
-            String messageJson = objectMapper.writeValueAsString(message);
+            // ✅ Map 객체를 그대로 전송 (RedisTemplate이 자동으로 직렬화)
+            // JSON 문자열로 직렬화하지 않음 - 이중 직렬화 방지
+            // Note: StringRedisTemplate 대신 RedisTemplate<String, Object>를 사용해야 함
+            redisTemplate.convertAndSend(REDIS_CHANNEL, message);
 
-            // Redis Pub/Sub 발행
-            redisTemplate.convertAndSend(REDIS_CHANNEL, messageJson);
-
-            log.debug("[INDICATOR-STOMP] 📤 Published: channel={}, ticker={}, indicator={}", 
-                    REDIS_CHANNEL, ticker, indicatorResult.getIndicatorType());
+            log.debug("[INDICATOR-STOMP] 📤 Published: channel={}, ticker={}, indicator={}, dataPoints={}", 
+                    REDIS_CHANNEL, ticker, indicatorResult.getIndicatorType(), indicatorResult.getDataPointCount());
 
         } catch (Exception e) {
             log.error("[INDICATOR-STOMP] ❌ Failed to publish: ticker={}", ticker, e);

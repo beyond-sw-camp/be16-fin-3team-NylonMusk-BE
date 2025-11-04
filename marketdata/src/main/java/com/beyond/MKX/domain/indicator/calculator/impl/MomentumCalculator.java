@@ -23,8 +23,8 @@ class MomentumCalculator implements IndicatorCalculator {
 
         for (int i = 0; i < candles.size(); i++) {
             if (i < period) {
-                result.add(IndicatorResultDTO.IndicatorDataPoint.builder()
-                        .time(candles.get(i).getTime()).values(Map.of("momentum", Double.NaN)).build());
+                // ✅ 데이터가 부족한 경우 건너뛰기
+                continue;
             } else {
                 double momentum = candles.get(i).getClose() - candles.get(i - period).getClose();
                 result.add(IndicatorResultDTO.IndicatorDataPoint.builder()

@@ -3,18 +3,15 @@ package com.beyond.MKX.domain.orderbook.stomp;
 import com.beyond.MKX.domain.orderbook.dto.enhanced.EnhancedOrderBookDTO;
 import com.beyond.MKX.domain.orderbook.event.OrderBookUpdateEvent;
 import com.beyond.MKX.domain.orderbook.service.EnhancedOrderBookService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
-import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.simp.annotation.SubscribeMapping;
-import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Controller;
 
 import java.util.ArrayList;
-
 import java.util.HashMap;
 import java.util.Map;
 
@@ -31,8 +28,7 @@ import java.util.Map;
 public class OrderBookStompController {
 
     private final EnhancedOrderBookService enhancedOrderBookService;
-    private final StringRedisTemplate redisTemplate;
-    private final ObjectMapper objectMapper;
+    private final RedisTemplate<String, Object> redisTemplate;
 
     // Redis Pub/Sub 채널명 (간소화)
     private static final String REDIS_CHANNEL = "market:orderbook";
@@ -101,15 +97,19 @@ public class OrderBookStompController {
             String ticker = event.getTicker();
             OrderBookUpdateEvent.UpdateType updateType = event.getUpdateType();
 
-            log.debug("[ORDERBOOK-STOMP] 🎧 Event received: ticker={}, type={}", ticker, updateType);
+            log.info("[ORDERBOOK-STOMP] 🎧 Event received: ticker={}, type={}", ticker, updateType);
 
             if (updateType == OrderBookUpdateEvent.UpdateType.ENHANCED) {
+                log.info("[ORDERBOOK-STOMP] 🔄 Processing ENHANCED update: ticker={}", ticker);
                 publishEnhancedOrderBook(ticker);
+            } else {
+                log.debug("[ORDERBOOK-STOMP] ⏭️ Skipping non-ENHANCED update: ticker={}, type={}", ticker, updateType);
             }
 
         } catch (Exception e) {
             log.error("[ORDERBOOK-STOMP] ❌ Failed to handle event: ticker={}", 
                     event.getTicker(), e);
+            log.error("[ORDERBOOK-STOMP] Error details:", e);
         }
     }
 
@@ -118,32 +118,40 @@ public class OrderBookStompController {
      *
      * 채널: market:orderbook (ticker 정보는 메시지 내부에 포함)
      * RedisPubSubListener가 수신하여 /topic/orderbook/{ticker}로 전송
+     *
+     * ✅ 변경사항:
+     * - StringRedisTemplate + JSON 문자열 → RedisTemplate + Map 객체 직접 전송
+     * - 체결(Execution) 데이터와 동일한 방식으로 통일하여 직렬화/역직렬화 문제 해결
      */
     private void publishEnhancedOrderBook(String ticker) {
         try {
             // 고도화된 호가 데이터 조회
             EnhancedOrderBookDTO enhancedData = enhancedOrderBookService.getEnhancedOrderBook(ticker);
 
+            if (enhancedData == null) {
+                log.warn("[ORDERBOOK-STOMP] ⚠️ Enhanced data is null: ticker={}", ticker);
+                return;
+            }
+
             // 메시지 구성
             Map<String, Object> message = new HashMap<>();
-            message.put("type", "orderbook");
+            message.put("type", "orderbook-enhanced"); // ✅ 명확한 타입 지정
             message.put("ticker", ticker);
             message.put("data", enhancedData);
             message.put("timestamp", System.currentTimeMillis());
 
-            // JSON 직렬화
-            String messageJson = objectMapper.writeValueAsString(message);
+            // ✅ Map 객체를 그대로 전송 (RedisTemplate이 자동으로 직렬화)
+            // JSON 문자열로 직렬화하지 않음 - 이중 직렬화 방지 및 EnhancedOrderBookDTO 구조 보존
+            redisTemplate.convertAndSend(REDIS_CHANNEL, message);
 
-            // Redis Pub/Sub 발행
-            redisTemplate.convertAndSend(REDIS_CHANNEL, messageJson);
-
-            log.debug("[ORDERBOOK-STOMP] 📤 Published: channel={}, ticker={}, bids={}, asks={}", 
+            log.info("[ORDERBOOK-STOMP] 📤 Published: channel={}, ticker={}, bids={}, asks={}", 
                     REDIS_CHANNEL, ticker, 
-                    enhancedData.getBids().size(), 
-                    enhancedData.getAsks().size());
+                    enhancedData.getBids() != null ? enhancedData.getBids().size() : 0, 
+                    enhancedData.getAsks() != null ? enhancedData.getAsks().size() : 0);
 
         } catch (Exception e) {
             log.error("[ORDERBOOK-STOMP] ❌ Failed to publish: ticker={}", ticker, e);
+            log.error("[ORDERBOOK-STOMP] Error details:", e);
         }
     }
 }

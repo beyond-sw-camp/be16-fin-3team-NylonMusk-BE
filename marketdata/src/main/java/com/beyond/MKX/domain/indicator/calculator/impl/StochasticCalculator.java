@@ -106,6 +106,11 @@ public class StochasticCalculator implements IndicatorCalculator {
         
         // 결과 생성
         for (int i = 0; i < candles.size(); i++) {
+            // ✅ NaN 값을 포함하는 데이터 포인트는 건너뛰기
+            if (Double.isNaN(smoothK.get(i)) || Double.isNaN(d.get(i))) {
+                continue;
+            }
+            
             result.add(IndicatorResultDTO.IndicatorDataPoint.builder()
                     .time(candles.get(i).getTime())
                     .values(Map.of(

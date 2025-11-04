@@ -8,6 +8,7 @@ import io.lettuce.core.ClientOptions;
 import io.lettuce.core.SocketOptions;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
@@ -39,6 +40,7 @@ public class RedisConfig {
     private int database;
 
     @Bean
+    @Primary
     public RedisConnectionFactory redisConnectionFactory() {
         RedisStandaloneConfiguration config = new RedisStandaloneConfiguration();
         config.setHostName(host);
@@ -72,22 +74,30 @@ public class RedisConfig {
         return objectMapper;
     }
 
+    /**
+     * Redis 직렬화용 Jackson2JsonRedisSerializer Bean 등록
+     * 
+     * RedisPubSubListener에서도 동일한 serializer를 사용하여 역직렬화
+     */
+    @Bean
+    public Jackson2JsonRedisSerializer<Object> redisJsonSerializer(ObjectMapper redisObjectMapper) {
+        return new Jackson2JsonRedisSerializer<>(redisObjectMapper, Object.class);
+    }
+
     @Bean
     public RedisTemplate<String, Object> redisTemplate(
             RedisConnectionFactory connectionFactory,
-            ObjectMapper redisObjectMapper) {
+            Jackson2JsonRedisSerializer<Object> redisJsonSerializer) {
         
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 
         StringRedisSerializer stringSerializer = new StringRedisSerializer();
-        Jackson2JsonRedisSerializer<Object> jsonSerializer = 
-                new Jackson2JsonRedisSerializer<>(redisObjectMapper, Object.class);
 
         template.setKeySerializer(stringSerializer);
-        template.setValueSerializer(jsonSerializer);
+        template.setValueSerializer(redisJsonSerializer);
         template.setHashKeySerializer(stringSerializer);
-        template.setHashValueSerializer(jsonSerializer);
+        template.setHashValueSerializer(redisJsonSerializer);
 
         template.afterPropertiesSet();
         return template;

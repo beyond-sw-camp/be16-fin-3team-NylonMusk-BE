@@ -1,5 +1,6 @@
 package com.beyond.MKX.domain.ipo.offering.dto;
 
+import com.beyond.MKX.domain.ipo.offering.entity.IpoOfferingType;
 import jakarta.persistence.Column;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
@@ -60,6 +61,13 @@ public class IpoOfferingReqDTO {
     // 수요예측 마감 시간
     @Column(nullable = true)
     private LocalDateTime bookBuildingEnd;
+
+    private IpoOfferingType offeringType;
+
+    private LocalDateTime recordDate; // Follow-on(상장 후 추가 공모) || Rights_Issue(증자)일 때만 필요
+
+    @Builder.Default
+    private boolean rightsIssue = false; // 유상증자 여부
 
 //    /* 청약 경쟁률 */
 //    // 사후 집계값이지만 DTO에 두면 업데이트용 엔드포인트에서 활용

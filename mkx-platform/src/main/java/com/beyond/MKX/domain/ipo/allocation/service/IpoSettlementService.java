@@ -63,6 +63,10 @@ public class IpoSettlementService {
                 .orElseThrow(() -> new IllegalArgumentException("공모 청약이 존재하지 않습니다."));
 
         IpoOffering offering = subscription.getIpoOffering();
+        // ticker 정보 가져오기 (상장 전이면 symbol 사용, 상장 후면 stockTicker 사용)
+        String ticker = Optional.ofNullable(offering.getIpo().getStockTicker())
+                .orElse(offering.getIpo().getSymbol());
+        
         IpoAllocation allocation = allocationRepository
                 .findTopByIpoSubscription_IdOrderByRoundNoDesc(subscriptionId)
                 .orElse(null);
@@ -81,6 +85,7 @@ public class IpoSettlementService {
         BrokerageDepositAccount brokerageDeposit = brokerageDepositAccountService
                 .getRequiredByBrokerageId(subscription.getBrokerageId());
         String brokerageDepositNo = brokerageDeposit.getAccountNumber();
+        UUID brokerageDepositId = brokerageDeposit.getId();
         String exchangeAccountNo = exchangeAccountNumber;
 
         // === 1단계: 선이관 ===
@@ -97,33 +102,28 @@ public class IpoSettlementService {
             if (subscription.getInvestorType() == InvestorType.CORPORATION) {
                 UUID corpAccountId = subscription.getAccountId();
                 corporationAccountService.withdraw(corpAccountId, additional);
-                brokerageDepositAccountService.deposit(brokerageDepositNo, additional);
-                brokerageDepositAccountService.withdraw(brokerageDepositNo, additional);
-                exchangeAccountService.deposit(exchangeAccountNo, additional);
-
                 // Kafka 이벤트 발행 (IPO_ADDITIONAL = 기업 추가 납입)
-                eventPublisher.publishWithdrawalEvent(
+                eventPublisher.publishWithdrawalEventWithType(
                         corpAccountId.toString(),
                         subscription.getAccountNumber(),
                         additional.longValue(),
-                        "IPO_ADDITIONAL"
-                );
+                        "IPO_ADDITIONAL",
+                        brokerageDepositNo,  // 상대 계좌번호: 증권사 예치 계좌
+                        ticker);  // 종목 코드 추가
+
+                brokerageDepositAccountService.deposit(brokerageDepositNo, additional);
+                brokerageDepositAccountService.withdraw(brokerageDepositNo, additional);
+                exchangeAccountService.deposit(exchangeAccountNo, additional);
             }
 
             else if (subscription.getInvestorType() == InvestorType.INDIVIDUAL) {
                 String memberAccNo = subscription.getAccountNumber();
-                memberAccountFeign.withdraw(memberAccNo, new AmountRequest(additional));
+                memberAccountFeign.withdraw(
+                        memberAccNo,
+                        new AmountRequest(additional, brokerageDepositId, "IPO_ADDITIONAL", ticker));
                 brokerageDepositAccountService.deposit(brokerageDepositNo, additional);
                 brokerageDepositAccountService.withdraw(brokerageDepositNo, additional);
                 exchangeAccountService.deposit(exchangeAccountNo, additional);
-
-                // Kafka 이벤트 발행 (IPO_ADDITIONAL = 개인 추가 납입)
-                eventPublisher.publishWithdrawalEvent(
-                        subscription.getAccountId() != null ? subscription.getAccountId().toString() : "N/A",
-                        subscription.getAccountNumber(),
-                        additional.longValue(),
-                        "IPO_ADDITIONAL"
-                );
             }
         }
 
@@ -139,12 +139,13 @@ public class IpoSettlementService {
                 corporationAccountService.deposit(corpAccountId, refund);
 
                 // ✅ Kafka 이벤트 발행 (IPO_REFUND)
-                eventPublisher.publishDepositEvent(
+                eventPublisher.publishDepositEventWithType(
                         corpAccountId.toString(),
                         subscription.getAccountNumber(),
                         refund.longValue(),
-                        "IPO_REFUND"
-                );
+                        "IPO_REFUND",
+                        exchangeAccountNo,  // 상대 계좌번호: 거래소 계좌 (환불 출발지)
+                        ticker);  // 종목 코드 추가
             }
 
             else if (subscription.getInvestorType() == InvestorType.INDIVIDUAL) {
@@ -152,15 +153,8 @@ public class IpoSettlementService {
                 exchangeAccountService.withdraw(exchangeAccountNo, refund);
                 brokerageDepositAccountService.deposit(brokerageDepositNo, refund);
                 brokerageDepositAccountService.withdraw(brokerageDepositNo, refund);
-                memberAccountFeign.deposit(memberAccNo, new AmountRequest(refund));
-
-                // ✅ Kafka 이벤트 발행 (개인 환불)
-                eventPublisher.publishDepositEvent(
-                        subscription.getAccountId() != null ? subscription.getAccountId().toString() : "N/A",
-                        subscription.getAccountNumber(),
-                        refund.longValue(),
-                        "IPO_REFUND"
-                );
+                memberAccountFeign.deposit(
+                        memberAccNo, new AmountRequest(refund, brokerageDepositId, "IPO_REFUND", ticker));
             }
         }
 
@@ -226,18 +220,23 @@ public class IpoSettlementService {
         var issuerAcc = corporationAccountService.getByCorporationId(
                 offering.getIpo().getCorporation().getId());
 
+        // ticker 정보 가져오기
+        String ticker = Optional.ofNullable(offering.getIpo().getStockTicker())
+                .orElse(offering.getIpo().getSymbol());
+
         exchangeAccountService.withdraw(exchangeAccountNumber, totalProceeds);
         log.info(" └ 거래소 계좌 출금 완료 후 공모발행기업 예치 입금 완료");
         corporationAccountService.deposit(issuerAcc.getId(), totalProceeds);
         log.info(" └ 발행기업 계좌 입금 완료");
 
         // ✅ Kafka 이벤트 발행 (IPO_PAYOUT = 발행사 송금)
-        eventPublisher.publishDepositEvent(
+        eventPublisher.publishDepositEventWithType(
                 issuerAcc.getId().toString(),
                 issuerAcc.getAccountNumber(),
                 totalProceeds.longValue(),
-                "IPO_PAYOUT"
-        );
+                "IPO_PAYOUT",
+                exchangeAccountNumber,  // 상대 계좌번호: 거래소 계좌 (송금 출발지)
+                ticker);  // 종목 코드 추가
 
         offering.settle(Optional.ofNullable(offering.getAllocatedQuantity()).orElse(0L));
         offeringRepository.save(offering);
@@ -252,7 +251,7 @@ public class IpoSettlementService {
 
             try {
                 UUID ipoId = offering.getIpo().getId();
-                String ticker = Optional.ofNullable(offering.getIpo().getStockTicker()).orElse(null);
+                // ticker는 이미 위에서 선언됨, 재사용
 
                 if (ticker == null || ticker.isBlank()) {
                     log.warn("[PAYOUT-STOCK-UPDATE] 상장된 종목 티커를 찾을 수 없어 주식 업데이트를 건너뜁니다. offeringId={}", offeringId);

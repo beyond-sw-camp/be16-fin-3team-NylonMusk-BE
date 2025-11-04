@@ -8,6 +8,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 @Getter
@@ -34,4 +35,7 @@ public class MemberSignUpReqDto {
     @NotBlank(message = "전화번호는 필수입니다.")
     @Size(max = 15, message = "전화번호는 15자 이내여야 합니다.")
     private String phone;
+
+    /** 생년월일 (신분증 OCR로 추출, 선택적) */
+    private LocalDate birthDate;
 }

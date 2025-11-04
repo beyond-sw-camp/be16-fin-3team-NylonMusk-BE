@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -20,6 +21,7 @@ public class MemberResDto {
     private String email;
     private String name;
     private String phone;
+    private LocalDate birthDate;
     private String status;
     private UUID brokerageId;
     private String brokerageName;
@@ -38,6 +40,7 @@ public class MemberResDto {
                 .email(member.getEmail())
                 .name(member.getName())
                 .phone(member.getPhone())
+                .birthDate(member.getBirthDate())
                 .status(member.getStatus().name())
                 .brokerageId(member.getBrokerage() != null ? member.getBrokerage().getId() : null)
                 .brokerageName(member.getBrokerage() != null ? member.getBrokerage().getNameKo() : null)

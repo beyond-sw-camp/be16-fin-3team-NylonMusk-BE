@@ -59,6 +59,7 @@ public class MemberService {
                 .email(dto.getEmail())
                 .password(passwordEncoder.encode(dto.getPassword()))
                 .phone(dto.getPhone())
+                .birthDate(dto.getBirthDate())
                 .status(MemberStatus.ACTIVE)
                 .build();
 

@@ -18,4 +18,7 @@ public interface CompanyFinancialsRepository extends JpaRepository<CompanyFinanc
     @Query("SELECT f FROM CompanyFinancials f WHERE f.stockId = :stockId ORDER BY f.fiscalYear DESC, f.fiscalQuarter DESC")
     List<CompanyFinancials> findByStockIdOrderByFiscalYearDescFiscalQuarterDesc(@Param("stockId") UUID stockId);
 
+    // Spring Data JPA 메서드 이름 규칙 사용: findFirst는 자동으로 LIMIT 1 적용
+    Optional<CompanyFinancials> findFirstByStockIdOrderByFiscalYearDescFiscalQuarterDesc(UUID stockId);
+
 }

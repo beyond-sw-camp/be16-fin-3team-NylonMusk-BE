@@ -27,7 +27,8 @@ public final class FinancialMapper {
     public static FinancialRatiosResDto toRes(FinancialRatios e){
         return new FinancialRatiosResDto(
                 e.getId(), e.getStockId(), e.getFiscalYear(), e.getFiscalQuarter(),
-                e.getPer(), e.getPbr(), e.getBps(),  // BPS 추가
+                // PER, PBR, PSR은 StockPriceRatios에서만 조회 (현재가 기반 비율)
+                e.getBps(),
                 e.getOperatingMargin(), e.getNetMargin(),
                 e.getDebtRatio(), e.getCurrentRatio(), e.getInterestCoverage(),
                 e.getRoa(), e.getRoe(),
@@ -69,9 +70,8 @@ public final class FinancialMapper {
                 .stockId(d.stockId())
                 .fiscalYear(d.fiscalYear())
                 .fiscalQuarter(d.fiscalQuarter())
-                .per(d.per())
-                .pbr(d.pbr())
-                .bps(d.bps())  // BPS 추가
+                // PER, PBR, PSR은 StockPriceRatios에만 저장 (현재가 기반 비율)
+                .bps(d.bps())
                 .operatingMargin(d.operatingMargin())
                 .netMargin(d.netMargin())
                 .debtRatio(d.debtRatio())

@@ -7,8 +7,7 @@ public record FinancialRatiosReqDto(
         UUID stockId,
         int fiscalYear,
         Integer fiscalQuarter,
-        BigDecimal per,
-        BigDecimal pbr,
+        // PER, PBR, PSR은 StockPriceRatios에만 저장 (현재가 기반 비율이므로 분기/연도와 무관)
         BigDecimal bps,  // 주당순자산가치 추가
         BigDecimal operatingMargin,
         BigDecimal netMargin,

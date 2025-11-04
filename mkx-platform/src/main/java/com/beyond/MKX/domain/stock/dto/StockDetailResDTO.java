@@ -28,5 +28,9 @@ public class StockDetailResDTO {
     private String ownerName;  // 대표이사
     private LocalDate estDate;  // 설립일
     private String nameEng;  // 영문명 (옵션)
+    
+    // 시장 정보
+    private Long marketCap;           // 시가총액 (현재가 × 발행주식수)
+    private Long enterpriseValue;     // 기업 가치 (시가총액 + 순부채, 1시간마다 업데이트)
 }
 

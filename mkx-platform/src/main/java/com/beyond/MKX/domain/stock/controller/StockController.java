@@ -1,14 +1,17 @@
 package com.beyond.MKX.domain.stock.controller;
 
+import com.beyond.MKX.common.apiResponse.ApiResponse;
 import com.beyond.MKX.domain.stock.dto.StockBriefDTO;
 import com.beyond.MKX.domain.stock.dto.StockDetailResDTO;
 import com.beyond.MKX.domain.stock.dto.StockListResDto;
 import com.beyond.MKX.domain.stock.dto.StockInfoResDTO;
+import com.beyond.MKX.domain.stock.dto.StockPriceRatiosResDTO;
 import com.beyond.MKX.domain.stock.repository.StockRepository;
 import com.beyond.MKX.domain.stock.service.StockQueryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -51,8 +54,22 @@ public class StockController {
      * GET /api/stocks/{ticker}/detail
      */
     @GetMapping("/{ticker}/detail")
-    public StockDetailResDTO getStockDetail(@PathVariable String ticker) {
-        return stockQueryService.getStockDetail(ticker);
+    public ResponseEntity<?> getStockDetail(@PathVariable String ticker) {
+        StockDetailResDTO stockDetail = stockQueryService.getStockDetail(ticker);
+        return ApiResponse.ok(stockDetail, "종목 상세 정보 조회 성공");
+    }
+
+    /**
+     * 종목의 현재가 기반 재무비율 조회 (PER, PBR, PSR, 시가총액, Enterprise Value)
+     * GET /api/stocks/{ticker}/price-ratios
+     */
+    @GetMapping("/{ticker}/price-ratios")
+    public ResponseEntity<?> getStockPriceRatios(@PathVariable String ticker) {
+        StockPriceRatiosResDTO priceRatios = stockQueryService.getStockPriceRatios(ticker);
+        if (priceRatios == null) {
+            return ApiResponse.ok(null, "현재가 기반 비율 데이터가 없습니다.");
+        }
+        return ApiResponse.ok(priceRatios, "현재가 기반 재무비율 조회 성공");
     }
 }
 

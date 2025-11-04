@@ -25,8 +25,7 @@ public class FinancialRatios extends BaseIdAndTimeEntity {
     @Column(name="fiscal_quarter")
     private Integer fiscalQuarter;
 
-    @Column(name="per",               precision=10, scale=2) private BigDecimal per;
-    @Column(name="pbr",               precision=10, scale=2) private BigDecimal pbr;
+    // PER, PBR, PSR은 StockPriceRatios에만 저장 (현재가 기반 비율이므로 분기/연도와 무관)
     @Column(name="bps",               precision=18, scale=2) private BigDecimal bps;  // 주당순자산가치 (큰 값 지원)
     @Column(name="operating_margin",  precision=10, scale=2) private BigDecimal operatingMargin;
     @Column(name="net_margin",        precision=10, scale=2) private BigDecimal netMargin;
@@ -37,7 +36,8 @@ public class FinancialRatios extends BaseIdAndTimeEntity {
     @Column(name="roe",               precision=10, scale=2) private BigDecimal roe;
 
     public void updateFrom(FinancialRatios u) {
-        this.per = u.per; this.pbr = u.pbr; this.bps = u.bps;
+        // PER, PBR, PSR은 StockPriceRatios에만 저장되므로 제외
+        this.bps = u.bps;
         this.operatingMargin = u.operatingMargin; this.netMargin = u.netMargin;
         this.debtRatio = u.debtRatio; this.currentRatio = u.currentRatio;
         this.interestCoverage = u.interestCoverage; this.roa = u.roa; this.roe = u.roe;

@@ -72,7 +72,8 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             "/my-stocks",
             "/swagger-ui/**",
             "/ws/**",  // WebSocket 연결 (Optional 인증 - MarketData Service에서 처리)
-            "/trading-home/**"
+            "/trading-home/**",
+            "/api/market/rank/**"
     );
 
     /**

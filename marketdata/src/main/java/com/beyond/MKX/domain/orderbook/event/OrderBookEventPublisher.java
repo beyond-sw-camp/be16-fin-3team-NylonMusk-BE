@@ -39,12 +39,16 @@ public class OrderBookEventPublisher {
      * @param ticker 종목코드
      */
     public void publishEnhancedUpdate(String ticker) {
-        OrderBookUpdateEvent event = new OrderBookUpdateEvent(
-            this, 
-            ticker, 
-            OrderBookUpdateEvent.UpdateType.ENHANCED
-        );
-        eventPublisher.publishEvent(event);
-        log.debug("[EVENT-PUBLISHER] Published ENHANCED update event: ticker={}", ticker);
+        try {
+            OrderBookUpdateEvent event = new OrderBookUpdateEvent(
+                this, 
+                ticker, 
+                OrderBookUpdateEvent.UpdateType.ENHANCED
+            );
+            eventPublisher.publishEvent(event);
+            log.info("[EVENT-PUBLISHER] 📢 Published ENHANCED update event: ticker={}", ticker);
+        } catch (Exception e) {
+            log.error("[EVENT-PUBLISHER] ❌ Failed to publish ENHANCED update event: ticker={}", ticker, e);
+        }
     }
 }

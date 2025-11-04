@@ -52,7 +52,11 @@ public class MarketDataController {
             CurrentPrice currentPrice = currentPriceService.getCurrentPrice(ticker);
             
             // 2. 호가 조회
+            log.info("[INTEGRATED-MARKET] 🔍 호가 조회 시작: ticker={}", ticker);
             OrderBook orderBook = orderBookService.getOrderBook(ticker);
+            log.info("[INTEGRATED-MARKET] 📊 호가 조회 결과: ticker={}, bids={}, asks={}", 
+                ticker, orderBook != null ? orderBook.getBids().size() : 0, 
+                orderBook != null ? orderBook.getAsks().size() : 0);
             
             // 3. 사용자 주문 조회 (Optional - 향후 구현)
             // List<Long> userOrders = null;

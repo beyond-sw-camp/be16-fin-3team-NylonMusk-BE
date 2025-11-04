@@ -29,6 +29,6 @@ public class OrderStatusEventDTO {
     private long avgFillPrice;        // 체결 평균가
     private long lastFillPrice;       // 마지막 체결가
     private long limitPrice;          // 지정가
-    private BigDecimal filledQuantity;// 누적 체결 수량
+    private long filledQuantity;// 누적 체결 수량
     private long notional;            // 총 거래대금
 }

@@ -1,10 +1,10 @@
-package com.beyond.MKX.domain.trade.service;
+package com.beyond.MKX.domain.ranking.service;
 
 import com.beyond.MKX.domain.price.entity.CurrentPrice;
 import com.beyond.MKX.domain.price.service.CurrentPriceService;
-import com.beyond.MKX.domain.trade.dto.StockBriefDTO;
-import com.beyond.MKX.domain.trade.dto.TradingHomeItemResDTO;
-import com.beyond.MKX.domain.trade.dto.TradingItemDetailResDTO;
+import com.beyond.MKX.domain.ranking.dto.StockBriefDTO;
+import com.beyond.MKX.domain.ranking.dto.TradingHomeItemResDTO;
+import com.beyond.MKX.domain.ranking.dto.TradingItemDetailResDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -26,10 +26,10 @@ public class TradingHomeService {
     private final CurrentPriceService currentPriceService;
     private final StockMetaService stockMetaService;
 
-    private static final String TURNOVER_KEY_PREFIX = "turnover:global:"; // yyyyMMdd
+    private static final String TURNOVER_KEY_PREFIX = "market:rank:trading-value"; // yyyyMMdd
 
     public List<TradingHomeItemResDTO> getTopByTurnoverWithMeta(int limit, ZoneId zone) {
-        String zkey = "turnover:global:" + LocalDate.now(zone).format(DateTimeFormatter.BASIC_ISO_DATE);
+        String zkey = TURNOVER_KEY_PREFIX + LocalDate.now(zone).format(DateTimeFormatter.BASIC_ISO_DATE);
         Set<ZSetOperations.TypedTuple<Object>> top =
                 redisTemplate.opsForZSet().reverseRangeWithScores(zkey, 0, Math.max(0, limit - 1));
         if (top == null || top.isEmpty()) return List.of();

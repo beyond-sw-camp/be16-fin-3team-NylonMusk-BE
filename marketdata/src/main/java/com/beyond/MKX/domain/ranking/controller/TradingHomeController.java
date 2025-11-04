@@ -1,11 +1,10 @@
-package com.beyond.MKX.domain.trade.controller;
+package com.beyond.MKX.domain.ranking.controller;
 
 import com.beyond.MKX.common.apiResponse.ApiResponse;
-import com.beyond.MKX.domain.trade.dto.TradingHomeItemResDTO;
-import com.beyond.MKX.domain.trade.dto.TradingItemDetailResDTO;
-import com.beyond.MKX.domain.trade.service.TradingHomeService;
+import com.beyond.MKX.domain.ranking.dto.TradingHomeItemResDTO;
+import com.beyond.MKX.domain.ranking.dto.TradingItemDetailResDTO;
+import com.beyond.MKX.domain.ranking.service.TradingHomeService;
 import lombok.RequiredArgsConstructor;
-import org.apache.kafka.shaded.com.google.protobuf.Api;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 

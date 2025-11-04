@@ -1,7 +1,7 @@
-package com.beyond.MKX.domain.trade.service;
+package com.beyond.MKX.domain.ranking.service;
 
-import com.beyond.MKX.domain.trade.client.PlatformClient;
-import com.beyond.MKX.domain.trade.dto.StockBriefDTO;
+import com.beyond.MKX.domain.ranking.client.PlatformClient;
+import com.beyond.MKX.domain.ranking.dto.StockBriefDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

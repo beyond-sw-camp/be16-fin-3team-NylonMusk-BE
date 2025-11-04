@@ -5,7 +5,7 @@ import com.beyond.MKX.domain.orderbook.entity.OrderBook;
 import com.beyond.MKX.domain.orderbook.service.OrderBookService;
 import com.beyond.MKX.domain.price.entity.CurrentPrice;
 // import com.beyond.MKX.domain.price.stomp.CurrentPriceStompController; // ✅ 순환 참조 방지: 제거
-import com.beyond.MKX.domain.ranking.service.TradingRankService;
+import com.beyond.MKX.domain.ranking.service.MarketRankWriterService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +15,8 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -32,9 +34,8 @@ public class CurrentPriceService {
 
     private final RedisTemplate<String, Object> redisTemplate;
     private final OrderBookService orderBookService;
-    // private final CurrentPriceStompController priceStompController; // ✅ 순환 참조 방지: 제거
     private final ObjectMapper objectMapper;
-    private final TradingRankService tradingRankService;
+    private final MarketRankWriterService marketRankWriterService;
 
     // Redis key prefix
     private static final String PRICE_KEY_PREFIX = "price:";
@@ -116,7 +117,11 @@ public class CurrentPriceService {
             saveCurrentPrice(currentPrice);
 
             // 동락률 랭킹 업데이트
-            tradingRankService.updateChangeRateRank(currentPrice);
+            LocalDate executionDate = Instant.ofEpochMilli(execution.getTimestamp())
+                    .atZone(ZoneId.of("Asia/Seoul"))
+                    .toLocalDate();
+            marketRankWriterService.updateChangeRateRank(currentPrice, executionDate);
+
             
             // STOMP로 실시간 전송 (Redis Pub/Sub) - 직접 발행
             publishCurrentPrice(currentPrice);

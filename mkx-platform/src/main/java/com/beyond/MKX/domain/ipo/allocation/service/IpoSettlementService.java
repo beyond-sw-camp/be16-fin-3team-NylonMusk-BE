@@ -214,6 +214,18 @@ public class IpoSettlementService {
 
         log.info("[PAYOUT] 발행사 송금 준비 — 공모={}, 필요금액={}, 거래소잔액={}", offeringId, totalProceeds, balance);
 
+        // ✅ 모든 청약의 정산 완료 여부 확인
+        List<IpoSubscription> unsettledSubscriptions = subscriptionRepository.findAllByOfferingIdAndStatus(
+                offeringId, SubscriptionStatus.ALLOCATED);
+        
+        if (!unsettledSubscriptions.isEmpty()) {
+            log.warn("[PAYOUT] 정산 미완료 청약 존재 — 공모={}, 미정산 청약 수={}", offeringId, unsettledSubscriptions.size());
+            throw new IllegalStateException(
+                    String.format("정산이 완료되지 않은 청약이 %d건 있습니다. 모든 청약의 정산을 완료한 후 발행사 송금을 진행할 수 있습니다.", 
+                            unsettledSubscriptions.size())
+            );
+        }
+
         if (balance.compareTo(totalProceeds) < 0)
             throw new IllegalStateException("거래소 계좌 잔액 부족 — 모든 정산 완료 전 송금 불가");
 

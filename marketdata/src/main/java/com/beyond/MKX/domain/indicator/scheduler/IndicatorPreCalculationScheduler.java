@@ -6,6 +6,7 @@ import com.beyond.MKX.domain.indicator.enums.IndicatorType;
 import com.beyond.MKX.domain.indicator.service.IndicatorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -59,6 +60,7 @@ public class IndicatorPreCalculationScheduler {
      * 실행 시간: 매 분마다 (cron: 0 * * * * ?)
      */
     @Scheduled(cron = "0 * * * * ?")
+    @SchedulerLock(name = "preCalculateIndicators", lockAtMostFor = "50s", lockAtLeastFor = "30s")
     public void preCalculateIndicators() {
         long startTime = System.currentTimeMillis();
         int successCount = 0;
@@ -111,6 +113,7 @@ public class IndicatorPreCalculationScheduler {
      * 실행 시간: 매 시간 정각 (cron: 0 0 * * * ?)
      */
     @Scheduled(cron = "0 0 * * * ?")
+    @SchedulerLock(name = "cleanupExpiredCache", lockAtMostFor = "10m", lockAtLeastFor = "1m")
     public void cleanupExpiredCache() {
         log.info("[SCHEDULER] 🧹 Starting cache cleanup...");
 
@@ -134,6 +137,7 @@ public class IndicatorPreCalculationScheduler {
      * 실행 시간: 매일 00:00 (cron: 0 0 0 * * ?)
      */
     @Scheduled(cron = "0 0 0 * * ?")
+    @SchedulerLock(name = "cleanupOldStates", lockAtMostFor = "30m", lockAtLeastFor = "5m")
     public void cleanupOldStates() {
         log.info("[SCHEDULER] 🗑️ Starting old states cleanup...");
 
@@ -153,12 +157,13 @@ public class IndicatorPreCalculationScheduler {
         log.info("[SCHEDULER] ✅ Old states cleanup completed: cleaned {} tickers", cleanedCount);
     }
 
-    /**
-     * 매 10분마다 스케줄러 상태 체크
-     * 
-     * 실행 시간: 매 10분 (cron: 0 *10 * * * ?)
-     */
+//    /**
+//     * 매 10분마다 스케줄러 상태 체크
+//     *
+//     * 실행 시간: 매 10분 (cron: 0 */10 * * * ?)
+//     */
     @Scheduled(cron = "0 */10 * * * ?")
+    @SchedulerLock(name = "indicatorHealthCheck", lockAtMostFor = "1m", lockAtLeastFor = "10s")
     public void healthCheck() {
         log.debug("[SCHEDULER] 💓 Health check: Scheduler is running normally");
 

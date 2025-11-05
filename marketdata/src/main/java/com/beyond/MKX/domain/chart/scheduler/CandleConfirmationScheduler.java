@@ -5,6 +5,7 @@ import com.beyond.MKX.domain.chart.service.ChartService;
 import com.beyond.MKX.domain.chart.stomp.ChartStompController;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -55,6 +56,7 @@ public class CandleConfirmationScheduler {
      * 1분마다 실행 - 1분 캔들 확정
      */
     @Scheduled(cron = "0 * * * * *")
+    @SchedulerLock(name = "confirm1MinuteCandles", lockAtMostFor = "50s", lockAtLeastFor = "10s")
     public void confirm1MinuteCandles() {
         confirmCandles("1m", 1);
     }
@@ -63,6 +65,7 @@ public class CandleConfirmationScheduler {
      * 5분마다 실행 - 5분 캔들 확정
      */
     @Scheduled(cron = "0 */5 * * * *")
+    @SchedulerLock(name = "confirm5MinuteCandles", lockAtMostFor = "4m", lockAtLeastFor = "30s")
     public void confirm5MinuteCandles() {
         confirmCandles("5m", 5);
     }
@@ -71,6 +74,7 @@ public class CandleConfirmationScheduler {
      * 15분마다 실행 - 15분 캔들 확정
      */
     @Scheduled(cron = "0 */15 * * * *")
+    @SchedulerLock(name = "confirm15MinuteCandles", lockAtMostFor = "14m", lockAtLeastFor = "1m")
     public void confirm15MinuteCandles() {
         confirmCandles("15m", 15);
     }
@@ -79,6 +83,7 @@ public class CandleConfirmationScheduler {
      * 30분마다 실행 - 30분 캔들 확정
      */
     @Scheduled(cron = "0 */30 * * * *")
+    @SchedulerLock(name = "confirm30MinuteCandles", lockAtMostFor = "29m", lockAtLeastFor = "1m")
     public void confirm30MinuteCandles() {
         confirmCandles("30m", 30);
     }
@@ -87,6 +92,7 @@ public class CandleConfirmationScheduler {
      * 1시간마다 실행 - 1시간 캔들 확정
      */
     @Scheduled(cron = "0 0 * * * *")
+    @SchedulerLock(name = "confirm1HourCandles", lockAtMostFor = "59m", lockAtLeastFor = "2m")
     public void confirm1HourCandles() {
         confirmCandles("1h", 60);
     }
@@ -95,6 +101,7 @@ public class CandleConfirmationScheduler {
      * 4시간마다 실행 - 4시간 캔들 확정
      */
     @Scheduled(cron = "0 0 */4 * * *")
+    @SchedulerLock(name = "confirm4HourCandles", lockAtMostFor = "3h50m", lockAtLeastFor = "5m")
     public void confirm4HourCandles() {
         confirmCandles("4h", 240);
     }
@@ -103,6 +110,7 @@ public class CandleConfirmationScheduler {
      * 매일 자정 실행 - 1일 캔들 확정
      */
     @Scheduled(cron = "0 0 0 * * *")
+    @SchedulerLock(name = "confirm1DayCandles", lockAtMostFor = "23h", lockAtLeastFor = "10m")
     public void confirm1DayCandles() {
         confirmCandles("1d", 1440);
     }

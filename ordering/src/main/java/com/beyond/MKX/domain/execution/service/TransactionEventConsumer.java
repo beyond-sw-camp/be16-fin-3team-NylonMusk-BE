@@ -71,22 +71,29 @@ public class TransactionEventConsumer {
                     : account.getId();
                 UUID brokerageId = account.getBrokerageId();
 
-                // 입금(DEPOSIT): null(시스템) → account (시스템에서 회원 계좌로 입금)
-                // 출금(WITHDRAWAL): account → null(시스템) (회원 계좌에서 시스템으로 출금)
-                // 이체(TRANSFER): 계좌간 이체 (상대방 정보 포함)
+                // 입금/출금 이중 기록 (Double-Entry)
+                // DB 제약조건: credit_account_id와 debit_account_id 모두 NOT NULL
+                // 따라서 null 방지를 위해 accountId를 사용
                 UUID creditAccountId;
                 UUID debitAccountId;
                 Long debitAmount;
                 Long creditAmount;
                 
-                if (transactionType == TransactionType.DEPOSIT || transactionType == TransactionType.DELISTING_REFUND) {
-                    // 입금 또는 상장폐지 환불: 시스템 → 회원 계좌
+                if (transactionType == TransactionType.DEPOSIT 
+                        || transactionType == TransactionType.DELISTING_REFUND
+                        || transactionType == TransactionType.ORDER_REFUND
+                        || transactionType == TransactionType.IPO_PAYOUT
+                        || transactionType == TransactionType.IPO_REFUND) {
+                    // 입금 또는 상장폐지 환불 또는 주문 환불 또는 IPO 환불/송금: 시스템 → 회원 계좌
                     creditAccountId = accountId;    // 입금 받는 쪽: 회원 계좌
-                    debitAccountId = null;           // 입금 보내는 쪽: 시스템(null)
+                    debitAccountId = accountId;      // 입금 보내는 쪽도 회원 계좌로 설정 (null 방지)
                     debitAmount = 0L;
                     creditAmount = event.getAmount();
-                } else if (transactionType == TransactionType.WITHDRAWAL) {
-                    creditAccountId = null;          // 출금 받는 쪽: 시스템(null)
+                } else if (transactionType == TransactionType.WITHDRAWAL
+                        || transactionType == TransactionType.IPO_PAID
+                        || transactionType == TransactionType.IPO_ADDITIONAL) {
+                    // 출금 또는 IPO 납입/추가납입: 회원 계좌 → 시스템
+                    creditAccountId = accountId;    // 출금 받는 쪽도 회원 계좌로 설정 (null 방지)
                     debitAccountId = accountId;      // 출금 보내는 쪽: 회원 계좌
                     debitAmount = event.getAmount();
                     creditAmount = 0L;
@@ -95,35 +102,48 @@ public class TransactionEventConsumer {
                     if ("TRANSFER_DEPOSIT".equals(event.getMethod()) || event.getMethod() == null) {
                         // 이체 입금: 다른 계좌 → 내 계좌
                         creditAccountId = accountId;
-                        debitAccountId = null;
+                        debitAccountId = accountId;  // null 방지
                         debitAmount = 0L;
                         creditAmount = event.getAmount();
                     } else {
                         // 이체 출금: 내 계좌 → 다른 계좌
-                        creditAccountId = null;
+                        creditAccountId = accountId;  // null 방지
                         debitAccountId = accountId;
                         debitAmount = event.getAmount();
                         creditAmount = 0L;
                     }
                 } else {
-                    creditAccountId = null;
+                    // 기타 타입: 기본값 (둘 다 회원 계좌로 설정)
+                    creditAccountId = accountId;
                     debitAccountId = accountId;
                     debitAmount = event.getAmount();
                     creditAmount = 0L;
                 }
 
                 // Ledger 기록
-                // ⭐ 상장폐지 환불인 경우 ticker와 quantity 정보 포함
-                String ticker = (transactionType == TransactionType.DELISTING_REFUND && event.getTicker() != null) 
-                        ? event.getTicker() : "";
+                // ⭐ 상장폐지 환불 또는 IPO 관련 거래인 경우 ticker 정보 포함
+                String ticker = "";
+                if (event.getTicker() != null && !event.getTicker().isEmpty()) {
+                    // IPO 관련 거래 또는 상장폐지 환불인 경우 ticker 저장
+                    if (transactionType == TransactionType.DELISTING_REFUND
+                            || transactionType == TransactionType.IPO_PAID
+                            || transactionType == TransactionType.IPO_REFUND
+                            || transactionType == TransactionType.IPO_ADDITIONAL
+                            || transactionType == TransactionType.IPO_PAYOUT) {
+                        ticker = event.getTicker();
+                    }
+                }
                 Long qtyChange = (transactionType == TransactionType.DELISTING_REFUND && event.getQuantity() != null) 
                         ? event.getQuantity() : 0L;
                 
+                // orderLogId는 DB 제약조건상 NOT NULL이므로 eventId를 UUID로 변환하여 사용
+                UUID orderLogId = UUID.fromString(event.getEventId());
+                
                 Ledger ledger = Ledger.builder()
-                        .orderLogId(null)  // 입출금은 주문과 무관
+                        .orderLogId(orderLogId)  // eventId를 UUID로 변환하여 사용 (입출금은 주문과 무관하지만 DB 제약조건 만족)
                         .creditAccountId(creditAccountId)
                         .debitAccountId(debitAccountId)
-                        .ticker(ticker)  // 상장폐지 환불인 경우 ticker 기록
+                        .ticker(ticker)  // IPO 관련 거래 또는 상장폐지 환불인 경우 ticker 기록
                         .debit(debitAmount)
                         .credit(creditAmount)
                         .qtyChange(qtyChange)  // 상장폐지 환불인 경우 주식 수량 기록
@@ -158,17 +178,39 @@ public class TransactionEventConsumer {
                 
                 UUID corporationAccountId = UUID.fromString(event.getAccountId());
                 
-                // 입금(DEPOSIT, DELISTING_REFUND): 거래소/시스템 → corporation (debitAccountId는 null)
-                // 출금(WITHDRAWAL): corporation → 거래소 (creditAccountId는 null)
+                // 입금/출금 이중 기록 (Double-Entry)
+                // IPO 타입별 처리:
+                // - IPO_PAYOUT, IPO_REFUND: 입금 (거래소/증권사 → 기업 계좌)
+                // - IPO_PAID, IPO_ADDITIONAL: 출금 (기업 계좌 → 증권사 예치 계좌)
                 UUID creditAccountId;
                 UUID debitAccountId;
+                Long debitAmount;
+                Long creditAmount;
                 
-                if (transactionType == TransactionType.DEPOSIT || transactionType == TransactionType.DELISTING_REFUND) {
+                if (transactionType == TransactionType.DEPOSIT 
+                        || transactionType == TransactionType.DELISTING_REFUND
+                        || transactionType == TransactionType.ORDER_REFUND
+                        || transactionType == TransactionType.IPO_PAYOUT
+                        || transactionType == TransactionType.IPO_REFUND) {
+                    // 입금: 거래소/시스템 → 기업 계좌
                     creditAccountId = corporationAccountId;  // 입금 받는 쪽: 기업 계좌
-                    debitAccountId = null;                   // 입금 보내는 쪽: null (시스템/거래소)
-                } else {
-                    creditAccountId = null;                  // 출금 받는 쪽: null (거래소 계좌 미사용)
+                    debitAccountId = corporationAccountId;   // 입금 보내는 쪽도 기업 계좌로 설정 (null 방지)
+                    debitAmount = 0L;
+                    creditAmount = event.getAmount();
+                } else if (transactionType == TransactionType.WITHDRAWAL
+                        || transactionType == TransactionType.IPO_PAID
+                        || transactionType == TransactionType.IPO_ADDITIONAL) {
+                    // 출금: 기업 계좌 → 거래소/증권사
+                    creditAccountId = corporationAccountId;  // 출금 받는 쪽도 기업 계좌로 설정 (null 방지)
                     debitAccountId = corporationAccountId;   // 출금 보내는 쪽: 기업 계좌
+                    debitAmount = event.getAmount();
+                    creditAmount = 0L;
+                } else {
+                    // 기타 타입: 기본값 (둘 다 기업 계좌로 설정)
+                    creditAccountId = corporationAccountId;
+                    debitAccountId = corporationAccountId;
+                    debitAmount = event.getAmount();
+                    creditAmount = 0L;
                 }
                 
                 // Ledger 기록
@@ -178,18 +220,23 @@ public class TransactionEventConsumer {
                 Long qtyChange = (transactionType == TransactionType.DELISTING_REFUND && event.getQuantity() != null) 
                         ? event.getQuantity() : 0L;
                 
+                // orderLogId는 DB 제약조건상 NOT NULL이므로 eventId를 UUID로 변환하여 사용
+                UUID orderLogId = UUID.fromString(event.getEventId());
+                
                 Ledger ledger = Ledger.builder()
-                        .orderLogId(null)
+                        .orderLogId(orderLogId)  // eventId를 UUID로 변환하여 사용 (입출금은 주문과 무관하지만 DB 제약조건 만족)
                         .creditAccountId(creditAccountId)
                         .debitAccountId(debitAccountId)
                         .ticker(ticker)  // 상장폐지 환불인 경우 ticker 기록
-                        .debit(event.getAmount())
-                        .credit(event.getAmount())
+                        .debit(debitAmount)
+                        .credit(creditAmount)
                         .qtyChange(qtyChange)  // 상장폐지 환불인 경우 주식 수량 기록
                         .amountChange(event.getAmount())  // 입출금 금액 = amountChange
                         .commission(0L)
                         .tax(0L)
                         .transactionType(transactionType)
+                        .counterpartyAccountNumber(event.getCounterpartyAccountNumber())  // 상대 계좌번호 추가
+                        .counterpartyName(event.getCounterpartyName())  // 상대 이름 추가
                         .build();
                 
                 ledgerRepository.save(ledger);

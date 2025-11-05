@@ -23,7 +23,6 @@ import java.util.UUID;
  */
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class BrokerageDepositAccountService {
 
     private final BrokerageDepositAccountRepository repository;
@@ -32,6 +31,7 @@ public class BrokerageDepositAccountService {
     /**
      * 계좌번호를 자동 생성하여 예치금 계좌를 만든다. (멱등: 이미 존재하면 그대로 반환)
      */
+    @Transactional
     public BrokerageDepositAccount createAuto(UUID brokerageId) {
         return repository.findByBrokerageId(brokerageId)
                 .orElseGet(() -> doCreateAuto(brokerageId));
@@ -50,11 +50,13 @@ public class BrokerageDepositAccountService {
     }
 
     /** 단건 조회 */
+    @Transactional(readOnly = true)
     public BrokerageDepositAccount getByAccountNumber(String accountNumber) {
         return repository.findByAccountNumber(accountNumber)
                 .orElseThrow(() -> new IllegalArgumentException("증권사 예치금 계좌 없음"));
     }
 
+    @Transactional
     public BigInteger deposit(String accountNumber, BigInteger amount) {
         BrokerageDepositAccount acc = repository.findByAccountNumberForUpdate(accountNumber)
                 .orElseThrow(() -> new IllegalArgumentException("증권사 예치 계좌 없음"));
@@ -62,6 +64,7 @@ public class BrokerageDepositAccountService {
         return acc.getBalance();
     }
 
+    @Transactional
     public BigInteger withdraw(String accountNumber, BigInteger amount) {
         BrokerageDepositAccount acc = repository.findByAccountNumberForUpdate(accountNumber)
                 .orElseThrow(() -> new IllegalArgumentException("증권사 예치 계좌 없음"));
@@ -69,6 +72,7 @@ public class BrokerageDepositAccountService {
         return acc.getBalance();
     }
 
+    @Transactional(readOnly = true)
     public BrokerageDepositAccount getRequiredByBrokerageId(UUID brokerageId) {
         return repository.findByBrokerageId(brokerageId)
                 .orElseThrow(() -> new IllegalArgumentException("증권사 계좌가 존재하지 않습니다."));

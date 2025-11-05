@@ -128,6 +128,14 @@ public class MemberAccountService {
      * 입금: 계좌 상태가 ACTIVE일 때만 허용
      */
     public Long deposit(String accountNumber, Long amount) {
+        return deposit(accountNumber, amount, null);
+    }
+    
+    public Long deposit(String accountNumber, Long amount, String transactionType) {
+        return deposit(accountNumber, amount, transactionType, null);
+    }
+    
+    public Long deposit(String accountNumber, Long amount, String transactionType, String ticker) {
         MemberAccount acc = getByAccountNumber(accountNumber);
         if (acc.getStatus() != AccountStatus.ACTIVE) {
             throw new IllegalStateException("계좌 상태가 활성(ACTIVE)이 아닙니다.");
@@ -135,7 +143,10 @@ public class MemberAccountService {
         acc.deposit(amount);
         
         // Kafka 이벤트 발행
-        eventPublisher.publishDepositEvent(accountNumber, acc.getId(), amount, "BANK_TRANSFER");
+        // transactionType이 있으면 사용, 없으면 기본값 "DEPOSIT"
+        String eventType = (transactionType != null && !transactionType.isEmpty()) 
+                ? transactionType : "DEPOSIT";
+        eventPublisher.publishDepositEventWithType(accountNumber, acc.getId(), amount, eventType, ticker);
         
         return acc.getBalance();
     }
@@ -158,6 +169,14 @@ public class MemberAccountService {
      * 출금: 계좌 상태가 ACTIVE일 때만 허용
      */
     public Long withdraw(String accountNumber, Long amount) {
+        return withdraw(accountNumber, amount, null);
+    }
+    
+    public Long withdraw(String accountNumber, Long amount, String transactionType) {
+        return withdraw(accountNumber, amount, transactionType, null);
+    }
+    
+    public Long withdraw(String accountNumber, Long amount, String transactionType, String ticker) {
         MemberAccount acc = getByAccountNumber(accountNumber);
         if (acc.getStatus() != AccountStatus.ACTIVE) {
             throw new IllegalStateException("계좌 상태가 활성(ACTIVE)이 아닙니다.");
@@ -165,7 +184,10 @@ public class MemberAccountService {
         acc.withdraw(amount);
         
         // Kafka 이벤트 발행
-        eventPublisher.publishWithdrawalEvent(accountNumber, acc.getId(), amount, "BANK_TRANSFER");
+        // transactionType이 있으면 사용, 없으면 기본값 "WITHDRAWAL"
+        String eventType = (transactionType != null && !transactionType.isEmpty()) 
+                ? transactionType : "WITHDRAWAL";
+        eventPublisher.publishWithdrawalEventWithType(accountNumber, acc.getId(), amount, eventType, ticker);
         
         return acc.getBalance();
     }

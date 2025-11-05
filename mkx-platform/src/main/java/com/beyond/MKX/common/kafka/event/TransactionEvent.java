@@ -26,6 +26,10 @@ public class TransactionEvent {
     private String description;          // 거래 설명 - optional
     private Long timestamp;              // 이벤트 발생 시각
     
+    // 계좌이체 시 상대방 정보
+    private String counterpartyAccountNumber;  // 상대방 계좌번호
+    private String counterpartyName;           // 상대방 이름
+    
     // 상장폐지/IPO 환불 시 추가 정보
     private String ticker;               // 종목 코드
     private Long quantity;               // 주식 수량

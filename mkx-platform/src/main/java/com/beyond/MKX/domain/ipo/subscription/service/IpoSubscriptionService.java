@@ -3,6 +3,7 @@ package com.beyond.MKX.domain.ipo.subscription.service;
 import com.beyond.MKX.common.dto.AmountRequest;
 import com.beyond.MKX.domain.account.brokerage.service.BrokerageDepositAccountService;
 import com.beyond.MKX.domain.account.corporation.service.CorporationAccountService;
+import com.beyond.MKX.domain.account.corporation.service.TransactionEventPublisher;
 import com.beyond.MKX.domain.corporation.repository.CorporationRepository;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOffering;
 import com.beyond.MKX.domain.ipo.offering.entity.IpoOfferingStatus;
@@ -24,6 +25,7 @@ import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -34,6 +36,7 @@ public class IpoSubscriptionService {
     private final IpoSubscriptionRepository subscriptionRepository;
     private final CorporationRepository corporationRepository;
     private final MemberAccountFeign memberAccountFeign;
+    private final TransactionEventPublisher eventPublisher;
     private final Clock clock = Clock.systemDefaultZone();
 
     private final BrokerageDepositAccountService brokerageDepositAccountService;
@@ -121,19 +124,38 @@ public class IpoSubscriptionService {
                 .divide(BigDecimal.valueOf(100), 0, RoundingMode.DOWN)
                 .longValueExact();
 
-        // 6) [자금 이동] 투자자 → 증권사 예치 (기업 투자자만 우선)
+        // 6) [자금 이동] 투자자 → 증권사 예치 + kafka 이벤트 발행
+        // ticker 정보 가져오기 (상장 전이면 symbol 사용, 상장 후면 stockTicker 사용)
+        String ticker = Optional.ofNullable(ipoOffering.getIpo().getStockTicker())
+                .orElse(ipoOffering.getIpo().getSymbol());
+        
         if (subReqDto.investorType() == InvestorType.CORPORATION) {
             var brokerageDeposit = brokerageDepositAccountService.getRequiredByBrokerageId(subReqDto.brokerageId());
             String brokerageDepositNo = brokerageDeposit.getAccountNumber();
 
             // 출금(기업 계좌 UUID 기준) → 입금(증권사 예치 계좌번호 기준)
-            corporationAccountService.withdraw(subReqDto.accountId(), BigInteger.valueOf(requiredDeposit));
+            // transactionType을 지정하여 중복 이벤트 발행 방지
+            corporationAccountService.withdraw(subReqDto.accountId(), BigInteger.valueOf(requiredDeposit), "IPO_PAID");
+            // Kafka 이벤트 발행 (IPO_PAID = 공모 납입 / 기업 입장에서 출금)
+            eventPublisher.publishWithdrawalEventWithType(
+                    subReqDto.accountId().toString(),
+                    subReqDto.accountNumber(),
+                    requiredDeposit,
+                    "IPO_PAID",
+                    brokerageDepositNo,  // 상대 계좌번호: 증권사 예치 계좌
+                    ticker);  // 종목 코드 추가
+
             brokerageDepositAccountService.deposit(brokerageDepositNo, BigInteger.valueOf(requiredDeposit));
+
         } else {
             // TODO: MEMBER(개인) 계좌 흐름 연동
             var brokerageDeposit = brokerageDepositAccountService.getRequiredByBrokerageId(subReqDto.brokerageId());
             String brokerageDepositNo = brokerageDeposit.getAccountNumber();
-            memberAccountFeign.withdraw(subReqDto.accountNumber(), new AmountRequest(BigInteger.valueOf(requiredDeposit)));
+            UUID brokerageDepositId = brokerageDeposit.getId();
+
+            memberAccountFeign.withdraw(
+                    subReqDto.accountNumber(),
+                    new AmountRequest(BigInteger.valueOf(requiredDeposit), brokerageDepositId, "IPO_PAID", ticker));
             brokerageDepositAccountService.deposit(brokerageDepositNo, BigInteger.valueOf(requiredDeposit));
         }
 
@@ -202,7 +224,11 @@ public class IpoSubscriptionService {
         long ref = ipoSubscription.getRefundedAmount() == null ? 0L : ipoSubscription.getRefundedAmount();
         long refundable = Math.max(req - ref, 0);
 
-        // 4) [자금 이동] 증권사 예치 → 투자자
+        // 4) [자금 이동] 증권사 예치 → 투자자 + kafka 이벤트 발행
+        // ticker 정보 가져오기
+        String ticker = Optional.ofNullable(ipoSubscription.getIpoOffering().getIpo().getStockTicker())
+                .orElse(ipoSubscription.getIpoOffering().getIpo().getSymbol());
+        
         if (ipoSubscription.getInvestorType() == InvestorType.CORPORATION) {
             var brokerageDeposit = brokerageDepositAccountService.getRequiredByBrokerageId(ipoSubscription.getBrokerageId());
             String brokerageDepositNo = brokerageDeposit.getAccountNumber();
@@ -210,14 +236,26 @@ public class IpoSubscriptionService {
             if (refundable > 0) {
                 brokerageDepositAccountService.withdraw(brokerageDepositNo, BigInteger.valueOf(refundable));
                 corporationAccountService.deposit(ipoSubscription.getAccountId(), BigInteger.valueOf(refundable));
+
+                // Kafka 이벤트 발행 (IPO_REFUND)
+                eventPublisher.publishDepositEventWithType(
+                        ipoSubscription.getAccountId().toString(),
+                        ipoSubscription.getAccountNumber(),
+                        refundable,
+                        "IPO_REFUND",
+                        brokerageDepositNo,  // 상대 계좌번호: 증권사 예치 계좌
+                        ticker);  // 종목 코드 추가
             }
         } else {
             var brokerageDeposit = brokerageDepositAccountService.getRequiredByBrokerageId(ipoSubscription.getBrokerageId());
             String brokerageDepositNo = brokerageDeposit.getAccountNumber();
+            UUID brokerageDepositId = brokerageDeposit.getId();
             // TODO: MEMBER(개인) 계좌 환불 흐름
             if (refundable > 0) {
                 brokerageDepositAccountService.withdraw(brokerageDepositNo, BigInteger.valueOf(refundable));
-                memberAccountFeign.deposit(ipoSubscription.getAccountNumber(), new AmountRequest(BigInteger.valueOf(refundable)));
+                memberAccountFeign.deposit(
+                        ipoSubscription.getAccountNumber(),
+                        new AmountRequest(BigInteger.valueOf(refundable), brokerageDepositId, "IPO_REFUND", ticker));
             }
         }
 

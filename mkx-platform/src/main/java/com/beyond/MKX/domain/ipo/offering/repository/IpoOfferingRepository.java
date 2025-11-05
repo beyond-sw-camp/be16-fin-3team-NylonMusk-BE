@@ -12,6 +12,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -108,6 +109,30 @@ public interface IpoOfferingRepository extends JpaRepository<IpoOffering, UUID> 
     Optional<IpoOffering> findLatestWithRecordDateByStockId(
             @Param("stockId") UUID stockId,
             @Param("types") List<IpoOfferingType> types
+    );
+
+    // 배정예정일이 오늘인 공모 조회 (배정 실행용)
+    @Query("""
+        select o from IpoOffering o
+        where o.allocationDate = :today
+          and o.ipoOfferingStatus in :statuses
+          and o.allocationDate is not null
+        """)
+    List<IpoOffering> findAllByAllocationDateAndStatusIn(
+            @Param("today") LocalDate today,
+            @Param("statuses") Collection<IpoOfferingStatus> statuses
+    );
+
+    // 환불일이 오늘인 공모 조회 (환불/정산 실행용)
+    @Query("""
+        select o from IpoOffering o
+        where o.refundDate = :today
+          and o.ipoOfferingStatus = :status
+          and o.refundDate is not null
+        """)
+    List<IpoOffering> findAllByRefundDateAndStatus(
+            @Param("today") LocalDate today,
+            @Param("status") IpoOfferingStatus status
     );
 
 }

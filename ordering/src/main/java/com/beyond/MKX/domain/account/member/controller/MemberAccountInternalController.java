@@ -6,14 +6,12 @@ import com.beyond.MKX.domain.account.member.dto.MemberAccountSummary;
 import com.beyond.MKX.domain.account.member.service.MemberAccountService;
 import com.beyond.MKX.domain.assets.entity.MemberAccount;
 import com.beyond.MKX.domain.assets.repository.MemberAccountRepository;
-import com.beyond.MKX.domain.account.member.service.MemberAccountService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
-import java.math.BigDecimal;
 import java.util.Map;
 import java.util.UUID;
 
@@ -161,12 +159,12 @@ public class MemberAccountInternalController {
     
     /**
      * 내부용 회원 계좌 입금 (상장폐지 보상금 지급 등) - 계좌번호 기준
-     * ⚠️ 이 엔드포인트는 이벤트를 발행하지 않음 (외부에서 발행)
+     * ⚠️ description이 있으면 이벤트 발행, 없으면 이벤트 발행 없음 (외부에서 발행)
      */
     @PostMapping("/by-number/{accountNumber}/deposit")
     public ResponseEntity<?> depositByAccountNumber(
             @PathVariable String accountNumber,
-            @RequestBody DepositInternalRequest request
+            @RequestBody AmountRequest request
     ) {
         MemberAccount account = repository.findByNumber(accountNumber)
                 .orElse(null);
@@ -179,8 +177,15 @@ public class MemberAccountInternalController {
             ), "계좌 조회 실패");
         }
         
-        // ⭐ 이벤트 발행 없는 메서드 사용 (mkx-platform에서 DELISTING_REFUND 이벤트 발행)
-        Long balance = memberAccountService.depositWithoutEvent(accountNumber, request.amount());
+        // description이 있으면 이벤트 발행, 없으면 이벤트 없이 입금 (상장폐지 등 외부에서 이미 이벤트 발행)
+        Long balance;
+        if (request.getDescription() != null && !request.getDescription().isEmpty()) {
+            // transactionType이 지정된 경우 이벤트 발행, ticker도 함께 전달
+            balance = memberAccountService.deposit(accountNumber, request.getAmount(), request.getDescription(), request.getTicker());
+        } else {
+            // transactionType이 없으면 이벤트 발행 없이 입금 (외부에서 이미 이벤트 발행)
+            balance = memberAccountService.depositWithoutEvent(accountNumber, request.getAmount());
+        }
         
         return ApiResponse.ok(Map.of(
                 "success", true,
@@ -195,7 +200,7 @@ public class MemberAccountInternalController {
     @PostMapping("/by-number/{accountNumber}/withdraw")
     public ResponseEntity<?> withdrawByAccountNumber(
             @PathVariable String accountNumber,
-            @RequestBody DepositInternalRequest request
+            @RequestBody AmountRequest request
     ) {
         MemberAccount account = repository.findByNumber(accountNumber)
                 .orElse(null);
@@ -208,7 +213,8 @@ public class MemberAccountInternalController {
             ), "계좌 조회 실패");
         }
 
-        Long balance = memberAccountService.withdraw(accountNumber, request.amount());
+        // description을 transactionType으로 전달, ticker도 함께 전달
+        Long balance = memberAccountService.withdraw(accountNumber, request.getAmount(), request.getDescription(), request.getTicker());
 
         return ApiResponse.ok(Map.of(
                 "success", true,

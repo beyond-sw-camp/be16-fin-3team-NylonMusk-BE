@@ -26,6 +26,9 @@ public interface MemberRepository extends JpaRepository<Member, UUID> {
     /** EMAIL_VERIFICATION: 이메일 인증 토큰으로 회원 조회 */
     Optional<Member> findByEmailVerificationToken(String token);
 
+    /** PASSWORD_RESET: 비밀번호 재설정 토큰으로 회원 조회 */
+    Optional<Member> findByPasswordResetToken(String token);
+
     List<Member> findByBrokerage(SecuritiesFirm brokerage);
 
     Optional<Member> findByIdAndBrokerage(UUID id, SecuritiesFirm brokerage);

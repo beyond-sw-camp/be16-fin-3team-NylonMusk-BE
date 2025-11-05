@@ -63,4 +63,12 @@ public class Member extends BaseIdAndTimeEntity {
     @Column(nullable = true)
     private LocalDateTime emailVerificationTokenExpiresAt;
 
+    /** PASSWORD_RESET: 비밀번호 재설정 토큰 */
+    @Column(nullable = true, length = 255)
+    private String passwordResetToken;
+
+    /** PASSWORD_RESET: 비밀번호 재설정 토큰 만료 시간 */
+    @Column(nullable = true)
+    private LocalDateTime passwordResetTokenExpiresAt;
+
 }

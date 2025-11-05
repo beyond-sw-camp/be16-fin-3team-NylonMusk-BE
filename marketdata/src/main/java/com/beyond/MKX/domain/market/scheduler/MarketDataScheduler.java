@@ -114,7 +114,7 @@ public class MarketDataScheduler {
      * 
      * 주의: 순서가 바뀌면 데이터 정합성 문제 발생 가능
      */
-    @Scheduled(cron = "0 40 14 * * *", zone = "Asia/Seoul") // 매일 자정 (KST)
+    @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Seoul") // 매일 자정 (KST)
     public void initializeAllDailyPrices() {
         try {
             Set<String> priceKeys = redisTemplate.keys("price:*");

@@ -276,6 +276,7 @@ public class CurrentPriceService {
                 currentPrice.setHigh(currentPrice.getPrice());
                 currentPrice.setLow(currentPrice.getPrice());
                 currentPrice.setVolume(BigDecimal.ZERO);
+                currentPrice.setChangeRate(BigDecimal.ZERO);
                 
                 saveCurrentPrice(currentPrice);
                 

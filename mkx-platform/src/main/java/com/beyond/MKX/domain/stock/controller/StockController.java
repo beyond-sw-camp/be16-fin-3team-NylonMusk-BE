@@ -101,6 +101,7 @@ class StockInternalController {
                         .status(v.getStatus())
                         .delistingStage(v.getDelistingStage())
                         .imageUrl(v.getImageUrl())
+                        .totalSharesOutstanding(v.getTotalSharesOutstanding())
                         .build())
                 .toList();
     }

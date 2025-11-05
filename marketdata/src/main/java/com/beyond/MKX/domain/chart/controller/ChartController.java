@@ -1,6 +1,7 @@
 package com.beyond.MKX.domain.chart.controller;
 
 import com.beyond.MKX.common.apiResponse.ApiResponse;
+import com.beyond.MKX.domain.chart.dto.MiniChartResDTO;
 import com.beyond.MKX.domain.chart.entity.Candle;
 import com.beyond.MKX.domain.chart.service.ChartService;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -73,5 +75,30 @@ public class ChartController {
         }
         
         return ApiResponse.ok(candle, "최신 캔들 데이터 조회 성공");
+    }
+
+    /**
+     * 여러 종목의 24시간 종가 데이터 조회 (미니차트용)
+     * 
+     * 1시간봉 기준으로 최근 24시간의 종가를 반환
+     * 여러 종목을 한번의 DB 조회로 가져와 성능 최적화
+     * 
+     * @param tickerList 종목 코드 리스트
+     * @return 종목별 24시간 종가 데이터 리스트
+     */
+    @PostMapping("/mini")
+    public ResponseEntity<?> getMiniCharts(@RequestBody List<String> tickerList) {
+        
+        log.info("미니차트 데이터 조회 요청: {} 종목", tickerList.size());
+        
+        if (tickerList == null || tickerList.isEmpty()) {
+            return ApiResponse.ok(Collections.emptyList(), "조회할 종목이 없습니다");
+        }
+        
+        List<MiniChartResDTO> miniCharts = chartService.get24HourClosesForTickers(tickerList);
+        
+        log.info("미니차트 데이터 조회 완료: {} 종목", miniCharts.size());
+        
+        return ApiResponse.ok(miniCharts, "미니차트 데이터 조회 성공");
     }
 }

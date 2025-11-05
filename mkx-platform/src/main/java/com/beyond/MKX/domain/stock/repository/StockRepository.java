@@ -88,6 +88,7 @@ public interface StockRepository extends JpaRepository<Stock, UUID> {
         // DelistingStage 타입 패키지 경로에 맞춰 import 또는 Stock과 같은 패키지면 그대로
         DelistingStage getDelistingStage();
         String getImageUrl();
+        long getTotalSharesOutstanding();
     }
 
     List<BriefView> findByTickerIn(Collection<String> tickers);

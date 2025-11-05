@@ -1,6 +1,7 @@
 package com.beyond.MKX.domain.ranking.controller;
 
 import com.beyond.MKX.common.apiResponse.ApiResponse;
+import com.beyond.MKX.domain.ranking.dto.CardSectionsResDTO;
 import com.beyond.MKX.domain.ranking.dto.MarketStockListResDTO;
 import com.beyond.MKX.domain.ranking.service.MarketRankReaderService;
 import lombok.RequiredArgsConstructor;
@@ -99,6 +100,36 @@ public class TradingRankController {
         } catch (Exception e) {
             log.error("[API] 거래량 TOP 30 조회 실패", e);
             return ApiResponse.noContent("거래량 TOP 30 조회 실패: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 카드섹션 데이터 조회
+     * 
+     * 4개 섹션(인기/신규/상승률/거래량) 각각 TOP 3 종목 정보
+     * - 인기: 즐겨찾기가 많은 종목
+     * - 신규: 최근 상장된 종목
+     * - 상승률: 등락률이 높은 종목
+     * - 거래량: 거래량이 많은 종목
+     *
+     * @return 카드섹션 데이터 (4개 섹션 × 3개 종목)
+     */
+    @GetMapping("/card-sections")
+    public ResponseEntity<?> getCardSections() {
+        try {
+            CardSectionsResDTO cardSections = marketRankReaderService.getCardSections();
+
+            log.info("[API] 카드섹션 조회 - 인기:{}, 신규:{}, 상승률:{}, 거래량:{}", 
+                    cardSections.getPopular().size(), 
+                    cardSections.getNewest().size(),
+                    cardSections.getTopChangeRate().size(),
+                    cardSections.getTopVolume().size());
+
+            return ApiResponse.ok(cardSections, "카드섹션 조회 성공");
+
+        } catch (Exception e) {
+            log.error("[API] 카드섹션 조회 실패", e);
+            return ApiResponse.noContent("카드섹션 조회 실패: " + e.getMessage());
         }
     }
 }

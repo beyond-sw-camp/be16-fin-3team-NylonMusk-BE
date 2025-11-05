@@ -2,6 +2,8 @@ package com.beyond.MKX.domain.stock.service;
 
 import com.beyond.MKX.domain.corporation.entity.Corporation;
 import com.beyond.MKX.domain.corporation.repository.CorporationRepository;
+import com.beyond.MKX.domain.stock.dto.CardSectionDataDTO;
+import com.beyond.MKX.domain.stock.dto.StockBriefDTO;
 import com.beyond.MKX.domain.stock.dto.StockDetailResDTO;
 import com.beyond.MKX.domain.stock.dto.StockListResDto;
 import com.beyond.MKX.domain.stock.dto.StockInfoResDTO;
@@ -10,10 +12,14 @@ import com.beyond.MKX.domain.stock.entity.Stock;
 import com.beyond.MKX.domain.stock.entity.StockPriceRatios;
 import com.beyond.MKX.domain.stock.repository.StockPriceRatiosRepository;
 import com.beyond.MKX.domain.stock.repository.StockRepository;
+import com.beyond.MKX.domain.stockfavorite.repository.StockFavoritesRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -23,6 +29,7 @@ public class StockQueryService {
     private final StockRepository stockRepository;
     private final CorporationRepository corporationRepository;
     private final StockPriceRatiosRepository stockPriceRatiosRepository;
+    private final StockFavoritesRepository stockFavoritesRepository;
 
     public Page<StockListResDto> getStocks(String q, String status, Pageable pageable) {
         Stock.Status statusEnum = null;
@@ -127,5 +134,48 @@ public class StockQueryService {
 
     private String emptyToNull(String v) {
         return (v == null || v.isBlank()) ? null : v;
+    }
+
+    /**
+     * 카드섹션 데이터 조회 (인기 + 신규 종목)
+     * 
+     * 한번의 호출로 인기 종목과 신규 종목을 함께 조회
+     * 
+     * @param limit 각 섹션별 조회 개수
+     * @return CardSectionDataDTO (인기 + 신규)
+     */
+    public CardSectionDataDTO getCardSectionData(int limit) {
+        // 1. 인기 종목 TOP N (즐겨찾기 많은 순)
+        List<Stock> popularStocks = stockFavoritesRepository.findTopPopularStocks(limit);
+        List<StockBriefDTO> popular = popularStocks.stream()
+                .map(this::convertToStockBriefDTO)
+                .collect(Collectors.toList());
+
+        // 2. 신규 종목 TOP N (최근 상장 순, LISTED만)
+        PageRequest pageRequest = PageRequest.of(0, limit, Sort.by(Sort.Direction.DESC, "createdAt"));
+        List<Stock> newestStocks = stockRepository.findByStatus(Stock.Status.LISTED, pageRequest).getContent();
+        List<StockBriefDTO> newest = newestStocks.stream()
+                .map(this::convertToStockBriefDTO)
+                .collect(Collectors.toList());
+
+        return CardSectionDataDTO.builder()
+                .popular(popular)
+                .newest(newest)
+                .build();
+    }
+
+    /**
+     * Stock 엔티티를 StockBriefDTO로 변환
+     */
+    private StockBriefDTO convertToStockBriefDTO(Stock stock) {
+        return StockBriefDTO.builder()
+                .id(stock.getId())
+                .ticker(stock.getTicker())
+                .nameKo(stock.getNameKo())
+                .status(stock.getStatus())
+                .delistingStage(stock.getDelistingStage())
+                .imageUrl(stock.getImageUrl())
+                .totalSharesOutstanding(stock.getTotalSharesOutstanding())
+                .build();
     }
 }

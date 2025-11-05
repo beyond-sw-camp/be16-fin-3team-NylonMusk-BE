@@ -2,9 +2,8 @@ package com.beyond.MKX.domain.ranking.service;
 
 import com.beyond.MKX.domain.price.entity.CurrentPrice;
 import com.beyond.MKX.domain.price.service.CurrentPriceService;
-import com.beyond.MKX.domain.ranking.dto.ChangeRateType;
-import com.beyond.MKX.domain.ranking.dto.MarketStockListResDTO;
-import com.beyond.MKX.domain.ranking.dto.StockBriefDTO;
+import com.beyond.MKX.domain.ranking.client.PlatformClient;
+import com.beyond.MKX.domain.ranking.dto.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -15,6 +14,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * 마켓 랭킹 조회 서비스
@@ -32,6 +32,7 @@ public class MarketRankReaderService {
     private final RedisTemplate<String, Object> redisTemplate;
     private final CurrentPriceService currentPriceService;
     private final StockMetaService stockMetaService;
+    private final PlatformClient platformClient;
 
     // Redis Key 상수
     private static final String RANK_VALUE_KEY = "market:rank:trading-value:";      // 거래 대금
@@ -216,6 +217,158 @@ public class MarketRankReaderService {
 
         log.info("[RANK] Built market stock list: {} items", result.size());
         return result;
+    }
+
+    // ========== 카드섹션 API ==========
+
+    /**
+     * 카드섹션 데이터 조회
+     * 
+     * 4개 섹션(인기/신규/상승률/거래량) 각각 TOP 3 종목 정보
+     * 
+     * @return CardSectionsResDTO (4개 섹션 데이터)
+     */
+    public CardSectionsResDTO getCardSections() {
+        try {
+            log.info("[CARD-SECTION] Fetching card section data");
+
+            // 1. PlatformClient로 인기 + 신규 종목 한번에 조회
+            CardSectionDataDTO platformData = platformClient.getCardSectionData(3);
+
+            // 2. 인기 종목 카드 아이템 생성
+            List<CardSectionItemDTO> popular = buildCardItems(platformData.getPopular());
+
+            // 3. 신규 종목 카드 아이템 생성
+            List<CardSectionItemDTO> newest = buildCardItems(platformData.getNewest());
+
+            // 4. 상승률 TOP 3 (Redis에서 조회)
+            List<CardSectionItemDTO> topChangeRate = getTop3ByChangeRate();
+
+            // 5. 거래량 TOP 3 (Redis에서 조회)
+            List<CardSectionItemDTO> topVolume = getTop3ByTradingVolume();
+
+            CardSectionsResDTO result = CardSectionsResDTO.builder()
+                    .popular(popular)
+                    .newest(newest)
+                    .topChangeRate(topChangeRate)
+                    .topVolume(topVolume)
+                    .build();
+
+            log.info("[CARD-SECTION] Card section data retrieved: popular={}, newest={}, topChangeRate={}, topVolume={}", 
+                    popular.size(), newest.size(), topChangeRate.size(), topVolume.size());
+
+            return result;
+
+        } catch (Exception e) {
+            log.error("[CARD-SECTION] Failed to get card sections", e);
+            return CardSectionsResDTO.builder()
+                    .popular(Collections.emptyList())
+                    .newest(Collections.emptyList())
+                    .topChangeRate(Collections.emptyList())
+                    .topVolume(Collections.emptyList())
+                    .build();
+        }
+    }
+
+    /**
+     * 상승률 TOP 3 조회
+     */
+    private List<CardSectionItemDTO> getTop3ByChangeRate() {
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+        String dateStr = today.format(DateTimeFormatter.BASIC_ISO_DATE);
+        String key = RANK_CHANGE_RATE_KEY + dateStr;
+
+        Set<Object> tickersObj = redisTemplate.opsForZSet().reverseRange(key, 0, 2); // TOP 3
+
+        if (tickersObj == null || tickersObj.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<String> tickers = tickersObj.stream()
+                .map(String::valueOf)
+                .toList();
+
+        return buildCardItemsFromTickers(tickers);
+    }
+
+    /**
+     * 거래량 TOP 3 조회
+     */
+    private List<CardSectionItemDTO> getTop3ByTradingVolume() {
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+        String dateStr = today.format(DateTimeFormatter.BASIC_ISO_DATE);
+        String key = RANK_VOLUME_KEY + dateStr;
+
+        Set<Object> tickersObj = redisTemplate.opsForZSet().reverseRange(key, 0, 2); // TOP 3
+
+        if (tickersObj == null || tickersObj.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<String> tickers = tickersObj.stream()
+                .map(String::valueOf)
+                .toList();
+
+        return buildCardItemsFromTickers(tickers);
+    }
+
+    /**
+     * StockBriefDTO 리스트를 CardSectionItemDTO로 변환
+     * 
+     * CurrentPrice에서 현재가와 등락률 추가
+     */
+    private List<CardSectionItemDTO> buildCardItems(List<StockBriefDTO> briefs) {
+        return briefs.stream()
+                .map(brief -> {
+                    CurrentPrice cp = currentPriceService.getCurrentPrice(brief.getTicker());
+                    
+                    return CardSectionItemDTO.builder()
+                            .id(brief.getId())
+                            .ticker(brief.getTicker())
+                            .nameKo(brief.getNameKo())
+                            .currentPrice(cp != null ? cp.getPrice() : 0)
+                            .changeRate(cp != null && cp.getChangeRate() != null 
+                                    ? cp.getChangeRate() 
+                                    : BigDecimal.ZERO)
+                            .build();
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * ticker 리스트로부터 CardSectionItemDTO 생성
+     * 
+     * StockBrief 조회 + CurrentPrice 조합
+     */
+    private List<CardSectionItemDTO> buildCardItemsFromTickers(List<String> tickers) {
+        if (tickers == null || tickers.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // StockBrief 조회
+        Map<String, StockBriefDTO> metaMap = stockMetaService.fetchBriefMap(tickers);
+
+        return tickers.stream()
+                .map(ticker -> {
+                    StockBriefDTO brief = metaMap.get(ticker);
+                    if (brief == null) {
+                        return null;
+                    }
+
+                    CurrentPrice cp = currentPriceService.getCurrentPrice(ticker);
+
+                    return CardSectionItemDTO.builder()
+                            .id(brief.getId())
+                            .ticker(ticker)
+                            .nameKo(brief.getNameKo())
+                            .currentPrice(cp != null ? cp.getPrice() : 0)
+                            .changeRate(cp != null && cp.getChangeRate() != null 
+                                    ? cp.getChangeRate() 
+                                    : BigDecimal.ZERO)
+                            .build();
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
     }
 }
 

@@ -1,5 +1,6 @@
 package com.beyond.MKX.domain.ranking.client;
 
+import com.beyond.MKX.domain.ranking.dto.CardSectionDataDTO;
 import com.beyond.MKX.domain.ranking.dto.StockBriefDTO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,5 +24,9 @@ public interface PlatformClient {
     // 종목 정보 리스트 조회
     @GetMapping("/api/internal/stocks/briefs")
     List<StockBriefDTO> getBriefs(@RequestParam("tickers") List<String> tickers);
+
+    // 카드섹션 데이터 조회 (인기 + 신규 종목)
+    @GetMapping("/api/internal/stocks/card-section-data")
+    CardSectionDataDTO getCardSectionData(@RequestParam(defaultValue = "3") int limit);
 
 }

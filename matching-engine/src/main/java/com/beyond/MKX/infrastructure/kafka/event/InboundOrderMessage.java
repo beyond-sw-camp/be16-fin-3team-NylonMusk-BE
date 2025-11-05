@@ -32,5 +32,6 @@ public class InboundOrderMessage {
     private String orderKind;  // "LIMIT" / "MARKET"
     private long price;      // 원화 정수. LIMIT일 때만 사용
     private BigDecimal quantity;
+    private String accountId;  // 계좌 ID (UUID 문자열) - Kafka key로 사용
     private String createdAt;  // 문자열이면 일단 그대로 둠
 }

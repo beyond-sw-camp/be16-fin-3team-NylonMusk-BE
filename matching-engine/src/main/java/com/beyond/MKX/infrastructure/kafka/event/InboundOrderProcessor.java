@@ -38,6 +38,7 @@ public class InboundOrderProcessor {
                 .orderType(m.getOrderKind())
                 .price(m.getPrice())          // long
                 .quantity(m.getQuantity())    // BigDecimal
+                .accountId(m.getAccountId())  // 계좌 ID
                 .build();
 
         // 매칭 엔진으로 위임(LIMIT/MARKET/CANCEL 분기 및 카프카 이벤트 발행)

@@ -3,6 +3,7 @@ package com.beyond.MKX.domain.execution.service;
 import com.beyond.MKX.common.kafka.event.ExecutionEvent;
 import com.beyond.MKX.domain.assets.entity.MemberAccount;
 import com.beyond.MKX.domain.assets.entity.StockHolding;
+import com.beyond.MKX.domain.assets.repository.MemberAccountRepository;
 import com.beyond.MKX.domain.assets.repository.StockHoldingRepository;
 import com.beyond.MKX.domain.execution.entity.FillLog;
 import com.beyond.MKX.domain.execution.entity.Ledger;
@@ -16,7 +17,6 @@ import com.beyond.MKX.domain.order.entity.Side;
 import com.beyond.MKX.domain.order.repository.OrderLogRepository;
 import com.beyond.MKX.domain.order.service.FeePolicyService;
 import jakarta.persistence.EntityNotFoundException;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -34,6 +34,7 @@ public class BidExecutionService {
     private final FillLogRepository fillLogRepository;
     private final OrderLogRepository orderLogRepository;
     private final StockHoldingRepository stockHoldingRepository;
+    private final MemberAccountRepository memberAccountRepository;
     private final FeePolicyService feePolicyService;
     private final LedgerRepository ledgerRepository;
     private final RedisTemplate<String, String> redisTemplate;
@@ -41,12 +42,14 @@ public class BidExecutionService {
     public BidExecutionService(FillLogRepository fillLogRepository,
                                OrderLogRepository orderLogRepository,
                                StockHoldingRepository stockHoldingRepository,
+                               MemberAccountRepository memberAccountRepository,
                                FeePolicyService feePolicyService,
                                LedgerRepository ledgerRepository,
                                @Qualifier("idempotency") RedisTemplate<String, String> redisTemplate) {
         this.fillLogRepository = fillLogRepository;
         this.orderLogRepository = orderLogRepository;
         this.stockHoldingRepository = stockHoldingRepository;
+        this.memberAccountRepository = memberAccountRepository;
         this.feePolicyService = feePolicyService;
         this.ledgerRepository = ledgerRepository;
         this.redisTemplate = redisTemplate;
@@ -76,7 +79,9 @@ public class BidExecutionService {
         /// 2. 기본 엔티티 가져오기
         OrderLog orderLog = orderLogRepository.findById(bidOrderId)
                 .orElseThrow(() -> new EntityNotFoundException("해당 주문기록이 없습니다."));
-        MemberAccount memberAccount = orderLog.getAccount();
+        // 비관적 잠금으로 계좌 조회 (동시성 제어)
+        MemberAccount memberAccount = memberAccountRepository.findByIdWithLock(orderLog.getAccount().getId())
+                .orElseThrow(() -> new EntityNotFoundException("해당 계좌가 존재하지 않습니다."));
 
         /// 3. 보유 주식 반영
         Optional<StockHolding> stockHoldingOpt = stockHoldingRepository

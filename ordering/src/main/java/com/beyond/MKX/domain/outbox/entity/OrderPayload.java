@@ -22,5 +22,6 @@ public class OrderPayload {
     private OrderKind orderKind;
     private Long price;
     private Long quantity;
+    private UUID accountId;
     private LocalDateTime createdAt;
 }

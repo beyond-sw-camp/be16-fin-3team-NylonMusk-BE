@@ -35,7 +35,7 @@ public class KafkaOrderProducer {
     // 체결 이벤트 (부분/완전 체결 1건마다 발행)
     // ---------------------------------------------------------------------
     public void sendExecution(String marketOrderId, String ticker, String side,
-                              String counterOrderId, BigDecimal qty, long price) {
+                              String counterOrderId, BigDecimal qty, long price, String accountId) {
         String execId = marketOrderId + "-" + counterOrderId + "-" + UUID.randomUUID(); // 멱등키(충분히 유일)
         ExecutionEvent evt = ExecutionEvent.builder()
                 .execId(execId)
@@ -48,15 +48,17 @@ public class KafkaOrderProducer {
                 .timestamp(Instant.now().toEpochMilli())
                 .build();
 
-        // 파티션 키=티커(동일 종목 내 순서 보장 강화)
-        kafkaTemplate.send(EXECUTION_TOPIC, ticker, evt).whenComplete((md, ex) -> {
+        // 파티션 키=accountId (같은 계좌의 주문 순서 보장)
+        String partitionKey = (accountId != null && !accountId.isBlank()) ? accountId : ticker;
+        kafkaTemplate.send(EXECUTION_TOPIC, partitionKey, evt).whenComplete((md, ex) -> {
             if (ex != null) {
-                log.error("[KAFKA] executions send failed key={} evt={}", ticker, evt, ex);
+                log.error("[KAFKA] executions send failed key={} evt={}", partitionKey, evt, ex);
             } else {
-                log.debug("[KAFKA] executions sent topic={} partition={} offset={}",
+                log.debug("[KAFKA] executions sent topic={} partition={} offset={} key={}",
                         md.getRecordMetadata().topic(),
                         md.getRecordMetadata().partition(),
-                        md.getRecordMetadata().offset());
+                        md.getRecordMetadata().offset(),
+                        partitionKey);
             }
         });
     }
@@ -65,7 +67,7 @@ public class KafkaOrderProducer {
     // 상태 알림 (접수/대기/부분/완전/취소)
     // ---------------------------------------------------------------------
     /** 신규 지정가 접수(체결 전): price=지정가, remaining=초기 수량 */
-    public void sendNewAccepted(String orderId, String ticker, String side, long price, BigDecimal qty) {
+    public void sendNewAccepted(String orderId, String ticker, String side, long price, BigDecimal qty, String accountId) {
         OrderStatusEvent evt = OrderStatusEvent.builder()
                 .orderId(orderId)
                 .ticker(ticker)
@@ -75,19 +77,21 @@ public class KafkaOrderProducer {
                 .remaining(qty)   // 초기 잔량 = 접수 수량
                 .timestamp(Instant.now().toEpochMilli())
                 .build();
-        sendOrderStatus(ticker != null ? ticker : orderId, evt);
+        String key = (accountId != null && !accountId.isBlank()) ? accountId : (ticker != null ? ticker : orderId);
+        sendOrderStatus(key, evt);
     }
 
     /** 취소 성공 */
-    public void sendCancelSuccess(String orderId) {
+    public void sendCancelSuccess(String orderId, String accountId) {
         OrderStatusEvent evt = OrderStatusEvent.builder()
                 .orderId(orderId).status("CANCEL_OK")
                 .timestamp(Instant.now().toEpochMilli()).build();
-        sendOrderStatus(orderId, evt);        // 키=orderId (특정 주문 추적)
+        String key = (accountId != null && !accountId.isBlank()) ? accountId : orderId;
+        sendOrderStatus(key, evt);
     }
 
     /** 시장가 대기(가드 범위 내 반대 호가 없음) */
-    public void sendWaiting(String marketOrderId, String ticker, String side) {
+    public void sendWaiting(String marketOrderId, String ticker, String side, String accountId) {
         OrderStatusEvent evt = OrderStatusEvent.builder()
                 .orderId(marketOrderId)
                 .status("WAITING")
@@ -95,7 +99,8 @@ public class KafkaOrderProducer {
                 .side(side)
                 .timestamp(Instant.now().toEpochMilli())
                 .build();
-        sendOrderStatus(ticker != null ? ticker : marketOrderId, evt);
+        String key = (accountId != null && !accountId.isBlank()) ? accountId : (ticker != null ? ticker : marketOrderId);
+        sendOrderStatus(key, evt);
     }
 
     /**
@@ -106,7 +111,7 @@ public class KafkaOrderProducer {
     public void sendMarketPartial(String orderId, String ticker, String side,
                                   BigDecimal remaining,
                                   long vwap, long lastPrice, long limitPrice, BigDecimal filledQty,
-                                  long notional) {
+                                  long notional, String accountId) {
         OrderStatusEvent evt = OrderStatusEvent.builder()
                 .orderId(orderId)
                 .ticker(ticker)
@@ -120,7 +125,8 @@ public class KafkaOrderProducer {
                 .notional(notional)
                 .timestamp(Instant.now().toEpochMilli())
                 .build();
-        sendOrderStatus(ticker != null ? ticker : orderId, evt);
+        String key = (accountId != null && !accountId.isBlank()) ? accountId : (ticker != null ? ticker : orderId);
+        sendOrderStatus(key, evt);
     }
 
     /**
@@ -129,7 +135,7 @@ public class KafkaOrderProducer {
      */
     public void sendMarketFilled(String orderId, String ticker, String side,
                                  long vwap, long lastPrice, long limitPrice, BigDecimal filledQty,
-                                 long notional) {
+                                 long notional, String accountId) {
         OrderStatusEvent evt = OrderStatusEvent.builder()
                 .orderId(orderId)
                 .ticker(ticker)
@@ -142,15 +148,17 @@ public class KafkaOrderProducer {
                 .notional(notional)
                 .timestamp(Instant.now().toEpochMilli())
                 .build();
-        sendOrderStatus(ticker != null ? ticker : orderId, evt);
+        String key = (accountId != null && !accountId.isBlank()) ? accountId : (ticker != null ? ticker : orderId);
+        sendOrderStatus(key, evt);
     }
 
     // ---------------------------------------------------------------------
     // 에러(문자열 페이로드)
     // ---------------------------------------------------------------------
-    public void sendError(String orderId, String reason) {
+    public void sendError(String orderId, String reason, String accountId) {
         String payload = String.format("Error on order %s: %s", orderId, reason);
-        kafkaTemplate.send(ERROR_TOPIC, orderId, payload);
+        String key = (accountId != null && !accountId.isBlank()) ? accountId : orderId;
+        kafkaTemplate.send(ERROR_TOPIC, key, payload);
         log.error("[KAFKA] {}", payload);
     }
 
@@ -163,10 +171,11 @@ public class KafkaOrderProducer {
                     if (ex != null) {
                         log.error("[KAFKA] order-status send failed key={} payload={}", key, payload, ex);
                     } else {
-                        log.debug("[KAFKA] order-status sent topic={} partition={} offset={}",
+                        log.debug("[KAFKA] order-status sent topic={} partition={} offset={} key={}",
                                 md.getRecordMetadata().topic(),
                                 md.getRecordMetadata().partition(),
-                                md.getRecordMetadata().offset());
+                                md.getRecordMetadata().offset(),
+                                key);
                     }
                 });
     }

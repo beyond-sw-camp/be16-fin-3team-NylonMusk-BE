@@ -22,5 +22,6 @@ public class OrderEvent {
     private String orderType;     // 주문 유형 (e.g. LIMIT, MARKET, CANCEL)
     private long price;         // 가격
     private BigDecimal quantity;      // 수량
+    private String accountId;   // 계좌 ID (UUID 문자열) - Kafka key로 사용
     private LocalDateTime createdAt; // 생성 시각
 }

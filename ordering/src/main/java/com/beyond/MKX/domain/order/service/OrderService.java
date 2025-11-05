@@ -1,5 +1,6 @@
 package com.beyond.MKX.domain.order.service;
 
+import com.beyond.MKX.domain.account.member.service.DistributedLockService;
 import com.beyond.MKX.domain.assets.entity.MemberAccount;
 import com.beyond.MKX.domain.assets.entity.StockHolding;
 import com.beyond.MKX.domain.assets.repository.MemberAccountRepository;
@@ -10,7 +11,6 @@ import com.beyond.MKX.domain.order.dto.OrderRequestDTO;
 import com.beyond.MKX.domain.order.dto.OrderResponseDTO;
 import com.beyond.MKX.domain.order.entity.OrderKind;
 import com.beyond.MKX.domain.order.entity.OrderLog;
-import com.beyond.MKX.domain.order.entity.OrderStatus;
 import com.beyond.MKX.domain.order.entity.Side;
 import com.beyond.MKX.domain.order.repository.OrderLogRepository;
 import com.beyond.MKX.domain.outbox.entity.OrderOutbox;
@@ -20,14 +20,17 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -41,19 +44,63 @@ public class OrderService {
     private final OrderOutboxRepository outboxRepository;
     private final StockHoldingRepository stockHoldingRepository;
     private final ObjectMapper objectMapper;
+    private final DistributedLockService distributedLockService;
 
     private static final BigDecimal PROTECTIVE_CAP_RATIO = new BigDecimal("0.05"); // 시장가 보호한도
+    private static final int MAX_LOCK_RETRIES = 3; // 락 획득 최대 재시도 횟수
+    private static final Duration LOCK_RETRY_DELAY = Duration.ofMillis(50); // 재시도 대기 시간
 
     // 주문 접수 서비스 로직
     public OrderResponseDTO placeOrder(OrderRequestDTO dto) {
         UUID accountId = dto.accountId();
         String ticker = dto.ticker();
 
+        // 계좌별 분산 락 획득 (같은 계좌의 주문은 순차 처리)
+        try (DistributedLockService.LockResource lock = distributedLockService.acquireLock(accountId)) {
+            if (!lock.isAcquired()) {
+                // 락 획득 실패 시 재시도
+                return placeOrderWithRetry(dto, accountId, ticker);
+            }
+            
+            // 락 획득 성공 시 주문 처리
+            return doPlaceOrder(dto, accountId, ticker);
+        }
+    }
+
+    /**
+     * 락 획득 실패 시 재시도 로직
+     */
+    private OrderResponseDTO placeOrderWithRetry(OrderRequestDTO dto, UUID accountId, String ticker) {
+        for (int i = 0; i < MAX_LOCK_RETRIES; i++) {
+            try {
+                Thread.sleep(LOCK_RETRY_DELAY.toMillis());
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("주문 처리 중단됨", e);
+            }
+
+            try (DistributedLockService.LockResource lock = distributedLockService.acquireLock(accountId)) {
+                if (lock.isAcquired()) {
+                    return doPlaceOrder(dto, accountId, ticker);
+                }
+            }
+        }
+        
+        // 최대 재시도 후에도 락 획득 실패
+        log.warn("락 획득 실패: accountId={}, 최대 재시도 횟수 초과", accountId);
+        throw new IllegalStateException("다른 주문이 처리 중입니다. 잠시 후 다시 시도해주세요.");
+    }
+
+    /**
+     * 실제 주문 처리 로직
+     */
+    private OrderResponseDTO doPlaceOrder(OrderRequestDTO dto, UUID accountId, String ticker) {
+
         // 0. 멱등성 검사
         /// TODO: 추후 멱등성 검사 도입 예정
 
-        // 1. 검증
-        MemberAccount memberAccount = memberAccountRepository.findById(accountId)
+        // 1. 검증 (비관적 잠금으로 동시성 제어)
+        MemberAccount memberAccount = memberAccountRepository.findByIdWithLock(accountId)
                 .orElseThrow(() -> new EntityNotFoundException("해당 계좌가 존재하지 않습니다."));
         validator.validateAccount(memberAccount);
         validator.validateTradable(ticker);
@@ -106,8 +153,8 @@ public class OrderService {
                 throw new IllegalArgumentException("계좌의 잔고가 부족합니다.");
             }
             memberAccount.decreaseAvailableBalance(totalAmount);
-        } else { // (매도) 보유주식 수 동결
-            StockHolding stockHolding = stockHoldingRepository.findByMemberAccountIdAndTicker(accountId, ticker)
+        } else { // (매도) 보유주식 수 동결 (비관적 잠금으로 동시성 제어)
+            StockHolding stockHolding = stockHoldingRepository.findByMemberAccountIdAndTickerWithLock(accountId, ticker)
                     .orElseThrow(() -> new EntityNotFoundException("해당 보유 주식이 존재하지 않습니다."));
             if (stockHolding.getAvailableQuantity() < dto.quantity()) {
                 throw new IllegalArgumentException("매도 가능한 주식 수량이 부족합니다.");
@@ -143,6 +190,7 @@ public class OrderService {
                         .orderKind(order.getOrderKind())
                         .price(order.getPrice())
                         .quantity(order.getQuantity())
+                        .accountId(accountId)
                         .createdAt(LocalDateTime.now())
                         .build()
         );
@@ -165,6 +213,7 @@ public class OrderService {
                         .ticker(orderLog.getTicker())
                         .side(orderLog.getSide())
                         .orderKind(OrderKind.CANCEL)
+                        .accountId(memberAccount.getId())
                         .build()
         );
         return OrderResponseDTO.from(orderLog);
@@ -182,7 +231,7 @@ public class OrderService {
             OrderOutbox orderOutbox = OrderOutbox.builder()
                     .orderLogId(orderPayload.getOrderId())
                     .eventType("ORDER_PLACED")
-                    .kafkaKey(orderPayload.getTicker())
+                    .kafkaKey(orderPayload.getTicker())  // ticker를 key로 사용하여 같은 종목의 주문 순서 보장 (매칭 엔진)
                     .payload(payloadJson)
                     .build();
             outboxRepository.save(orderOutbox);

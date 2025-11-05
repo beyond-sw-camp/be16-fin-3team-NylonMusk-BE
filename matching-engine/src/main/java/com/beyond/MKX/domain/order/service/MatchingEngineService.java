@@ -61,7 +61,8 @@ public class MatchingEngineService {
             log.error("Processing failed for event: {}", event, ex);
             kafkaOrderProducer.sendError(
                     event.getOrderId() != null ? event.getOrderId() : "UNKNOWN",
-                    "processing-failure:" + ex.getClass().getSimpleName()
+                    "processing-failure:" + ex.getClass().getSimpleName(),
+                    event.getAccountId()
             );
         }
     }
@@ -121,7 +122,8 @@ public class MatchingEngineService {
                     e.getSide(),
                     f.counterOrderId(),
                     f.quantity(),
-                    px
+                    px,
+                    e.getAccountId()
             );
         }
 
@@ -142,14 +144,15 @@ public class MatchingEngineService {
                     lastPxInt != null ? lastPxInt : 0L,
                     limitPxInt,
                     filledQtyBD,
-                    notional
+                    notional,
+                    e.getAccountId()
             );
             log.info("LIMIT filled: {} {} {} filledUnits={}", e.getOrderId(), e.getTicker(), e.getSide(), reqUnits);
         } else if (res.fills().isEmpty()) {
             // 무체결 → 잔량 적재 보강
             boolean added = redisRepo.ensureLimitOrderPresent(
                     e.getTicker(), e.getOrderId(), e.getSide(), e.getPrice(), reqQtyBD);
-            kafkaOrderProducer.sendNewAccepted(e.getOrderId(), e.getTicker(), e.getSide(), e.getPrice(), reqQtyBD);
+            kafkaOrderProducer.sendNewAccepted(e.getOrderId(), e.getTicker(), e.getSide(), e.getPrice(), reqQtyBD, e.getAccountId());
             log.info("LIMIT accepted(no fills): {} {} {} qty={} price={} (fallbackAdded={})",
                     e.getOrderId(), e.getTicker(), e.getSide(), reqQtyBD, e.getPrice(), added);
         } else {
@@ -164,7 +167,8 @@ public class MatchingEngineService {
                     lastPxInt != null ? lastPxInt : 0L,
                     limitPxInt,
                     filledQtyBD,
-                    notional
+                    notional,
+                    e.getAccountId()
             );
 
             log.info("LIMIT partial: {} {} {} remainingUnits={} (fallbackAdded={})",
@@ -222,7 +226,8 @@ public class MatchingEngineService {
                     mkt.getSide(),
                     f.counterOrderId(),
                     f.quantity(),
-                    px
+                    px,
+                    mkt.getAccountId()
             );
         }
 
@@ -241,11 +246,12 @@ public class MatchingEngineService {
                     lastPxInt != null ? lastPxInt : 0L,
                     limitPxInt,
                     filledQtyBD,
-                    notional
+                    notional,
+                    mkt.getAccountId()
             );
             log.info("MARKET filled: {} ticker={} side={} filledUnits={}", mkt.getOrderId(), mkt.getTicker(), mkt.getSide(), reqUnits);
         } else if (res.fills().isEmpty()) {
-            kafkaOrderProducer.sendWaiting(mkt.getOrderId(), mkt.getTicker(), mkt.getSide());
+            kafkaOrderProducer.sendWaiting(mkt.getOrderId(), mkt.getTicker(), mkt.getSide(), mkt.getAccountId());
             log.info("MARKET waiting: {} (no opposite within guard)", mkt.getOrderId());
         } else {
             kafkaOrderProducer.sendMarketPartial(
@@ -255,7 +261,8 @@ public class MatchingEngineService {
                     lastPxInt != null ? lastPxInt : 0L,
                     limitPxInt,
                     filledQtyBD,
-                    notional
+                    notional,
+                    mkt.getAccountId()
             );
             log.info("MARKET partial: {} ticker={} side={} remainingUnits={}", mkt.getOrderId(), mkt.getTicker(), mkt.getSide(), remainingUnits);
         }
@@ -270,7 +277,7 @@ public class MatchingEngineService {
         requireNonEmpty(e.getSide(),   "side");
 
         redisRepo.cancelOrder(e.getOrderId(), e.getTicker(), e.getSide());
-        kafkaOrderProducer.sendCancelSuccess(e.getOrderId());
+        kafkaOrderProducer.sendCancelSuccess(e.getOrderId(), e.getAccountId());
         log.info("CANCEL ok: {}", e.getOrderId());
     }
 

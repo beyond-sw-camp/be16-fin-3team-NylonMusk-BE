@@ -2,7 +2,11 @@ package com.beyond.MKX.domain.assets.repository;
 
 
 import com.beyond.MKX.domain.assets.entity.MemberAccount;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -27,5 +31,13 @@ public interface MemberAccountRepository extends JpaRepository<MemberAccount, UU
 
     /** 특정 회원의 계좌 조회  */
     Optional<MemberAccount> findByMemberId(UUID memberId);
+
+    /**
+     * ID로 계좌 조회 (비관적 잠금 사용)
+     * 동시 주문 처리 시 DB 충돌 방지
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT ma FROM MemberAccount ma WHERE ma.id = :accountId")
+    Optional<MemberAccount> findByIdWithLock(@Param("accountId") UUID accountId);
 
 }

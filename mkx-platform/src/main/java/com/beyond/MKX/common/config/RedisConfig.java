@@ -41,4 +41,27 @@ public class RedisConfig {
         return  redisTemplate;
     }
 
+    // EMAIL_QUEUE: 이메일 큐용 Redis 설정 (database 5)
+    @Bean
+    @Qualifier("emailQueue")
+    public RedisConnectionFactory emailQueueRedisConnectionFactory() {
+        RedisStandaloneConfiguration configuration = new RedisStandaloneConfiguration();
+        configuration.setHostName(host);
+        configuration.setPort(port);
+        configuration.setDatabase(5); // 이메일 큐용 database 5
+        return new LettuceConnectionFactory(configuration);
+    }
+
+    @Bean
+    @Qualifier("emailQueue")
+    public RedisTemplate<String, Object> emailQueueRedisTemplate(
+        @Qualifier("emailQueue") RedisConnectionFactory emailQueueRedisConnectionFactory
+    ) {
+        RedisTemplate<String, Object> redisTemplate = new RedisTemplate<>();
+        redisTemplate.setKeySerializer(new StringRedisSerializer());
+        redisTemplate.setValueSerializer(new StringRedisSerializer());
+        redisTemplate.setConnectionFactory(emailQueueRedisConnectionFactory);
+        return redisTemplate;
+    }
+
 }

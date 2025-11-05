@@ -18,7 +18,13 @@ import java.util.UUID;
 public interface MemberRepository extends JpaRepository<Member, UUID> {
     Optional<Member> findByEmail(String email);
 
+    /** EMAIL_DUPLICATE_CHECK: 이메일 중복 여부 확인 */
+    boolean existsByEmail(String email);
+
     Optional<Member> findByPhone(String phone);
+
+    /** EMAIL_VERIFICATION: 이메일 인증 토큰으로 회원 조회 */
+    Optional<Member> findByEmailVerificationToken(String token);
 
     List<Member> findByBrokerage(SecuritiesFirm brokerage);
 

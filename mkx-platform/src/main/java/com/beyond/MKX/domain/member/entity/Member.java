@@ -51,4 +51,16 @@ public class Member extends BaseIdAndTimeEntity {
     @Builder.Default
     private MemberStatus status = MemberStatus.ACTIVE;
 
+    /** EMAIL_VERIFICATION: 이메일 인증 토큰 */
+    @Column(nullable = true, length = 255)
+    private String emailVerificationToken;
+
+    /** EMAIL_VERIFICATION: 이메일 인증 완료 시간 */
+    @Column(nullable = true)
+    private LocalDateTime emailVerifiedAt;
+
+    /** EMAIL_VERIFICATION: 이메일 인증 토큰 만료 시간 */
+    @Column(nullable = true)
+    private LocalDateTime emailVerificationTokenExpiresAt;
+
 }

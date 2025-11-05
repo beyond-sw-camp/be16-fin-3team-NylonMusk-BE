@@ -78,6 +78,9 @@ dependencies {
 
 	implementation 'commons-fileupload:commons-fileupload:1.5'
 
+	// EMAIL: 이메일 발송을 위한 Spring Mail 의존성
+	implementation 'org.springframework.boot:spring-boot-starter-mail'
+
 }
 
 dependencyManagement {

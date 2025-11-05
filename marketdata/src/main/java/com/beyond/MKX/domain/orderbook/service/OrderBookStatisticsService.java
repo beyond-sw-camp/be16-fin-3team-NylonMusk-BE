@@ -2,9 +2,10 @@ package com.beyond.MKX.domain.orderbook.service;
 
 import com.beyond.MKX.domain.orderbook.dto.enhanced.OrderBookStatistics;
 import com.beyond.MKX.domain.orderbook.entity.OrderBook;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -22,10 +23,21 @@ import java.util.concurrent.TimeUnit;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class OrderBookStatisticsService {
     
     private final RedisTemplate<String, Object> redisTemplate;
+    private final StringRedisTemplate matchingEngineRedisTemplate;
+    
+    // ✅ @Qualifier와 함께 사용하려면 생성자 주입 필요
+    public OrderBookStatisticsService(
+            RedisTemplate<String, Object> redisTemplate,
+            @Qualifier("matchingEngineRedisTemplate") StringRedisTemplate matchingEngineRedisTemplate) {
+        this.redisTemplate = redisTemplate;
+        this.matchingEngineRedisTemplate = matchingEngineRedisTemplate;
+    }
+    
+    // Redis key prefix for total volume tracking (matching engine에서 관리)
+    private static final String TOTAL_VOLUME_KEY_PREFIX = "orderbook:total:";
     
     // Redis key prefix for execution volume tracking
     private static final String EXECUTION_VOLUME_KEY_PREFIX = "execution:volume:";
@@ -57,8 +69,37 @@ public class OrderBookStatisticsService {
             BigDecimal executionStrength = calculateExecutionStrength(recentBuyVolume, recentSellVolume);
             
             // 4. 총 매수/매도 잔량
-            BigDecimal totalBidVolume = calculateTotalVolume(orderBook.getBids());
-            BigDecimal totalAskVolume = calculateTotalVolume(orderBook.getAsks());
+            // ✅ matching engine Redis에서 관리하는 totalVolume 조회 (전체 대기 주문 합계)
+            BigDecimal totalBidVolume = getTotalVolumeFromRedis(ticker, "BUY");
+            BigDecimal totalAskVolume = getTotalVolumeFromRedis(ticker, "SELL");
+            
+            // ✅ Redis에서 값을 조회했는지 확인 (값이 0이어도 실제로는 0일 수 있으므로, 
+            //    Redis에서 null을 반환한 경우에만 fallback 사용)
+            // getTotalVolumeFromRedis는 조회 실패 시에만 ZERO를 반환하므로,
+            // 실제로는 값이 있을 때만 사용하고, 없을 때는 fallback 사용
+            
+            // 로깅으로 확인
+            log.info("[ORDERBOOK-STATS] Total volumes from Redis - ticker={}, bidVolume={}, askVolume={}", 
+                    ticker, totalBidVolume, totalAskVolume);
+            
+            // fallback: Redis에서 조회 실패(값이 없거나 에러) 시 호가창 데이터에서 계산 (상위 20개만)
+            // 주의: 실제 대기 주문이 0인 경우와 조회 실패를 구분하기 어려우므로,
+            // 호가창 데이터가 있고 Redis 값이 0이면 일단 호가창 데이터 사용
+            // (초기화 전 상황 대비)
+            if (totalBidVolume.compareTo(BigDecimal.ZERO) == 0 && !orderBook.getBids().isEmpty()) {
+                BigDecimal calculated = calculateTotalVolume(orderBook.getBids());
+                if (calculated.compareTo(BigDecimal.ZERO) > 0) {
+                    totalBidVolume = calculated;
+                    log.warn("[ORDERBOOK-STATS] Using fallback calculated bidVolume from orderbook: {} (Redis may not be initialized)", totalBidVolume);
+                }
+            }
+            if (totalAskVolume.compareTo(BigDecimal.ZERO) == 0 && !orderBook.getAsks().isEmpty()) {
+                BigDecimal calculated = calculateTotalVolume(orderBook.getAsks());
+                if (calculated.compareTo(BigDecimal.ZERO) > 0) {
+                    totalAskVolume = calculated;
+                    log.warn("[ORDERBOOK-STATS] Using fallback calculated askVolume from orderbook: {} (Redis may not be initialized)", totalAskVolume);
+                }
+            }
             
             // 5. 매수/매도 우위 비율
             BigDecimal bidRatio = calculateRatio(totalBidVolume, totalBidVolume, totalAskVolume);
@@ -199,7 +240,35 @@ public class OrderBookStatisticsService {
     }
     
     /**
-     * 총 호가 수량 계산
+     * Redis에서 총 호가 잔량 조회 (matching engine에서 관리)
+     */
+    private BigDecimal getTotalVolumeFromRedis(String ticker, String side) {
+        try {
+            String key = TOTAL_VOLUME_KEY_PREFIX + "{" + ticker + "}";
+            String field = side.equalsIgnoreCase("BUY") ? "bidVolume" : "askVolume";
+            
+            // ✅ matching engine Redis에서 조회 (StringRedisTemplate 사용)
+            String value = (String) matchingEngineRedisTemplate.opsForHash().get(key, field);
+            
+            if (value != null && !value.isEmpty()) {
+                try {
+                    // StringRedisTemplate은 String을 반환하므로 바로 BigDecimal로 변환
+                    return new BigDecimal(value);
+                } catch (NumberFormatException e) {
+                    log.warn("[ORDERBOOK-STATS] Failed to parse total volume: ticker={}, side={}, value={}", ticker, side, value);
+                }
+            } else {
+                log.debug("[ORDERBOOK-STATS] Total volume not found in Redis: ticker={}, side={}, key={}, field={}", ticker, side, key, field);
+            }
+        } catch (Exception e) {
+            log.warn("[ORDERBOOK-STATS] Failed to get total volume from Redis: ticker={}, side={}", ticker, side, e);
+        }
+        
+        return BigDecimal.ZERO;
+    }
+    
+    /**
+     * 총 호가 수량 계산 (fallback용 - 호가창 데이터에서 계산)
      */
     private BigDecimal calculateTotalVolume(java.util.List<OrderBook.OrderBookEntry> entries) {
         if (entries == null || entries.isEmpty()) {

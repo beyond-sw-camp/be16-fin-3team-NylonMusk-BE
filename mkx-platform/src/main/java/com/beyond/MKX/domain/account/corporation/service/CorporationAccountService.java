@@ -114,6 +114,17 @@ public class CorporationAccountService {
     }
 
     public BigInteger withdraw(UUID accountId, BigInteger amount) {
+        return withdraw(accountId, amount, null);
+    }
+    
+    /**
+     * 출금 처리 (TransactionType 지정 가능)
+     * @param accountId 계좌 UUID
+     * @param amount 출금 금액
+     * @param transactionType 거래 유형 (null이면 기본 WITHDRAWAL)
+     * @return 새로운 잔고
+     */
+    public BigInteger withdraw(UUID accountId, BigInteger amount, String transactionType) {
         CorporationAccount acc = repository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("계좌를 찾을 수 없습니다."));
         if (acc.getStatus() != AccountStatus.APPROVED) {
@@ -121,8 +132,13 @@ public class CorporationAccountService {
         }
         acc.withdraw(amount);
         
-        // Kafka 이벤트 발행
-        eventPublisher.publishWithdrawalEvent(acc.getId().toString(), acc.getAccountNumber(), amount.longValue(), "BANK_TRANSFER");
+        // TransactionType이 지정된 경우는 이벤트를 발행하지 않음 (호출자가 직접 발행)
+        // 기본 WITHDRAWAL인 경우에만 여기서 이벤트 발행
+        if (transactionType == null || "WITHDRAWAL".equals(transactionType)) {
+            // Kafka 이벤트 발행
+            eventPublisher.publishWithdrawalEvent(acc.getId().toString(), acc.getAccountNumber(), amount.longValue(), "BANK_TRANSFER");
+        }
+        // transactionType이 지정된 경우 (IPO_PAID 등)는 호출자가 이미 이벤트를 발행했거나 발행할 예정이므로 여기서는 발행하지 않음
         
         return acc.getBalance();
     }

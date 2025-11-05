@@ -17,4 +17,13 @@ public class MemberLoginReqDto {
 
     @NotBlank(message = "비밀번호는 필수입니다.")
     private String password;
+
+    /** CAPTCHA: CAPTCHA 키 (5회 이상 실패 시 필수) */
+    private String captchaKey;
+
+    /** CAPTCHA: CAPTCHA 값 (5회 이상 실패 시 필수) */
+    private String captchaValue;
+    
+    /** CAPTCHA: CAPTCHA 타입 (image 또는 audio, 5회 이상 실패 시 필수) */
+    private String captchaType;
 }

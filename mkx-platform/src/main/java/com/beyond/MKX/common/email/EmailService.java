@@ -149,7 +149,7 @@ public class EmailService {
                                         <div style="background-color: #f9f9f9; border-left: 4px solid #F0B90B; padding: 16px; margin: 0 0 30px 0; border-radius: 4px;">
                                             <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #666666;">
                                                 <strong style="color: #0E1723;"> 유효 기간:</strong> 이 링크는 24시간 동안 유효합니다.<br>
-                                                <strong style="color: #0E1723;">️ 보안 안내:</strong> 회원가입을 요청하지 않으셨다면, 이 이메일을 무시하셔도 됩니다.
+                                                <strong style="color: #0E1723;">️보안 안내:</strong> 회원가입을 요청하지 않으셨다면, 이 이메일을 무시하셔도 됩니다.
                                             </p>
                                         </div>
                                     </td>

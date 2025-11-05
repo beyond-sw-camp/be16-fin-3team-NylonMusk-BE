@@ -52,6 +52,21 @@ public class ApiResponse {
                 data
         ), HttpStatus.NO_CONTENT);
     }
+
+    /**
+     * ERROR: 에러 응답 생성
+     * @param status HTTP 상태 코드
+     * @param message 에러 메시지
+     * @param data 추가 데이터 (null 가능)
+     * @return ResponseEntity
+     */
+    public static ResponseEntity<?> error(HttpStatus status, String message, Object data) {
+        return new ResponseEntity<>(new CommonDTO(
+                message,
+                status.value(),
+                data
+        ), status);
+    }
 }
 
 

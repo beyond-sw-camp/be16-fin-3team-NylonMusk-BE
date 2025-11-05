@@ -9,6 +9,7 @@ import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
+import org.springframework.web.client.RestTemplate;
 
 @Configuration
 public class RedisConfig {
@@ -62,6 +63,12 @@ public class RedisConfig {
         redisTemplate.setValueSerializer(new StringRedisSerializer());
         redisTemplate.setConnectionFactory(emailQueueRedisConnectionFactory);
         return redisTemplate;
+    }
+
+    // REST_TEMPLATE: HTTP 클라이언트 (CAPTCHA API 호출용)
+    @Bean
+    public RestTemplate restTemplate() {
+        return new RestTemplate();
     }
 
 }

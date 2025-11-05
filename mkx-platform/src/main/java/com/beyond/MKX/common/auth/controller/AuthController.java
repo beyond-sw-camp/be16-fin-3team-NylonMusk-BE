@@ -12,6 +12,8 @@ import com.beyond.MKX.domain.admin.repository.AdminRepository;
 import com.beyond.MKX.domain.member.dto.MemberLoginReqDto;
 import com.beyond.MKX.domain.member.entity.Member;
 import com.beyond.MKX.domain.member.service.MemberService;
+import com.beyond.MKX.common.auth.service.LoginAttemptService;
+import com.beyond.MKX.common.auth.service.CaptchaService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -26,6 +28,7 @@ import org.springframework.web.bind.annotation.*;
 
 
 import java.time.Duration;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -50,6 +53,8 @@ public class  AuthController {
     private final RevokedTokenRepository revokedTokenRepository;
     private final AuthCookieProperties cookieProps;
     private final MemberService memberService;
+    private final LoginAttemptService loginAttemptService;
+    private final CaptchaService captchaService;
 
     /**
      * 로그인: 이메일/비밀번호 검증 후
@@ -247,37 +252,105 @@ public class  AuthController {
 
     @PostMapping(value = "/member/login", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> memberLogin(@Valid @RequestBody MemberLoginReqDto req, HttpServletResponse resp) {
-        Member member = memberService.authenticate(req);
+        // CAPTCHA: 5회 이상 실패 시 CAPTCHA 검증 필수
+        boolean requiresCaptcha = loginAttemptService.requiresCaptcha(req.getEmail());
+        if (requiresCaptcha) {
+            if (req.getCaptchaKey() == null || req.getCaptchaValue() == null || req.getCaptchaType() == null) {
+                int remainingAttempts = loginAttemptService.getRemainingAttempts(req.getEmail());
+                return ApiResponse.error(
+                    HttpStatus.BAD_REQUEST,
+                    "로그인 실패 횟수가 5회를 초과했습니다. CAPTCHA를 입력해주세요.",
+                    Map.of("requiresCaptcha", true, "failedAttempts", loginAttemptService.getFailedAttempts(req.getEmail()))
+                );
+            }
+            
+            // CAPTCHA 검증: 타입에 따라 이미지 또는 음성 검증
+            boolean captchaValid = false;
+            String captchaType = req.getCaptchaType().toLowerCase();
+            
+            if ("image".equals(captchaType)) {
+                // 이미지 CAPTCHA 검증
+                captchaValid = captchaService.verifyCaptcha(req.getCaptchaKey(), req.getCaptchaValue());
+            } else if ("audio".equals(captchaType)) {
+                // 음성 CAPTCHA 검증 (음성 키 사용)
+                captchaValid = captchaService.verifyAudioCaptcha(req.getCaptchaKey(), req.getCaptchaValue());
+            } else {
+                return ApiResponse.error(
+                    HttpStatus.BAD_REQUEST,
+                    "잘못된 CAPTCHA 타입입니다. (image 또는 audio)",
+                    Map.of("requiresCaptcha", true, "failedAttempts", loginAttemptService.getFailedAttempts(req.getEmail()))
+                );
+            }
+            
+            if (!captchaValid) {
+                return ApiResponse.error(
+                    HttpStatus.BAD_REQUEST,
+                    "CAPTCHA 검증에 실패했습니다. 다시 시도해주세요.",
+                    Map.of("requiresCaptcha", true, "failedAttempts", loginAttemptService.getFailedAttempts(req.getEmail()))
+                );
+            }
+        }
 
-        String role = "MEMBER";
-        String jti = jwtService.newJti();
-        String accessToken = jwtService.createAccessToken(member.getId(), role);
-        String refreshToken = jwtService.createRefreshToken(member.getId(), jti);
-        revokedTokenRepository.saveRefreshToken(member.getId(), refreshToken, jwtService.getExpirationRtMillis());
+        try {
+            Member member = memberService.authenticate(req);
 
-        String csrfToken = UUID.randomUUID().toString();
+            // LOGIN_SUCCESS: 로그인 성공 시 실패 횟수 초기화
+            loginAttemptService.resetFailedAttempts(req.getEmail());
 
-        resp.addHeader(HttpHeaders.SET_COOKIE, buildCookie(
-                "AT", accessToken,
-                Duration.ofMillis(jwtService.getExpirationAtMillis()),
-                cookieProps.getAccess()).toString());
-        resp.addHeader(HttpHeaders.SET_COOKIE, buildCookie(
-                "RT", refreshToken,
-                Duration.ofMillis(jwtService.getExpirationRtMillis()),
-                cookieProps.getRefresh()).toString());
-        resp.addHeader(HttpHeaders.SET_COOKIE, buildCookie(
-                "CSRF-TOKEN", csrfToken,
-                Duration.ofMinutes(15),
-                cookieProps.getCsrf()).toString());
+            String role = "MEMBER";
+            String jti = jwtService.newJti();
+            String accessToken = jwtService.createAccessToken(member.getId(), role);
+            String refreshToken = jwtService.createRefreshToken(member.getId(), jti);
+            revokedTokenRepository.saveRefreshToken(member.getId(), refreshToken, jwtService.getExpirationRtMillis());
 
-        LoginResponseDto response = LoginResponseDto.builder()
-                .userId(member.getId())
-                .email(member.getEmail())
-                .role(role)
-                .status(member.getStatus().name())
-                .build();
+            String csrfToken = UUID.randomUUID().toString();
 
-        return ApiResponse.ok(response, "회원 로그인 완료");
+            resp.addHeader(HttpHeaders.SET_COOKIE, buildCookie(
+                    "AT", accessToken,
+                    Duration.ofMillis(jwtService.getExpirationAtMillis()),
+                    cookieProps.getAccess()).toString());
+            resp.addHeader(HttpHeaders.SET_COOKIE, buildCookie(
+                    "RT", refreshToken,
+                    Duration.ofMillis(jwtService.getExpirationRtMillis()),
+                    cookieProps.getRefresh()).toString());
+            resp.addHeader(HttpHeaders.SET_COOKIE, buildCookie(
+                    "CSRF-TOKEN", csrfToken,
+                    Duration.ofMinutes(15),
+                    cookieProps.getCsrf()).toString());
+
+            LoginResponseDto response = LoginResponseDto.builder()
+                    .userId(member.getId())
+                    .email(member.getEmail())
+                    .role(role)
+                    .status(member.getStatus().name())
+                    .build();
+
+            return ApiResponse.ok(response, "회원 로그인 완료");
+            
+        } catch (Exception e) {
+            // LOGIN_FAILED: 로그인 실패 시 횟수 증가
+            int failedAttempts = loginAttemptService.incrementFailedAttempts(req.getEmail());
+            int remainingAttempts = loginAttemptService.getRemainingAttempts(req.getEmail());
+            boolean nowRequiresCaptcha = loginAttemptService.requiresCaptcha(req.getEmail());
+            
+            String errorMessage = e.getMessage() != null ? e.getMessage() : "로그인에 실패했습니다.";
+            
+            if (nowRequiresCaptcha) {
+                errorMessage = "로그인 실패 횟수가 5회를 초과했습니다. CAPTCHA를 입력해주세요.";
+            } else if (remainingAttempts > 0) {
+                errorMessage = String.format("로그인에 실패했습니다. 남은 시도 횟수: %d회", remainingAttempts);
+            }
+            
+            return ApiResponse.error(
+                HttpStatus.UNAUTHORIZED,
+                errorMessage,
+                Map.of(
+                    "requiresCaptcha", nowRequiresCaptcha,
+                    "failedAttempts", failedAttempts,
+                    "remainingAttempts", remainingAttempts
+                )
+            );
+        }
     }
 
     @PostMapping(value = "/member/refresh")

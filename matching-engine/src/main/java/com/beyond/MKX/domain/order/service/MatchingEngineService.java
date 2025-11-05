@@ -27,7 +27,7 @@ public class MatchingEngineService {
     private final KafkaOrderProducer kafkaOrderProducer;
 
     /** 한 번의 Lua 실행에서 소비할 최대 매칭 수(과도한 처리 방지) */
-    private static final int MAX_MATCHES_PER_CALL = 200;
+    private static final int MAX_MATCHES_PER_CALL = Integer.MAX_VALUE;
 
     /** BigDecimal 수량이 정수인지 검증하고 long으로 변환(정수가 아니면 예외) */
     private static long toUnitsExact(BigDecimal q, String fieldName) {
@@ -114,6 +114,8 @@ public class MatchingEngineService {
 
             // 외부 이벤트용 BigDecimal 수량은 그대로 전달(정수이지만 타입 유지)
             filledQtyBD = filledQtyBD.add(f.quantity());
+
+            // ✅ totalVolume은 이제 Lua 스크립트에서 원자적으로 관리하므로 Java에서 중복 감소하지 않음
 
             kafkaOrderProducer.sendExecution(
                     e.getOrderId(),
@@ -215,6 +217,8 @@ public class MatchingEngineService {
             lastPxInt       = px;
 
             filledQtyBD = filledQtyBD.add(f.quantity());
+
+            // ✅ totalVolume은 이제 Lua 스크립트에서 원자적으로 관리하므로 Java에서 중복 감소하지 않음
 
             kafkaOrderProducer.sendExecution(
                     mkt.getOrderId(),

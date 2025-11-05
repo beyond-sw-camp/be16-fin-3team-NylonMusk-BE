@@ -182,7 +182,7 @@ public class MemberAccountController {
         if (!acc.getMemberId().equals(UUID.fromString(memberId))) {
             throw new AuthenticationException("본인 계좌가 아닙니다.");
         }
-        Long balance = service.deposit(accountNumber, req.getAmount());
+        Long balance = service.deposit(accountNumber, req.getAmount(), req.getDescription(), req.getTicker());
         return ApiResponse.ok(Map.of("balance", balance), "입금 완료");
     }
 
@@ -211,7 +211,7 @@ public class MemberAccountController {
                 throw new AuthenticationException("본인 계좌가 아닙니다.");
             }
         }
-        Long balance = service.withdraw(accountNumber, req.getAmount());
+        Long balance = service.withdraw(accountNumber, req.getAmount(), req.getDescription(), req.getTicker());
         return ApiResponse.ok(Map.of("balance", balance), "출금 완료");
     }
 

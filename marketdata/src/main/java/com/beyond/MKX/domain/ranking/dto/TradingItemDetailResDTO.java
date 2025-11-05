@@ -1,4 +1,4 @@
-package com.beyond.MKX.domain.trade.dto;
+package com.beyond.MKX.domain.ranking.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

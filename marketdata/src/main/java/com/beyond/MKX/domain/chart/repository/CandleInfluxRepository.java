@@ -14,8 +14,8 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * 캔들 데이터 InfluxDB Repository
@@ -235,6 +235,83 @@ public class CandleInfluxRepository {
             log.error("[CANDLE/INFLUX] Failed to check candle existence: ticker={}, interval={}, time={}", 
                     ticker, interval, time, e);
             return false;
+        }
+    }
+
+    /**
+     * 여러 종목의 캔들 데이터를 한번에 조회 (배치 최적화)
+     * 
+     * @param tickers 종목 코드 리스트
+     * @param interval 캔들 간격
+     * @param start 시작 시간
+     * @param end 종료 시간
+     * @return 종목별 캔들 리스트 맵
+     */
+    public Map<String, List<Candle>> findCandlesForTickers(
+            List<String> tickers, String interval, Instant start, Instant end) {
+        
+        if (tickers == null || tickers.isEmpty()) {
+            return new HashMap<>();
+        }
+
+        // ticker 조건을 OR로 연결
+        String tickerFilter = tickers.stream()
+                .map(ticker -> String.format("r.ticker == \"%s\"", ticker))
+                .collect(Collectors.joining(" or "));
+
+        String flux = String.format(
+                "from(bucket: \"%s\") " +
+                "|> range(start: %s, stop: %s) " +
+                "|> filter(fn: (r) => r._measurement == \"%s\") " +
+                "|> filter(fn: (r) => %s) " +
+                "|> filter(fn: (r) => r.interval == \"%s\") " +
+                "|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\") " +
+                "|> sort(columns: [\"_time\"], desc: false)",
+                candleBucket,
+                start.toString(),
+                end.toString(),
+                CANDLE_MEASUREMENT,
+                tickerFilter,
+                interval
+        );
+
+        try {
+            // 조회 후 ticker별로 그룹핑
+            Map<String, List<Candle>> result = new HashMap<>();
+            for (String ticker : tickers) {
+                result.put(ticker, new ArrayList<>());
+            }
+
+            List<FluxTable> tables = influxDBClient.getQueryApi().query(flux, organization);
+            
+            for (FluxTable table : tables) {
+                for (FluxRecord record : table.getRecords()) {
+                    String ticker = (String) record.getValueByKey("ticker");
+                    
+                    Candle candle = Candle.builder()
+                            .ticker(ticker)
+                            .interval(interval)
+                            .time(record.getTime())
+                            .open(((Number) record.getValueByKey("open")).longValue())
+                            .high(((Number) record.getValueByKey("high")).longValue())
+                            .low(((Number) record.getValueByKey("low")).longValue())
+                            .close(((Number) record.getValueByKey("close")).longValue())
+                            .volume(BigDecimal.valueOf(((Number) record.getValueByKey("volume")).doubleValue()))
+                            .build();
+                    
+                    result.get(ticker).add(candle);
+                }
+            }
+
+            log.debug("[CANDLE/INFLUX] Retrieved candles for {} tickers, interval={}, start={}, end={}", 
+                    tickers.size(), interval, start, end);
+            
+            return result;
+            
+        } catch (Exception e) {
+            log.error("[CANDLE/INFLUX] Failed to retrieve candles for tickers: {}, interval={}", 
+                    tickers, interval, e);
+            return new HashMap<>();
         }
     }
 }

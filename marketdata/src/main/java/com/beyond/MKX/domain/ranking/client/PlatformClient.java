@@ -1,9 +1,8 @@
-package com.beyond.MKX.domain.trade.client;
+package com.beyond.MKX.domain.ranking.client;
 
-import com.beyond.MKX.domain.trade.dto.StockBriefDTO;
+import com.beyond.MKX.domain.ranking.dto.StockBriefDTO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;

@@ -54,7 +54,9 @@ public class CsrfFilter implements GlobalFilter, Ordered {
             "/my-stocks",
             "/swagger-ui/**",
             "/ws/**",      // WebSocket 연결 (STOMP/SockJS) - CSRF 검증 제외
-            "/trading-home/**"
+            "/trading-home/**",      // 트레이딩 홈 조회 요청
+            "/api/market/rank/**",   // 랭킹 조회 요청
+            "/api/v1/market/chart/mini" // mini chart 조회 요청
     );
 
     /** Gateway에서 경로 정규화 시 제거할 서비스 접두사 */

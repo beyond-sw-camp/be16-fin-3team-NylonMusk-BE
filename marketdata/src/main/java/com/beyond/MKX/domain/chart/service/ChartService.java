@@ -1,5 +1,7 @@
 package com.beyond.MKX.domain.chart.service;
 
+import com.beyond.MKX.domain.chart.dto.HourlyCloseData;
+import com.beyond.MKX.domain.chart.dto.MiniChartResDTO;
 import com.beyond.MKX.domain.chart.entity.Candle;
 import com.beyond.MKX.domain.chart.repository.CandleInfluxRepository;
 import com.beyond.MKX.domain.execution.dto.ExecutionEventDTO;
@@ -399,6 +401,59 @@ public class ChartService {
             
         } catch (Exception e) {
             log.error("[CHART-STOMP] ❌ Failed to publish: ticker={}", candle.getTicker(), e);
+        }
+    }
+
+    // ========== 미니차트 API ==========
+
+    /**
+     * 여러 종목의 24시간 종가 데이터 조회 (미니차트용)
+     * 
+     * 1시간봉 데이터에서 종가만 추출하여 반환
+     * 한번의 DB 조회로 모든 종목 데이터를 가져와 성능 최적화
+     * 
+     * @param tickers 종목 코드 리스트
+     * @return 종목별 24시간 종가 데이터 리스트
+     */
+    public List<MiniChartResDTO> get24HourClosesForTickers(List<String> tickers) {
+        try {
+            Instant now = Instant.now();
+            Instant start = now.minus(24, ChronoUnit.HOURS);
+
+            log.info("[CHART/MINI] Querying 24h closes for {} tickers", tickers.size());
+
+            // 한번의 DB 조회로 모든 종목의 1시간봉 데이터 가져오기
+            Map<String, List<Candle>> candlesMap = 
+                candleInfluxRepository.findCandlesForTickers(tickers, "1h", start, now);
+
+            // 각 ticker별로 DTO 생성
+            List<MiniChartResDTO> result = tickers.stream()
+                    .map(ticker -> {
+                        List<Candle> candles = candlesMap.getOrDefault(ticker, Collections.emptyList());
+
+                        // 종가만 추출
+                        List<HourlyCloseData> hourlyCloses = candles.stream()
+                                .map(candle -> HourlyCloseData.builder()
+                                        .timestamp(candle.getTime())
+                                        .close(candle.getClose())
+                                        .build())
+                                .collect(Collectors.toList());
+
+                        return MiniChartResDTO.builder()
+                                .ticker(ticker)
+                                .hourlyCloses(hourlyCloses)
+                                .build();
+                    })
+                    .collect(Collectors.toList());
+
+            log.info("[CHART/MINI] Retrieved 24h closes for {} tickers (total {} data points)", 
+                    tickers.size(), result.stream().mapToInt(r -> r.getHourlyCloses().size()).sum());
+
+            return result;
+
+        } catch (Exception e) {
+            log.error("[CHART/MINI] Failed to get 24h closes for tickers: {}", tickers, e);
+            return Collections.emptyList();
         }
     }
 }

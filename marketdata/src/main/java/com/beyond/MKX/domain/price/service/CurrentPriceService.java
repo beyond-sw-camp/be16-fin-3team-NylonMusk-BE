@@ -5,6 +5,7 @@ import com.beyond.MKX.domain.orderbook.entity.OrderBook;
 import com.beyond.MKX.domain.orderbook.service.OrderBookService;
 import com.beyond.MKX.domain.price.entity.CurrentPrice;
 // import com.beyond.MKX.domain.price.stomp.CurrentPriceStompController; // ✅ 순환 참조 방지: 제거
+import com.beyond.MKX.domain.ranking.service.MarketRankWriterService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +15,8 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -31,8 +34,8 @@ public class CurrentPriceService {
 
     private final RedisTemplate<String, Object> redisTemplate;
     private final OrderBookService orderBookService;
-    // private final CurrentPriceStompController priceStompController; // ✅ 순환 참조 방지: 제거
     private final ObjectMapper objectMapper;
+    private final MarketRankWriterService marketRankWriterService;
 
     // Redis key prefix
     private static final String PRICE_KEY_PREFIX = "price:";
@@ -43,9 +46,6 @@ public class CurrentPriceService {
     
     // Redis Pub/Sub 채널명
     private static final String REDIS_CHANNEL = "market:price";
-    
-    // 현재가 데이터 TTL (1시간)
-    private static final long PRICE_TTL_MINUTES = 60;
 
     /**
      * 체결 이벤트 발생 시 현재가 업데이트
@@ -112,6 +112,13 @@ public class CurrentPriceService {
             
             // Redis에 저장
             saveCurrentPrice(currentPrice);
+
+            // 동락률 랭킹 업데이트
+            LocalDate executionDate = Instant.ofEpochMilli(execution.getTimestamp())
+                    .atZone(ZoneId.of("Asia/Seoul"))
+                    .toLocalDate();
+            marketRankWriterService.updateChangeRateRank(currentPrice, executionDate);
+
             
             // STOMP로 실시간 전송 (Redis Pub/Sub) - 직접 발행
             publishCurrentPrice(currentPrice);
@@ -192,12 +199,16 @@ public class CurrentPriceService {
 
     /**
      * 현재가 저장 (Redis에) - public으로 변경하여 외부 접근 가능
+     * 
+     * TTL 없이 영구 저장:
+     * - 랭킹 시스템에서 조회 가능하도록 유지
+     * - 메모리 부담 미미 (1000개 종목 ≈ 1MB)
+     * - 자정 초기화 스케줄러가 당일 데이터 리셋 처리
      */
     public void saveCurrentPrice(CurrentPrice currentPrice) {
         try {
             String redisKey = buildRedisKey(currentPrice.getTicker());
-            redisTemplate.opsForValue().set(redisKey, currentPrice, 
-                    PRICE_TTL_MINUTES, TimeUnit.MINUTES);
+            redisTemplate.opsForValue().set(redisKey, currentPrice);
             
             log.debug("Saved current price to Redis: ticker={}, price={}", 
                     currentPrice.getTicker(), currentPrice.getPrice());
@@ -265,6 +276,7 @@ public class CurrentPriceService {
                 currentPrice.setHigh(currentPrice.getPrice());
                 currentPrice.setLow(currentPrice.getPrice());
                 currentPrice.setVolume(BigDecimal.ZERO);
+                currentPrice.setChangeRate(BigDecimal.ZERO);
                 
                 saveCurrentPrice(currentPrice);
                 

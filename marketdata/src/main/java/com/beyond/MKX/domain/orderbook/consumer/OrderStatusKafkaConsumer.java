@@ -2,7 +2,8 @@ package com.beyond.MKX.domain.orderbook.consumer;
 
 import com.beyond.MKX.domain.orderbook.dto.OrderStatusEventDTO;
 import com.beyond.MKX.domain.orderbook.service.OrderBookService;
-import com.beyond.MKX.domain.price.service.TurnoverWriterService;
+import com.beyond.MKX.domain.ranking.dto.UpdateRedisMarketRank;
+import com.beyond.MKX.domain.ranking.service.MarketRankWriterService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -30,7 +31,7 @@ import java.time.ZoneId;
 public class OrderStatusKafkaConsumer {
 
     private final OrderBookService orderBookService;
-    private final TurnoverWriterService turnoverWriterService;
+    private final MarketRankWriterService marketRankWriterService;
 
     /**
      * order-status 토픽으로부터 주문 상태 이벤트 수신
@@ -79,10 +80,17 @@ public class OrderStatusKafkaConsumer {
                         ticker, status);
             }
             
-            // 거래대금 통계 업데이트 (체결 시에만)
+            // 랭킹 통계 업데이트 (체결 시에만)
             if (shouldUpdateTurnover) {
                 LocalDate tradingDate = translateTradingDate(orderStatus);
-                turnoverWriterService.addExecution(ticker, orderStatus.getNotional(), tradingDate);
+                marketRankWriterService.updateVolumeAndValueRank(
+                        UpdateRedisMarketRank.builder()
+                                .ticker(ticker)  // ✅ ticker 추가
+                                .volume(orderStatus.getFilledQuantity())
+                                .tradeValue(orderStatus.getNotional())
+                                .tradingDate(tradingDate)
+                                .build()
+                );
                 log.debug("[ORDER-STATUS] Updated turnover stats: ticker={}, notional={}", 
                         ticker, orderStatus.getNotional());
             }

@@ -18,4 +18,5 @@ public class StockBriefDTO {
     private Stock.Status status;
     private DelistingStage delistingStage;
     private String imageUrl;
+    private long totalSharesOutstanding;
 }

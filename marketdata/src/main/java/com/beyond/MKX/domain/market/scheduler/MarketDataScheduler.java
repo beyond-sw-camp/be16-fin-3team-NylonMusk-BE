@@ -8,7 +8,9 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 마켓 데이터 주기적 업데이트 스케줄러
@@ -103,46 +105,88 @@ public class MarketDataScheduler {
     }
     
     /**
-     * 전일 거래량 저장 (매일 자정에 실행)
+     * 매일 자정 장 초기화 프로세스
      * 
-     * 장 마감 후 현재 거래량을 전일 거래량으로 저장
-     * 다음 거래일의 거래량 변화율 계산에 사용
+     * 실행 순서 (중요!):
+     * 1. 전일 종가 저장 (price:prev_close:ticker)
+     * 2. 전일 거래량 저장 (price:prev_volume:ticker)
+     * 3. 당일 데이터 초기화 (volume=0, prevClose 업데이트)
+     * 
+     * 주의: 순서가 바뀌면 데이터 정합성 문제 발생 가능
      */
-    @Scheduled(cron = "0 0 0 * * *") // 매일 자정
-    public void savePreviousDayVolumes() {
+    @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Seoul") // 매일 자정 (KST)
+    public void initializeAllDailyPrices() {
         try {
             Set<String> priceKeys = redisTemplate.keys("price:*");
             
-            if (priceKeys != null && !priceKeys.isEmpty()) {
-                int savedCount = 0;
-                
-                for (String key : priceKeys) {
-                    if (!key.startsWith("price:prev_")) {
-                        String ticker = key.replace("price:", "");
-                        
-                        try {
-                            currentPriceService.savePrevVolume(ticker);
-                            savedCount++;
-                        } catch (Exception e) {
-                            log.warn("Failed to save prev volume for ticker: {}", ticker, e);
-                        }
-                    }
-                }
-                
-                log.info("Saved previous day volumes for {} tickers", savedCount);
+            if (priceKeys == null || priceKeys.isEmpty()) {
+                log.warn("[DAILY-INIT] No price keys found for daily initialization");
+                return;
             }
             
+            // price:prev_close, price:prev_volume 키 제외하고 ticker 추출
+            List<String> tickers = priceKeys.stream()
+                    .filter(key -> !key.startsWith("price:prev_"))
+                    .map(key -> key.replace("price:", ""))
+                    .collect(Collectors.toList());
+            
+            log.info("[DAILY-INIT] ========== Starting daily initialization for {} tickers ==========", 
+                    tickers.size());
+            
+            int step1Success = 0, step2Success = 0, step3Success = 0;
+            int step1Fail = 0, step2Fail = 0, step3Fail = 0;
+            
+            for (String ticker : tickers) {
+                try {
+                    // STEP 1: 전일 종가 저장 (현재가 → price:prev_close:ticker)
+                    currentPriceService.setPrevClosePrice(ticker);
+                    step1Success++;
+                    
+                } catch (Exception e) {
+                    log.error("[DAILY-INIT] Failed to save prev close for ticker: {}", ticker, e);
+                    step1Fail++;
+                }
+                
+                try {
+                    // STEP 2: 전일 거래량 저장 (현재 거래량 → price:prev_volume:ticker)
+                    currentPriceService.savePrevVolume(ticker);
+                    step2Success++;
+                    
+                } catch (Exception e) {
+                    log.error("[DAILY-INIT] Failed to save prev volume for ticker: {}", ticker, e);
+                    step2Fail++;
+                }
+                
+                try {
+                    // STEP 3: 당일 데이터 초기화 (volume=0, prevClose 업데이트)
+                    currentPriceService.initializeDailyPrice(ticker);
+                    step3Success++;
+                    
+                } catch (Exception e) {
+                    log.error("[DAILY-INIT] Failed to initialize daily price for ticker: {}", ticker, e);
+                    step3Fail++;
+                }
+            }
+            
+            log.info("[DAILY-INIT] ========== Completed daily initialization ==========");
+            log.info("[DAILY-INIT] STEP 1 (Prev Close): success={}, fail={}", step1Success, step1Fail);
+            log.info("[DAILY-INIT] STEP 2 (Prev Volume): success={}, fail={}", step2Success, step2Fail);
+            log.info("[DAILY-INIT] STEP 3 (Initialize): success={}, fail={}", step3Success, step3Fail);
+            log.info("[DAILY-INIT] ========================================================");
+            
         } catch (Exception e) {
-            log.error("Failed to save previous day volumes", e);
+            log.error("[DAILY-INIT] Critical error during daily initialization", e);
         }
     }
     
     /**
-     * 전일 종가 저장 (매일 오후 6시에 실행 - 장 마감 시간에 맞춰 조정 가능)
+     * @deprecated 이제 initializeAllDailyPrices()에 통합되어 자정에 자동 실행됨
      * 
+     * 전일 종가 저장 (매일 오후 6시에 실행 - 장 마감 시간에 맞춰 조정 가능)
      * 현재가를 전일 종가로 저장하여 다음 거래일 등락률 계산에 사용
      */
-    @Scheduled(cron = "0 0 18 * * *") // 매일 오후 6시
+    // @Scheduled(cron = "0 0 18 * * *") // 비활성화 - initializeAllDailyPrices()로 통합
+    @Deprecated
     public void savePreviousDayClosePrices() {
         try {
             Set<String> priceKeys = redisTemplate.keys("price:*");

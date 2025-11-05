@@ -8,59 +8,167 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 public interface LedgerRepository extends JpaRepository<Ledger, UUID> {
-    
+
     /**
      * 특정 계좌의 거래내역을 조회합니다.
-     * creditAccountId 또는 debitAccountId가 memberAccountId와 일치하는 레코드를 조회합니다.
+     * (OR 조건 → UNION ALL로 분리하여 인덱스 병목 제거)
      */
+    @Query(
+            value = """
+        (
+            SELECT * FROM ledger
+            WHERE credit_account_id = :creditAccountId
+            ORDER BY created_at DESC
+        )
+        UNION ALL
+        (
+            SELECT * FROM ledger
+            WHERE debit_account_id = :debitAccountId
+            ORDER BY created_at DESC
+        )
+        ORDER BY created_at DESC
+        """,
+            countQuery = """
+        SELECT COUNT(*) FROM (
+            SELECT id FROM ledger WHERE credit_account_id = :creditAccountId
+            UNION ALL
+            SELECT id FROM ledger WHERE debit_account_id = :debitAccountId
+        ) AS count_query
+        """,
+            nativeQuery = true
+    )
     Page<Ledger> findByCreditAccountIdOrDebitAccountIdOrderByCreatedAtDesc(
-        UUID creditAccountId, UUID debitAccountId, Pageable pageable);
-    
+            @Param("creditAccountId") UUID creditAccountId,
+            @Param("debitAccountId") UUID debitAccountId,
+            Pageable pageable
+    );
+
     /**
      * 특정 계좌의 거래내역을 거래 유형으로 필터링하여 조회합니다.
      */
+    @Query(
+            value = """
+        (
+            SELECT * FROM ledger
+            WHERE credit_account_id = :creditAccountId
+              AND transaction_type = :transactionType
+            ORDER BY created_at DESC
+        )
+        UNION ALL
+        (
+            SELECT * FROM ledger
+            WHERE debit_account_id = :debitAccountId
+              AND transaction_type = :transactionType
+            ORDER BY created_at DESC
+        )
+        ORDER BY created_at DESC
+        """,
+            countQuery = """
+        SELECT COUNT(*) FROM (
+            SELECT id FROM ledger WHERE credit_account_id = :creditAccountId AND transaction_type = :transactionType
+            UNION ALL
+            SELECT id FROM ledger WHERE debit_account_id = :debitAccountId AND transaction_type = :transactionType
+        ) AS count_query
+        """,
+            nativeQuery = true
+    )
     Page<Ledger> findByCreditAccountIdOrDebitAccountIdAndTransactionTypeOrderByCreatedAtDesc(
-        UUID creditAccountId, UUID debitAccountId, TransactionType transactionType, Pageable pageable);
-    
+            @Param("creditAccountId") UUID creditAccountId,
+            @Param("debitAccountId") UUID debitAccountId,
+            @Param("transactionType") TransactionType transactionType,
+            Pageable pageable
+    );
+
     /**
      * 증권사별 최근 거래내역 조회
-     * creditAccountId 또는 debitAccountId가 증권사 ID와 일치하는 레코드를 조회합니다.
      */
-    @Query("SELECT l FROM Ledger l WHERE l.creditAccountId = :brokerageId OR l.debitAccountId = :brokerageId ORDER BY l.createdAt DESC")
-    Page<Ledger> findByBrokerageIdOrderByCreatedAtDesc(@Param("brokerageId") UUID brokerageId, Pageable pageable);
+    @Query(
+            value = """
+        (
+            SELECT * FROM ledger
+            WHERE credit_account_id = :brokerageId
+            ORDER BY created_at DESC
+        )
+        UNION ALL
+        (
+            SELECT * FROM ledger
+            WHERE debit_account_id = :brokerageId
+            ORDER BY created_at DESC
+        )
+        ORDER BY created_at DESC
+        """,
+            countQuery = """
+        SELECT COUNT(*) FROM (
+            SELECT id FROM ledger WHERE credit_account_id = :brokerageId
+            UNION ALL
+            SELECT id FROM ledger WHERE debit_account_id = :brokerageId
+        ) AS count_query
+        """,
+            nativeQuery = true
+    )
+    Page<Ledger> findByBrokerageIdOrderByCreatedAtDesc(
+            @Param("brokerageId") UUID brokerageId,
+            Pageable pageable
+    );
 
     /**
      * 증권사별 일일 거래량 조회 (특정 날짜 범위)
-     * credit 또는 debit 중 큰 값을 합산하여 거래량 계산
      */
-    @Query("SELECT COALESCE(SUM(GREATEST(COALESCE(l.credit, 0), COALESCE(l.debit, 0))), 0) FROM Ledger l " +
-           "WHERE (l.creditAccountId = :brokerageId OR l.debitAccountId = :brokerageId) " +
-           "AND l.createdAt >= :startDateTime AND l.createdAt < :endDateTime")
-    Long getDailyVolumeByBrokerageId(@Param("brokerageId") UUID brokerageId, 
-                                      @Param("startDateTime") java.time.LocalDateTime startDateTime,
-                                      @Param("endDateTime") java.time.LocalDateTime endDateTime);
+    @Query(
+            value = """
+        SELECT COALESCE(SUM(volume), 0) FROM (
+            SELECT GREATEST(COALESCE(l.credit, 0), COALESCE(l.debit, 0)) AS volume
+            FROM ledger l
+            WHERE l.credit_account_id = :brokerageId
+              AND l.created_at >= :startDateTime
+              AND l.created_at < :endDateTime
+            UNION ALL
+            SELECT GREATEST(COALESCE(l.credit, 0), COALESCE(l.debit, 0)) AS volume
+            FROM ledger l
+            WHERE l.debit_account_id = :brokerageId
+              AND l.created_at >= :startDateTime
+              AND l.created_at < :endDateTime
+        ) AS combined
+        """,
+            nativeQuery = true
+    )
+    Long getDailyVolumeByBrokerageId(
+            @Param("brokerageId") UUID brokerageId,
+            @Param("startDateTime") LocalDateTime startDateTime,
+            @Param("endDateTime") LocalDateTime endDateTime
+    );
 
     /**
-     * 증권사별 수익 조회 (매수 수수료) - 날짜 범위 기준
-     * transactionType이 BUY이고 creditAccountId 또는 debitAccountId가 brokerageId와 일치하는 ledger의 commission 합계
-     * 
-     * @param brokerageId 증권사 ID
-     * @param transactionType 거래 유형
-     * @param startDateTime 시작 일시
-     * @param endDateTime 종료 일시
-     * @return 매수 수수료 합계
+     * 증권사별 수익 조회 (매수 수수료)
      */
-    @Query("SELECT COALESCE(SUM(l.commission), 0) FROM Ledger l " +
-           "WHERE l.transactionType = :transactionType " +
-           "AND (l.creditAccountId = :brokerageId OR l.debitAccountId = :brokerageId) " +
-           "AND l.commission IS NOT NULL AND l.commission > 0 " +
-           "AND l.createdAt >= :startDateTime AND l.createdAt < :endDateTime")
-    Long getCommissionByBrokerageIdAndDateRange(@Param("brokerageId") UUID brokerageId,
-                                                 @Param("transactionType") TransactionType transactionType,
-                                                 @Param("startDateTime") java.time.LocalDateTime startDateTime,
-                                                 @Param("endDateTime") java.time.LocalDateTime endDateTime);
-
+    @Query(
+            value = """
+        SELECT COALESCE(SUM(commission), 0) FROM (
+            SELECT l.commission
+            FROM ledger l
+            WHERE l.transaction_type = :transactionType
+              AND l.credit_account_id = :brokerageId
+              AND l.commission IS NOT NULL AND l.commission > 0
+              AND l.created_at >= :startDateTime AND l.created_at < :endDateTime
+            UNION ALL
+            SELECT l.commission
+            FROM ledger l
+            WHERE l.transaction_type = :transactionType
+              AND l.debit_account_id = :brokerageId
+              AND l.commission IS NOT NULL AND l.commission > 0
+              AND l.created_at >= :startDateTime AND l.created_at < :endDateTime
+        ) AS combined
+        """,
+            nativeQuery = true
+    )
+    Long getCommissionByBrokerageIdAndDateRange(
+            @Param("brokerageId") UUID brokerageId,
+            @Param("transactionType") TransactionType transactionType,
+            @Param("startDateTime") LocalDateTime startDateTime,
+            @Param("endDateTime") LocalDateTime endDateTime
+    );
 }

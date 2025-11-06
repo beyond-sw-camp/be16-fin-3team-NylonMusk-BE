@@ -4,14 +4,18 @@ import com.beyond.MKX.common.apiResponse.ApiResponse;
 import com.beyond.MKX.domain.order.dto.OrderCancelRequestDTO;
 import com.beyond.MKX.domain.order.dto.OrderRequestDTO;
 import com.beyond.MKX.domain.order.dto.OrderResponseDTO;
+import com.beyond.MKX.domain.order.dto.PendingOrderResponseDTO;
 import com.beyond.MKX.domain.order.service.OrderBookService;
 import com.beyond.MKX.domain.order.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
-import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -42,6 +46,24 @@ public class OrderController {
         return ApiResponse.ok(resDTO);
     }
 
+    @GetMapping("/pending")
+    public ResponseEntity<?> getPendingOrders(
+            @RequestHeader("X-User-Id") UUID memberId,
+            @PageableDefault(size = 15) Pageable pageable
+    ) {
+        Page<PendingOrderResponseDTO> pendingOrders = orderService.getPendingOrders(memberId, pageable);
+        return ApiResponse.ok(pendingOrders);
+    }
+
+    @GetMapping("/history/{ticker}")
+    public ResponseEntity<?> getOrderHistoryByTicker(
+            @RequestHeader("X-User-Id") UUID memberId,
+            @PathVariable String ticker,
+            @PageableDefault(size = 10) Pageable pageable
+    ) {
+        Page<OrderResponseDTO> orderHistory = orderService.getOrderHistoryByTicker(memberId, ticker, pageable);
+        return ApiResponse.ok(orderHistory);
+    }
 
     /**
      * test 목적 '최저 매도가' 조회 매핑

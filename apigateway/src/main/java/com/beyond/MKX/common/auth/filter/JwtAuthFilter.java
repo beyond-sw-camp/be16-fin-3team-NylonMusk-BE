@@ -58,12 +58,12 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
      * normalize()로 서비스 접두사 제거 후 이 패턴과 매칭한다.
      * 예: "/auth/**" → 로그인, 토큰 재발급 등
      *     "/health"  → 헬스체크
-     *     "/ws/**"   → WebSocket 연결 (Optional 인증)
      */
     private static final List<String> AUTH_WHITELIST = List.of(
             "/auth/**",
             "/health",
-            "/order/**",
+            "/order",  // POST /order (주문 접수)만 허용
+            "/order/test/**",  // 테스트용 엔드포인트
             "/test/**",
             "/public/**",
 //            "/ipo/**"
@@ -71,10 +71,17 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             "/api/public/**",
             "/my-stocks",
             "/swagger-ui/**",
-            "/ws/**",  // WebSocket 연결 (Optional 인증 - MarketData Service에서 처리)
             "/trading-home/**",      // 트레이딩 홈 조회 요청
             "/api/market/rank/**",   // 랭킹 조회 요청
             "/api/v1/market/chart/mini" // mini chart 조회 요청
+    );
+    
+    /**
+     * Optional 인증 경로 - JWT가 있으면 검증하고 헤더 주입, 없으면 그대로 통과
+     * 예: "/ws/**" → WebSocket 연결 (Optional 인증 - MarketData Service에서 처리)
+     */
+    private static final List<String> OPTIONAL_AUTH_PATHS = List.of(
+            "/ws/**"
     );
 
     /**
@@ -149,7 +156,47 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             return chain.filter(exchange);
         }
 
-        // 3) Access Token 쿠키 존재 여부 확인
+        // 2-1) Optional 인증 경로 - JWT가 있으면 검증하고 헤더 주입, 없으면 그대로 통과
+        if (isOptionalAuthPath(normalizedPath)) {
+            HttpCookie atCookie = request.getCookies().getFirst("AT");
+            
+            // JWT 토큰이 없으면 그대로 통과 (익명 사용자)
+            if (atCookie == null || atCookie.getValue() == null || atCookie.getValue().isEmpty()) {
+                log.debug("[JWT] No JWT token for optional auth path: {} (proceeding as anonymous)", rawPath);
+                return chain.filter(exchange);
+            }
+            
+            // JWT 토큰이 있으면 검증하고 헤더 주입
+            String token = atCookie.getValue();
+            try {
+                Claims claims = Jwts.parserBuilder()
+                        .setSigningKey(atKey)
+                        .build()
+                        .parseClaimsJws(token)
+                        .getBody();
+
+                String userId = Optional.ofNullable(claims.getSubject()).orElse("");
+                String role = Optional.ofNullable(claims.get("role", String.class)).orElse("");
+                String email = Optional.ofNullable(claims.get("email", String.class)).orElse("");
+
+                log.debug("[JWT] Authenticated userId={} for optional auth path: {}", userId, rawPath);
+
+                ServerHttpRequest mutated = request.mutate()
+                        .header("X-User-Id", userId)
+                        .header("X-User-Email", email)
+                        .header("X-User-Role", role)
+                        .build();
+
+                return chain.filter(exchange.mutate().request(mutated).build());
+                
+            } catch (JwtException e) {
+                // JWT가 유효하지 않아도 통과시킴 (Optional 인증)
+                log.debug("[JWT] Invalid JWT for optional auth path: {} (proceeding as anonymous)", rawPath);
+                return chain.filter(exchange);
+            }
+        }
+
+        // 3) 일반 경로 - Access Token 쿠키 필수
         HttpCookie atCookie = request.getCookies().getFirst("AT");
         if (atCookie == null || atCookie.getValue() == null || atCookie.getValue().isEmpty()) {
             return writeJson(exchange, HttpStatus.UNAUTHORIZED,
@@ -221,6 +268,18 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
      */
     private boolean isWhitelisted(String path) {
         for (String pattern : AUTH_WHITELIST) {
+            if (matcher.match(pattern, path)) return true;
+        }
+        return false;
+    }
+
+    /**
+     * normalize()로 정규화된 경로가 Optional 인증 패턴에 매칭되는지 검사한다.
+     * - Optional 인증 경로는 JWT가 있으면 검증하고, 없으면 그대로 통과시킨다.
+     * - ant 패턴을 사용하므로 "/ws/**" 같은 와일드카드 매칭이 가능하다.
+     */
+    private boolean isOptionalAuthPath(String path) {
+        for (String pattern : OPTIONAL_AUTH_PATHS) {
             if (matcher.match(pattern, path)) return true;
         }
         return false;

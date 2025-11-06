@@ -73,7 +73,7 @@ public class OrderStatusKafkaConsumer {
                 shouldUpdateTurnover = true;
                 log.debug("[ORDER-STATUS] Execution occurred - orderbook & turnover update required: ticker={}, status={}", 
                         ticker, status);
-            } else if ("CANCELLED".equals(status)) {
+            } else if ("CANCEL_OK".equals(status)) {
                 // 주문 취소 - 호가 업데이트 필요
                 shouldUpdateOrderBook = true;
                 log.debug("[ORDER-STATUS] Order cancelled - orderbook update required: ticker={}, status={}", 

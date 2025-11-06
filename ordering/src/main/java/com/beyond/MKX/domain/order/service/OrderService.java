@@ -8,9 +8,9 @@ import com.beyond.MKX.domain.order.dto.CommissionAndTaxData;
 import com.beyond.MKX.domain.order.dto.OrderCancelRequestDTO;
 import com.beyond.MKX.domain.order.dto.OrderRequestDTO;
 import com.beyond.MKX.domain.order.dto.OrderResponseDTO;
+import com.beyond.MKX.domain.order.dto.PendingOrderResponseDTO;
 import com.beyond.MKX.domain.order.entity.OrderKind;
 import com.beyond.MKX.domain.order.entity.OrderLog;
-import com.beyond.MKX.domain.order.entity.OrderStatus;
 import com.beyond.MKX.domain.order.entity.Side;
 import com.beyond.MKX.domain.order.repository.OrderLogRepository;
 import com.beyond.MKX.domain.outbox.entity.OrderOutbox;
@@ -23,10 +23,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -168,6 +173,41 @@ public class OrderService {
                         .build()
         );
         return OrderResponseDTO.from(orderLog);
+    }
+
+    // 대기 중인 주문 조회 서비스 로직
+    @Transactional(readOnly = true)
+    public List<PendingOrderResponseDTO> getPendingOrders(UUID memberId) {
+        // 계좌 존재 여부 확인
+        memberAccountRepository.findByMemberId(memberId)
+                .orElseThrow(() -> new EntityNotFoundException("해당 계좌를 찾을 수 없습니다."));
+
+        List<OrderLog> orderLogs = orderLogRepository.findPendingOrdersByMemberId(memberId);
+        return orderLogs.stream()
+                .map(PendingOrderResponseDTO::from)
+                .collect(Collectors.toList());
+    }
+
+    // 대기 중인 주문 조회 서비스 로직 (페이징)
+    @Transactional(readOnly = true)
+    public Page<PendingOrderResponseDTO> getPendingOrders(UUID memberId, Pageable pageable) {
+        // 계좌 존재 여부 확인
+        memberAccountRepository.findByMemberId(memberId)
+                .orElseThrow(() -> new EntityNotFoundException("해당 계좌를 찾을 수 없습니다."));
+
+        Page<OrderLog> orderLogsPage = orderLogRepository.findPendingOrdersByMemberId(memberId, pageable);
+        return orderLogsPage.map(PendingOrderResponseDTO::from);
+    }
+
+    // 특정 종목의 주문 히스토리 조회 서비스 로직 (페이징)
+    @Transactional(readOnly = true)
+    public Page<OrderResponseDTO> getOrderHistoryByTicker(UUID memberId, String ticker, Pageable pageable) {
+        // 계좌 존재 여부 확인
+        memberAccountRepository.findByMemberId(memberId)
+                .orElseThrow(() -> new EntityNotFoundException("해당 계좌를 찾을 수 없습니다."));
+
+        Page<OrderLog> orderLogsPage = orderLogRepository.findByMemberIdAndTickerOrderByCreatedAtDesc(memberId, ticker, pageable);
+        return orderLogsPage.map(OrderResponseDTO::from);
     }
 
 

@@ -72,37 +72,3 @@ public class StockController {
         return ApiResponse.ok(priceRatios, "현재가 기반 재무비율 조회 성공");
     }
 }
-
-@RestController
-@RequestMapping("/api/internal/stocks")
-@RequiredArgsConstructor
-@Validated
-class StockInternalController {
-
-    private final StockQueryService stockQueryService;
-    private final StockRepository stockRepository;
-
-
-    @GetMapping("/{ticker}")
-    public StockInfoResDTO getStockByTicker(@PathVariable String ticker) {
-        return stockQueryService.getStockByTicker(ticker);
-    }
-
-
-    // 종목 간략 정보 조회 (이름 + id + status + delistingStage)
-    @GetMapping("/briefs")
-    public List<StockBriefDTO> getBriefs(@RequestParam("tickers") List<String> tickers) {
-        if (tickers == null || tickers.isEmpty()) return List.of();
-        return stockRepository.findByTickerIn(tickers).stream()
-                .map(v -> StockBriefDTO.builder()
-                        .id(v.getId())
-                        .ticker(v.getTicker())
-                        .nameKo(v.getNameKo())
-                        .status(v.getStatus())
-                        .delistingStage(v.getDelistingStage())
-                        .imageUrl(v.getImageUrl())
-                        .totalSharesOutstanding(v.getTotalSharesOutstanding())
-                        .build())
-                .toList();
-    }
-}

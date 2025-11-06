@@ -274,8 +274,8 @@ public class MatchingEngineService {
         requireNonEmpty(e.getSide(),   "side");
 
         redisRepo.cancelOrder(e.getOrderId(), e.getTicker(), e.getSide());
-        kafkaOrderProducer.sendCancelSuccess(e.getOrderId());
-        log.info("CANCEL ok: {}", e.getOrderId());
+        kafkaOrderProducer.sendCancelSuccess(e.getOrderId(), e.getTicker(), e.getSide());
+        log.info("CANCEL ok: {} ticker={} side={}", e.getOrderId(), e.getTicker(), e.getSide());
     }
 
     // ----------------------------------------------------------------------

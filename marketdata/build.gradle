@@ -84,6 +84,10 @@ dependencies {
 	
 	// Guava for RateLimiter
 	implementation 'com.google.guava:guava:32.1.3-jre'
+	
+	// ShedLock for distributed scheduler locking
+	implementation 'net.javacrumbs.shedlock:shedlock-spring:5.10.2'
+	implementation 'net.javacrumbs.shedlock:shedlock-provider-redis-spring:5.10.2'
 
 }
 

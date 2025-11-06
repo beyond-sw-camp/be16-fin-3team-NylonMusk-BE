@@ -8,11 +8,7 @@ import com.beyond.MKX.domain.assets.entity.StockHolding;
 import com.beyond.MKX.domain.assets.repository.MemberAccountRepository;
 import com.beyond.MKX.domain.assets.repository.StockHoldingRepository;
 import com.beyond.MKX.domain.assets.service.StockFeign;
-import com.beyond.MKX.domain.brokerage.dto.BrokerageStatsDTO;
-import com.beyond.MKX.domain.brokerage.dto.LedgerDTO;
-import com.beyond.MKX.domain.brokerage.dto.OrderLogDTO;
-import com.beyond.MKX.domain.brokerage.dto.PopularStockDTO;
-import com.beyond.MKX.domain.brokerage.dto.RecentActivityDTO;
+import com.beyond.MKX.domain.brokerage.dto.*;
 import com.beyond.MKX.domain.execution.entity.Ledger;
 import com.beyond.MKX.domain.execution.entity.TransactionType;
 import com.beyond.MKX.domain.execution.repository.LedgerRepository;
@@ -501,6 +497,531 @@ public class BrokerageDashboardService {
             case WITHDRAWAL -> "출금";
             case DELISTING_REFUND -> "상장폐지 환불";
             default -> type.name();
+        };
+    }
+
+
+    /**
+     * 일일 수수료 합산 조회
+     *
+     * @param brokerageId 증권사 ID
+     * @param date 조회 날짜 (null이면 오늘)
+     * @return 일일 수수료 데이터
+     */
+    @Transactional(readOnly = true)
+    public DailyCommissionDTO getDailyCommission(UUID brokerageId, LocalDate date) {
+        if (date == null) {
+            date = LocalDate.now();
+        }
+
+        LocalDateTime startDateTime = date.atStartOfDay();
+        LocalDateTime endDateTime = date.atTime(LocalTime.MAX);
+
+        // 총 수수료
+        Long totalCommission = ledgerRepository.getTotalCommissionByBrokerageIdAndDateRange(
+                brokerageId, startDateTime, endDateTime);
+
+        // 매수 수수료
+        Long buyCommission = ledgerRepository.getCommissionByBrokerageIdAndDateRange(
+                brokerageId, TransactionType.BUY, startDateTime, endDateTime);
+
+        // 매도 수수료
+        Long sellCommission = ledgerRepository.getCommissionByBrokerageIdAndDateRange(
+                brokerageId, TransactionType.SELL, startDateTime, endDateTime);
+
+        // 거래 건수
+        Long tradeCount = ledgerRepository.getTradeCountByBrokerageIdAndDateRange(
+                brokerageId, startDateTime, endDateTime);
+
+        // 활성 거래자 수
+        Long activeTraders = orderLogRepository.countDistinctMemberAccountsByBrokerageIdAndDateRange(
+                brokerageId, startDateTime, endDateTime);
+
+        return DailyCommissionDTO.builder()
+                .date(date)
+                .totalCommission(totalCommission != null ? totalCommission : 0L)
+                .buyCommission(buyCommission != null ? buyCommission : 0L)
+                .sellCommission(sellCommission != null ? sellCommission : 0L)
+                .tradeCount(tradeCount != null ? tradeCount.intValue() : 0)
+                .activeTraders(activeTraders != null ? activeTraders.intValue() : 0)
+                .build();
+    }
+
+    /**
+     * 기간별 수수료 조회 (7일, 30일, 90일, 365일)
+     *
+     * @param brokerageId 증권사 ID
+     * @param days 기간 (7, 30, 90, 365)
+     * @return 기간별 수수료 데이터
+     */
+    @Transactional(readOnly = true)
+    public PeriodCommissionDTO getCommissionByPeriod(UUID brokerageId, Integer days) {
+        if (days == null) {
+            days = 7;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime periodStart = now.minusDays(days);
+        LocalDateTime previousPeriodStart = now.minusDays(days * 2);
+
+        // 현재 기간 수수료
+        Long totalCommission = ledgerRepository.getTotalCommissionByBrokerageIdAndDateRange(
+                brokerageId, periodStart, now);
+
+        // 매수 수수료
+        Long buyCommission = ledgerRepository.getCommissionByBrokerageIdAndDateRange(
+                brokerageId, TransactionType.BUY, periodStart, now);
+
+        // 매도 수수료
+        Long sellCommission = ledgerRepository.getCommissionByBrokerageIdAndDateRange(
+                brokerageId, TransactionType.SELL, periodStart, now);
+
+        // 이전 기간 수수료 (변화율 계산용)
+        Long previousCommission = ledgerRepository.getTotalCommissionByBrokerageIdAndDateRange(
+                brokerageId, previousPeriodStart, periodStart);
+
+        // 변화율 계산
+        double changePercent = 0.0;
+        if (previousCommission != null && previousCommission > 0) {
+            changePercent = ((double)(totalCommission - previousCommission) / previousCommission) * 100.0;
+        } else if (totalCommission != null && totalCommission > 0) {
+            changePercent = 100.0;
+        }
+
+        // 일별 상세 데이터 생성
+        List<DailyCommissionDTO> dailyBreakdown = generateDailyBreakdown(brokerageId, periodStart, now);
+
+        // 일평균 계산
+        double dailyAverage = totalCommission != null ? (double) totalCommission / days : 0.0;
+
+        return PeriodCommissionDTO.builder()
+                .periodDays(days)
+                .totalCommission(totalCommission != null ? totalCommission : 0L)
+                .buyCommission(buyCommission != null ? buyCommission : 0L)
+                .sellCommission(sellCommission != null ? sellCommission : 0L)
+                .dailyAverage(dailyAverage)
+                .changePercent(changePercent)
+                .dailyBreakdown(dailyBreakdown)
+                .build();
+    }
+
+    /**
+     * 시간대별 수익 추이 조회
+     *
+     * @param brokerageId 증권사 ID
+     * @param days 기간 (기본값: 7일)
+     * @return 시간대별 수수료 추이 리스트
+     */
+    @Transactional(readOnly = true)
+    public List<HourlyCommissionTrendDTO> getHourlyCommissionTrends(UUID brokerageId, Integer days) {
+        if (days == null) {
+            days = 7;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime startDateTime = now.minusDays(days);
+
+        // 시간대별 집계 데이터 조회
+        List<Object[]> hourlyData = ledgerRepository.getHourlyCommissionTrends(
+                brokerageId, startDateTime, now);
+
+        List<HourlyCommissionTrendDTO> trends = new ArrayList<>();
+        for (Object[] row : hourlyData) {
+            Integer hour = (Integer) row[0];
+            Long totalCommission = (Long) row[1];
+            Long buyCommission = (Long) row[2];
+            Long sellCommission = (Long) row[3];
+            Long tradeCount = (Long) row[4];
+
+            // 해당 시간대의 활성 거래자 수 계산
+            // 전체 기간에서 해당 시간대에 주문한 고유 계좌 수
+            LocalDateTime hourStart = startDateTime.withHour(hour).withMinute(0).withSecond(0);
+            LocalDateTime hourEnd = hourStart.plusHours(1);
+            Long activeTraders = orderLogRepository.countDistinctMemberAccountsByBrokerageIdAndDateRange(
+                    brokerageId, hourStart, hourEnd);
+
+            trends.add(HourlyCommissionTrendDTO.builder()
+                    .hour(hour)
+                    .totalCommission(totalCommission)
+                    .buyCommission(buyCommission)
+                    .sellCommission(sellCommission)
+                    .tradeCount(tradeCount.intValue())
+                    .activeTraders(activeTraders != null ? activeTraders.intValue() : 0)
+                    .build());
+        }
+
+        return trends;
+    }
+
+    /**
+     * 일별 수수료 상세 데이터 생성 (헬퍼 메서드)
+     */
+    private List<DailyCommissionDTO> generateDailyBreakdown(
+            UUID brokerageId, LocalDateTime startDateTime, LocalDateTime endDateTime) {
+
+        // 일별 집계 데이터 조회
+        List<Object[]> dailyData = ledgerRepository.getDailyCommissionBreakdown(
+                brokerageId, startDateTime, endDateTime);
+
+        List<DailyCommissionDTO> breakdown = new ArrayList<>();
+        for (Object[] row : dailyData) {
+            java.sql.Date sqlDate = (java.sql.Date) row[0];
+            LocalDate date = sqlDate.toLocalDate();
+            Long totalCommission = (Long) row[1];
+            Long buyCommission = (Long) row[2];
+            Long sellCommission = (Long) row[3];
+            Long tradeCount = (Long) row[4];
+
+            // 해당 날짜의 활성 거래자 수 계산
+            LocalDateTime dayStart = date.atStartOfDay();
+            LocalDateTime dayEnd = date.atTime(LocalTime.MAX);
+            Long activeTraders = orderLogRepository.countDistinctMemberAccountsByBrokerageIdAndDateRange(
+                    brokerageId, dayStart, dayEnd);
+
+            breakdown.add(DailyCommissionDTO.builder()
+                    .date(date)
+                    .totalCommission(totalCommission)
+                    .buyCommission(buyCommission)
+                    .sellCommission(sellCommission)
+                    .tradeCount(tradeCount.intValue())
+                    .activeTraders(activeTraders != null ? activeTraders.intValue() : 0)
+                    .build());
+        }
+
+        return breakdown;
+    }
+
+
+    /**
+     * 7일간 수수료 차트 데이터 조회
+     * - 조회 날짜 포함 7일 전 데이터
+     * - 1일 단위로 7개의 막대그래프 데이터
+     *
+     * @param brokerageId 증권사 ID
+     * @param queryDate 조회 기준 날짜 (null이면 오늘)
+     * @return 7일간 차트 데이터
+     */
+    @Transactional(readOnly = true)
+    public CommissionChartDTO getCommissionChart7Days(UUID brokerageId, LocalDate queryDate) {
+        if (queryDate == null) {
+            queryDate = LocalDate.now();
+        }
+
+        LocalDate startDate = queryDate.minusDays(6); // 조회일 포함 7일 전
+        LocalDate endDate = queryDate;
+
+        List<CommissionChartDTO.ChartDataPoint> dataPoints = new ArrayList<>();
+        Long totalCommission = 0L;
+
+        // 7일간 각 날짜별로 데이터 생성
+        for (int i = 0; i < 7; i++) {
+            LocalDate targetDate = startDate.plusDays(i);
+            LocalDateTime dayStart = targetDate.atStartOfDay();
+            LocalDateTime dayEnd = targetDate.atTime(LocalTime.MAX);
+
+            // 해당 날짜의 수수료 데이터 조회
+            Long dayTotalCommission = ledgerRepository.getTotalCommissionByBrokerageIdAndDateRange(
+                    brokerageId, dayStart, dayEnd);
+            Long dayBuyCommission = ledgerRepository.getCommissionByBrokerageIdAndDateRange(
+                    brokerageId, TransactionType.BUY, dayStart, dayEnd);
+            Long daySellCommission = ledgerRepository.getCommissionByBrokerageIdAndDateRange(
+                    brokerageId, TransactionType.SELL, dayStart, dayEnd);
+            Long dayTradeCount = ledgerRepository.getTradeCountByBrokerageIdAndDateRange(
+                    brokerageId, dayStart, dayEnd);
+            Long dayActiveTraders = orderLogRepository.countDistinctMemberAccountsByBrokerageIdAndDateRange(
+                    brokerageId, dayStart, dayEnd);
+
+            // null 체크 및 기본값 설정
+            dayTotalCommission = dayTotalCommission != null ? dayTotalCommission : 0L;
+            dayBuyCommission = dayBuyCommission != null ? dayBuyCommission : 0L;
+            daySellCommission = daySellCommission != null ? daySellCommission : 0L;
+            dayTradeCount = dayTradeCount != null ? dayTradeCount : 0L;
+            dayActiveTraders = dayActiveTraders != null ? dayActiveTraders : 0L;
+
+            totalCommission += dayTotalCommission;
+
+            // 라벨: "MM/dd" 형식
+            String label = targetDate.format(java.time.format.DateTimeFormatter.ofPattern("MM/dd"));
+
+            dataPoints.add(CommissionChartDTO.ChartDataPoint.builder()
+                    .label(label)
+                    .startDate(targetDate)
+                    .endDate(targetDate)
+                    .totalCommission(dayTotalCommission)
+                    .buyCommission(dayBuyCommission)
+                    .sellCommission(daySellCommission)
+                    .tradeCount(dayTradeCount.intValue())
+                    .activeTraders(dayActiveTraders.intValue())
+                    .build());
+        }
+
+        return CommissionChartDTO.builder()
+                .period("7days")
+                .startDate(startDate)
+                .endDate(endDate)
+                .totalCommission(totalCommission)
+                .dataPointCount(7)
+                .dataPoints(dataPoints)
+                .build();
+    }
+
+    /**
+     * 30일간 수수료 차트 데이터 조회
+     * - 조회 날짜 포함 30일 전 데이터
+     * - 1일 단위로 30개의 막대그래프 데이터
+     *
+     * @param brokerageId 증권사 ID
+     * @param queryDate 조회 기준 날짜 (null이면 오늘)
+     * @return 30일간 차트 데이터
+     */
+    @Transactional(readOnly = true)
+    public CommissionChartDTO getCommissionChart30Days(UUID brokerageId, LocalDate queryDate) {
+        if (queryDate == null) {
+            queryDate = LocalDate.now();
+        }
+
+        LocalDate startDate = queryDate.minusDays(29); // 조회일 포함 30일 전
+        LocalDate endDate = queryDate;
+
+        List<CommissionChartDTO.ChartDataPoint> dataPoints = new ArrayList<>();
+        Long totalCommission = 0L;
+
+        // 30일간 각 날짜별로 데이터 생성
+        for (int i = 0; i < 30; i++) {
+            LocalDate targetDate = startDate.plusDays(i);
+            LocalDateTime dayStart = targetDate.atStartOfDay();
+            LocalDateTime dayEnd = targetDate.atTime(LocalTime.MAX);
+
+            // 해당 날짜의 수수료 데이터 조회
+            Long dayTotalCommission = ledgerRepository.getTotalCommissionByBrokerageIdAndDateRange(
+                    brokerageId, dayStart, dayEnd);
+            Long dayBuyCommission = ledgerRepository.getCommissionByBrokerageIdAndDateRange(
+                    brokerageId, TransactionType.BUY, dayStart, dayEnd);
+            Long daySellCommission = ledgerRepository.getCommissionByBrokerageIdAndDateRange(
+                    brokerageId, TransactionType.SELL, dayStart, dayEnd);
+            Long dayTradeCount = ledgerRepository.getTradeCountByBrokerageIdAndDateRange(
+                    brokerageId, dayStart, dayEnd);
+            Long dayActiveTraders = orderLogRepository.countDistinctMemberAccountsByBrokerageIdAndDateRange(
+                    brokerageId, dayStart, dayEnd);
+
+            // null 체크 및 기본값 설정
+            dayTotalCommission = dayTotalCommission != null ? dayTotalCommission : 0L;
+            dayBuyCommission = dayBuyCommission != null ? dayBuyCommission : 0L;
+            daySellCommission = daySellCommission != null ? daySellCommission : 0L;
+            dayTradeCount = dayTradeCount != null ? dayTradeCount : 0L;
+            dayActiveTraders = dayActiveTraders != null ? dayActiveTraders : 0L;
+
+            totalCommission += dayTotalCommission;
+
+            // 라벨: "MM/dd" 형식
+            String label = targetDate.format(java.time.format.DateTimeFormatter.ofPattern("MM/dd"));
+
+            dataPoints.add(CommissionChartDTO.ChartDataPoint.builder()
+                    .label(label)
+                    .startDate(targetDate)
+                    .endDate(targetDate)
+                    .totalCommission(dayTotalCommission)
+                    .buyCommission(dayBuyCommission)
+                    .sellCommission(daySellCommission)
+                    .tradeCount(dayTradeCount.intValue())
+                    .activeTraders(dayActiveTraders.intValue())
+                    .build());
+        }
+
+        return CommissionChartDTO.builder()
+                .period("30days")
+                .startDate(startDate)
+                .endDate(endDate)
+                .totalCommission(totalCommission)
+                .dataPointCount(30)
+                .dataPoints(dataPoints)
+                .build();
+    }
+
+    /**
+     * 90일간 수수료 차트 데이터 조회
+     * - 조회 날짜 포함 90일 전 데이터
+     * - 3일 단위로 30개의 막대그래프 데이터
+     *
+     * @param brokerageId 증권사 ID
+     * @param queryDate 조회 기준 날짜 (null이면 오늘)
+     * @return 90일간 차트 데이터
+     */
+    @Transactional(readOnly = true)
+    public CommissionChartDTO getCommissionChart90Days(UUID brokerageId, LocalDate queryDate) {
+        if (queryDate == null) {
+            queryDate = LocalDate.now();
+        }
+
+        LocalDate startDate = queryDate.minusDays(89); // 조회일 포함 90일 전
+        LocalDate endDate = queryDate;
+
+        List<CommissionChartDTO.ChartDataPoint> dataPoints = new ArrayList<>();
+        Long totalCommission = 0L;
+
+        // 90일을 3일씩 묶어서 30개 구간으로 나눔
+        for (int i = 0; i < 30; i++) {
+            LocalDate periodStart = startDate.plusDays(i * 3);
+            LocalDate periodEnd = periodStart.plusDays(2); // 3일 구간 (시작일 + 2일)
+
+            // 마지막 구간이 queryDate를 초과하지 않도록 조정
+            if (periodEnd.isAfter(endDate)) {
+                periodEnd = endDate;
+            }
+
+            LocalDateTime rangeStart = periodStart.atStartOfDay();
+            LocalDateTime rangeEnd = periodEnd.atTime(LocalTime.MAX);
+
+            // 해당 3일 구간의 수수료 데이터 조회
+            Long periodTotalCommission = ledgerRepository.getTotalCommissionByBrokerageIdAndDateRange(
+                    brokerageId, rangeStart, rangeEnd);
+            Long periodBuyCommission = ledgerRepository.getCommissionByBrokerageIdAndDateRange(
+                    brokerageId, TransactionType.BUY, rangeStart, rangeEnd);
+            Long periodSellCommission = ledgerRepository.getCommissionByBrokerageIdAndDateRange(
+                    brokerageId, TransactionType.SELL, rangeStart, rangeEnd);
+            Long periodTradeCount = ledgerRepository.getTradeCountByBrokerageIdAndDateRange(
+                    brokerageId, rangeStart, rangeEnd);
+            Long periodActiveTraders = orderLogRepository.countDistinctMemberAccountsByBrokerageIdAndDateRange(
+                    brokerageId, rangeStart, rangeEnd);
+
+            // null 체크 및 기본값 설정
+            periodTotalCommission = periodTotalCommission != null ? periodTotalCommission : 0L;
+            periodBuyCommission = periodBuyCommission != null ? periodBuyCommission : 0L;
+            periodSellCommission = periodSellCommission != null ? periodSellCommission : 0L;
+            periodTradeCount = periodTradeCount != null ? periodTradeCount : 0L;
+            periodActiveTraders = periodActiveTraders != null ? periodActiveTraders : 0L;
+
+            totalCommission += periodTotalCommission;
+
+            // 라벨: "MM/dd~MM/dd" 형식
+            String label = String.format("%s~%s",
+                    periodStart.format(java.time.format.DateTimeFormatter.ofPattern("MM/dd")),
+                    periodEnd.format(java.time.format.DateTimeFormatter.ofPattern("MM/dd")));
+
+            dataPoints.add(CommissionChartDTO.ChartDataPoint.builder()
+                    .label(label)
+                    .startDate(periodStart)
+                    .endDate(periodEnd)
+                    .totalCommission(periodTotalCommission)
+                    .buyCommission(periodBuyCommission)
+                    .sellCommission(periodSellCommission)
+                    .tradeCount(periodTradeCount.intValue())
+                    .activeTraders(periodActiveTraders.intValue())
+                    .build());
+        }
+
+        return CommissionChartDTO.builder()
+                .period("90days")
+                .startDate(startDate)
+                .endDate(endDate)
+                .totalCommission(totalCommission)
+                .dataPointCount(30)
+                .dataPoints(dataPoints)
+                .build();
+    }
+
+    /**
+     * 1년간 수수료 차트 데이터 조회
+     * - 조회 월 포함 1년 전 데이터
+     * - 1개월 단위로 12개의 막대그래프 데이터
+     *
+     * @param brokerageId 증권사 ID
+     * @param queryDate 조회 기준 날짜 (null이면 오늘)
+     * @return 1년간 차트 데이터
+     */
+    @Transactional(readOnly = true)
+    public CommissionChartDTO getCommissionChart365Days(UUID brokerageId, LocalDate queryDate) {
+        if (queryDate == null) {
+            queryDate = LocalDate.now();
+        }
+
+        // 조회 월 포함 1년 전 (11개월 전의 1일부터 시작)
+        LocalDate startDate = queryDate.minusMonths(11).withDayOfMonth(1);
+        LocalDate endDate = queryDate;
+
+        List<CommissionChartDTO.ChartDataPoint> dataPoints = new ArrayList<>();
+        Long totalCommission = 0L;
+
+        // 12개월간 각 월별로 데이터 생성
+        for (int i = 0; i < 12; i++) {
+            LocalDate monthStart = startDate.plusMonths(i);
+            LocalDate monthEnd;
+
+            if (i == 11) {
+                // 마지막 월은 queryDate까지만
+                monthEnd = queryDate;
+            } else {
+                // 해당 월의 마지막 날
+                monthEnd = monthStart.plusMonths(1).minusDays(1);
+            }
+
+            LocalDateTime rangeStart = monthStart.atStartOfDay();
+            LocalDateTime rangeEnd = monthEnd.atTime(LocalTime.MAX);
+
+            // 해당 월의 수수료 데이터 조회
+            Long monthTotalCommission = ledgerRepository.getTotalCommissionByBrokerageIdAndDateRange(
+                    brokerageId, rangeStart, rangeEnd);
+            Long monthBuyCommission = ledgerRepository.getCommissionByBrokerageIdAndDateRange(
+                    brokerageId, TransactionType.BUY, rangeStart, rangeEnd);
+            Long monthSellCommission = ledgerRepository.getCommissionByBrokerageIdAndDateRange(
+                    brokerageId, TransactionType.SELL, rangeStart, rangeEnd);
+            Long monthTradeCount = ledgerRepository.getTradeCountByBrokerageIdAndDateRange(
+                    brokerageId, rangeStart, rangeEnd);
+            Long monthActiveTraders = orderLogRepository.countDistinctMemberAccountsByBrokerageIdAndDateRange(
+                    brokerageId, rangeStart, rangeEnd);
+
+            // null 체크 및 기본값 설정
+            monthTotalCommission = monthTotalCommission != null ? monthTotalCommission : 0L;
+            monthBuyCommission = monthBuyCommission != null ? monthBuyCommission : 0L;
+            monthSellCommission = monthSellCommission != null ? monthSellCommission : 0L;
+            monthTradeCount = monthTradeCount != null ? monthTradeCount : 0L;
+            monthActiveTraders = monthActiveTraders != null ? monthActiveTraders : 0L;
+
+            totalCommission += monthTotalCommission;
+
+            // 라벨: "yyyy/MM" 형식
+            String label = monthStart.format(java.time.format.DateTimeFormatter.ofPattern("yyyy/MM"));
+
+            dataPoints.add(CommissionChartDTO.ChartDataPoint.builder()
+                    .label(label)
+                    .startDate(monthStart)
+                    .endDate(monthEnd)
+                    .totalCommission(monthTotalCommission)
+                    .buyCommission(monthBuyCommission)
+                    .sellCommission(monthSellCommission)
+                    .tradeCount(monthTradeCount.intValue())
+                    .activeTraders(monthActiveTraders.intValue())
+                    .build());
+        }
+
+        return CommissionChartDTO.builder()
+                .period("365days")
+                .startDate(startDate)
+                .endDate(endDate)
+                .totalCommission(totalCommission)
+                .dataPointCount(12)
+                .dataPoints(dataPoints)
+                .build();
+    }
+
+    /**
+     * 통합 차트 데이터 조회 메서드
+     * - period 파라미터에 따라 적절한 차트 데이터 반환
+     *
+     * @param brokerageId 증권사 ID
+     * @param period 조회 기간 ("7days", "30days", "90days", "365days")
+     * @param queryDate 조회 기준 날짜 (null이면 오늘)
+     * @return 기간별 차트 데이터
+     */
+    @Transactional(readOnly = true)
+    public CommissionChartDTO getCommissionChart(UUID brokerageId, String period, LocalDate queryDate) {
+        return switch (period.toLowerCase()) {
+            case "7days", "7" -> getCommissionChart7Days(brokerageId, queryDate);
+            case "30days", "30" -> getCommissionChart30Days(brokerageId, queryDate);
+            case "90days", "90" -> getCommissionChart90Days(brokerageId, queryDate);
+            case "365days", "365", "1year" -> getCommissionChart365Days(brokerageId, queryDate);
+            default -> throw new IllegalArgumentException(
+                    "Invalid period: " + period + ". Must be one of: 7days, 30days, 90days, 365days");
         };
     }
 }

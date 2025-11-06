@@ -41,11 +41,36 @@ public class WebSocketSecurityConfig {
                 // CSRF 비활성화 (WebSocket은 CSRF 토큰 사용 불가)
                 .csrf(csrf -> csrf.disable())
                 
+                // HTTP Basic 인증 비활성화
+                .httpBasic(httpBasic -> httpBasic.disable())
+                
+                // Form 로그인 비활성화
+                .formLogin(formLogin -> formLogin.disable())
+                
+                // Logout 비활성화
+                .logout(logout -> logout.disable())
+                
+                // Anonymous 인증 허용
+                .anonymous(anonymous -> anonymous.disable())
+                
+                // Session 관리 비활성화 (Stateless)
+                .sessionManagement(session -> session
+                    .sessionCreationPolicy(org.springframework.security.config.http.SessionCreationPolicy.STATELESS)
+                )
+                
                 // CORS 설정
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 
                 // HTTP 요청 인증 설정
                 .authorizeHttpRequests(auth -> auth
+                        // ✅ Market Data 공개 API - 인증 불필요 (최우선 순위)
+                        .requestMatchers("/api/v1/market/chart/**").permitAll()
+                        .requestMatchers("/api/v1/market/integrated/**").permitAll()
+                        .requestMatchers("/api/v1/market/price/**").permitAll()
+                        .requestMatchers("/api/v1/market/executions/**").permitAll()
+                        .requestMatchers("/api/v1/market/**").permitAll()
+                        .requestMatchers("/api/v1/executions/**").permitAll()
+                        
                         // WebSocket 엔드포인트 허용 (STOMP CONNECT 시 인증)
                         // ✅ /ws/** 패턴으로 모든 WebSocket 경로 커버 (SockJS 포함)
                         .requestMatchers("/ws/**").permitAll()
@@ -58,7 +83,7 @@ public class WebSocketSecurityConfig {
                         // Actuator 엔드포인트
                         .requestMatchers("/actuator/**").permitAll()
                         
-                        // API 엔드포인트
+                        // API 엔드포인트 (나머지)
                         .requestMatchers("/api/**").permitAll()
                         
                         // 기타 모든 요청 허용
@@ -66,7 +91,10 @@ public class WebSocketSecurityConfig {
                 );
 
         log.info("[SECURITY] ✅ HTTP Security configured");
+        log.info("[SECURITY]   - Market Data APIs: /api/v1/market/** (permitAll) 🔓");
+        log.info("[SECURITY]   - Execution APIs: /api/v1/executions/** (permitAll) 🔓");
         log.info("[SECURITY]   - WebSocket endpoints: /ws/** (permitAll)");
+        log.info("[SECURITY]   - All other APIs: /api/** (permitAll)");
         log.info("[SECURITY]   - STOMP message authorization: handled by OptionalAuthChannelInterceptor");
         
         return http.build();

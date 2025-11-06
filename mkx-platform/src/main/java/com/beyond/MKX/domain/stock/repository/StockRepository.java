@@ -53,6 +53,11 @@ public interface StockRepository extends JpaRepository<Stock, UUID> {
     List<Stock> findByStatus(Status status);
 
     /**
+     * 특정 상태의 주식 목록 조회 (Pageable 지원)
+     */
+    Page<Stock> findByStatus(Status status, Pageable pageable);
+
+    /**
      * 여러 상태의 주식 목록 조회 (자동화용)
      */
     List<Stock> findByStatusIn(List<Status> statuses);

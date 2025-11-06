@@ -5,6 +5,7 @@ import com.beyond.MKX.domain.chart.service.ChartService;
 import com.beyond.MKX.domain.chart.stomp.ChartStompController;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -36,7 +37,6 @@ import java.util.*;
 public class CandleConfirmationScheduler {
 
     private final ChartService chartService;
-    private final ChartStompController chartStompController;
     private final RedisTemplate<String, Object> redisTemplate;
 
     private static final Map<String, Long> INTERVAL_MINUTES = Map.of(
@@ -55,6 +55,7 @@ public class CandleConfirmationScheduler {
      * 1분마다 실행 - 1분 캔들 확정
      */
     @Scheduled(cron = "0 * * * * *")
+    @SchedulerLock(name = "confirm1MinuteCandles", lockAtMostFor = "50000", lockAtLeastFor = "10000")
     public void confirm1MinuteCandles() {
         confirmCandles("1m", 1);
     }
@@ -63,6 +64,7 @@ public class CandleConfirmationScheduler {
      * 5분마다 실행 - 5분 캔들 확정
      */
     @Scheduled(cron = "0 */5 * * * *")
+    @SchedulerLock(name = "confirm5MinuteCandles", lockAtMostFor = "240000", lockAtLeastFor = "30000")
     public void confirm5MinuteCandles() {
         confirmCandles("5m", 5);
     }
@@ -71,6 +73,7 @@ public class CandleConfirmationScheduler {
      * 15분마다 실행 - 15분 캔들 확정
      */
     @Scheduled(cron = "0 */15 * * * *")
+    @SchedulerLock(name = "confirm15MinuteCandles", lockAtMostFor = "840000", lockAtLeastFor = "60000")
     public void confirm15MinuteCandles() {
         confirmCandles("15m", 15);
     }
@@ -79,6 +82,7 @@ public class CandleConfirmationScheduler {
      * 30분마다 실행 - 30분 캔들 확정
      */
     @Scheduled(cron = "0 */30 * * * *")
+    @SchedulerLock(name = "confirm30MinuteCandles", lockAtMostFor = "1740000", lockAtLeastFor = "60000")
     public void confirm30MinuteCandles() {
         confirmCandles("30m", 30);
     }
@@ -87,6 +91,7 @@ public class CandleConfirmationScheduler {
      * 1시간마다 실행 - 1시간 캔들 확정
      */
     @Scheduled(cron = "0 0 * * * *")
+    @SchedulerLock(name = "confirm1HourCandles", lockAtMostFor = "3540000", lockAtLeastFor = "120000")
     public void confirm1HourCandles() {
         confirmCandles("1h", 60);
     }
@@ -95,6 +100,7 @@ public class CandleConfirmationScheduler {
      * 4시간마다 실행 - 4시간 캔들 확정
      */
     @Scheduled(cron = "0 0 */4 * * *")
+    @SchedulerLock(name = "confirm4HourCandles", lockAtMostFor = "13800000", lockAtLeastFor = "300000")
     public void confirm4HourCandles() {
         confirmCandles("4h", 240);
     }
@@ -103,6 +109,7 @@ public class CandleConfirmationScheduler {
      * 매일 자정 실행 - 1일 캔들 확정
      */
     @Scheduled(cron = "0 0 0 * * *")
+    @SchedulerLock(name = "confirm1DayCandles", lockAtMostFor = "82800000", lockAtLeastFor = "600000")
     public void confirm1DayCandles() {
         confirmCandles("1d", 1440);
     }
@@ -110,16 +117,19 @@ public class CandleConfirmationScheduler {
     /**
      * ✅ 개선된 캔들 확정 프로세스
      * 
-     * InfluxDB 체결 데이터를 기반으로 재계산
+     * 1. 이전 캔들 확정 (InfluxDB 체결 데이터 기반)
+     * 2. 현재 캔들 임시 생성 (거래 없어도 생성)
      */
     private void confirmCandles(String interval, long intervalMinutes) {
         try {
             log.info("[CANDLE/CONFIRM] ========== Starting: interval={} ==========", interval);
             
             Instant now = Instant.now();
-            Instant candleTime = calculatePreviousCandleTime(now, intervalMinutes);
+            Instant previousCandleTime = calculatePreviousCandleTime(now, intervalMinutes);
+            Instant currentCandleTime = calculateCurrentCandleTime(now, intervalMinutes);
             
-            log.info("[CANDLE/CONFIRM] Confirming candle: time={}, interval={}", candleTime, interval);
+            log.info("[CANDLE/CONFIRM] Previous candle: {}, Current candle: {}, interval={}", 
+                    previousCandleTime, currentCandleTime, interval);
             
             updateTrackedTickers();
             
@@ -130,32 +140,50 @@ public class CandleConfirmationScheduler {
             
             log.info("[CANDLE/CONFIRM] Processing {} tickers", trackedTickers.size());
             
-            int confirmedCount = 0;
-            int emptyCount = 0;
+            int previousConfirmed = 0;
+            int previousEmpty = 0;
+            int currentConfirmed = 0;
+            int currentEmpty = 0;
             int failedCount = 0;
             
             for (String ticker : trackedTickers) {
                 try {
-                    // ✅ 핵심: InfluxDB 체결 데이터로 캔들 재계산
-                    Candle candle = chartService.recalculateCandleFromExecutions(
-                            ticker, interval, candleTime);
+                    // 1️⃣ 이전 캔들 확정 (체결 데이터 기반)
+                    Candle previousCandle = chartService.recalculateCandleFromExecutions(
+                            ticker, interval, previousCandleTime);
                     
-                    if (candle != null) {
-                        if (candle.getVolume() != null && candle.getVolume().compareTo(BigDecimal.ZERO) > 0) {
-                            confirmedCount++;
-                            log.info("[CANDLE/CONFIRM] ✅ Confirmed: ticker={}, time={}, O={}, H={}, L={}, C={}, V={}", 
-                                    ticker, candleTime, candle.getOpen(), candle.getHigh(), 
-                                    candle.getLow(), candle.getClose(), candle.getVolume());
+                    if (previousCandle != null) {
+                        if (previousCandle.getVolume() != null && previousCandle.getVolume().compareTo(BigDecimal.ZERO) > 0) {
+                            previousConfirmed++;
+                            log.info("[CANDLE/CONFIRM] ✅ Previous confirmed: ticker={}, time={}, O={}, H={}, L={}, C={}, V={}", 
+                                    ticker, previousCandleTime, previousCandle.getOpen(), previousCandle.getHigh(), 
+                                    previousCandle.getLow(), previousCandle.getClose(), previousCandle.getVolume());
                         } else {
-                            emptyCount++;
-                            log.debug("[CANDLE/CONFIRM] 📊 Empty candle: ticker={}, time={}, close={}", 
-                                    ticker, candleTime, candle.getClose());
+                            previousEmpty++;
+                            log.debug("[CANDLE/CONFIRM] 📊 Previous empty: ticker={}, time={}, close={}", 
+                                    ticker, previousCandleTime, previousCandle.getClose());
                         }
-                        
-                        chartStompController.publishCandle(candle);
-                        
+                        // ✅ ChartService에서 이미 publishCandle() 호출하므로 여기서 중복 발행 불필요
+                    }
+                    
+                    // 2️⃣ 현재 캔들 임시 생성 (항상 생성 시도)
+                    Candle currentCandle = chartService.recalculateCandleFromExecutions(
+                            ticker, interval, currentCandleTime);
+                    
+                    if (currentCandle != null) {
+                        if (currentCandle.getVolume() != null && currentCandle.getVolume().compareTo(BigDecimal.ZERO) > 0) {
+                            currentConfirmed++;
+                            log.info("[CANDLE/CONFIRM] ✅ Current confirmed: ticker={}, time={}, O={}, H={}, L={}, C={}, V={}", 
+                                    ticker, currentCandleTime, currentCandle.getOpen(), currentCandle.getHigh(), 
+                                    currentCandle.getLow(), currentCandle.getClose(), currentCandle.getVolume());
+                        } else {
+                            currentEmpty++;
+                            log.debug("[CANDLE/CONFIRM] 📊 Current empty: ticker={}, time={}, close={}", 
+                                    ticker, currentCandleTime, currentCandle.getClose());
+                        }
+                        // ✅ ChartService에서 이미 publishCandle() 호출하므로 여기서 중복 발행 불필요
                     } else {
-                        log.debug("[CANDLE/CONFIRM] ⏭️ Skipped: ticker={} (no previous candle)", ticker);
+                        log.debug("[CANDLE/CONFIRM] ⏭️ Skipped: ticker={} (no base price)", ticker);
                     }
                     
                 } catch (Exception e) {
@@ -164,8 +192,10 @@ public class CandleConfirmationScheduler {
                 }
             }
             
-            log.info("[CANDLE/CONFIRM] ========== Completed: interval={}, confirmed={}, empty={}, failed={} ==========", 
-                    interval, confirmedCount, emptyCount, failedCount);
+            log.info("[CANDLE/CONFIRM] ========== Completed: interval={} ==========", interval);
+            log.info("[CANDLE/CONFIRM] Previous - confirmed={}, empty={}", previousConfirmed, previousEmpty);
+            log.info("[CANDLE/CONFIRM] Current - confirmed={}, empty={}", currentConfirmed, currentEmpty);
+            log.info("[CANDLE/CONFIRM] Failed={}", failedCount);
             
         } catch (Exception e) {
             log.error("[CANDLE/CONFIRM] ❌ Failed: interval={}", interval, e);
@@ -174,6 +204,8 @@ public class CandleConfirmationScheduler {
 
     /**
      * 직전 캔들 시작 시각 계산
+     * 
+     * 예: 현재 14:30:00 → 14:29:00 반환 (1분봉)
      */
     private Instant calculatePreviousCandleTime(Instant now, long intervalMinutes) {
         if (intervalMinutes == 1440) {
@@ -191,12 +223,36 @@ public class CandleConfirmationScheduler {
     }
 
     /**
+     * 현재 캔들 시작 시각 계산
+     * 
+     * 예: 현재 14:30:00 → 14:30:00 반환 (1분봉)
+     */
+    private Instant calculateCurrentCandleTime(Instant now, long intervalMinutes) {
+        if (intervalMinutes == 1440) {
+            return now.atZone(ZoneId.of("UTC"))
+                    .truncatedTo(ChronoUnit.DAYS)
+                    .toInstant();
+        }
+        
+        long epochMinutes = now.getEpochSecond() / 60;
+        long currentIntervalStart = (epochMinutes / intervalMinutes) * intervalMinutes;
+        
+        return Instant.ofEpochSecond(currentIntervalStart * 60);
+    }
+
+    /**
      * 활성 종목 수집
      */
     private void updateTrackedTickers() {
         try {
             Set<String> tickers = new HashSet<>();
             
+            // ✅ 기본 종목 세트 추가 (테스트/개발용)
+            String defaultTickers = "MKX001,MKX002,MKX003,MKX004,MKX005,MKX006,MKX007,MKX008,MKX009,MKX010";
+            tickers.addAll(Arrays.asList(defaultTickers.split(",")));
+            log.info("[CANDLE/CONFIRM] Added default tickers: {}", defaultTickers);
+            
+            // Redis에서 활성 종목 추가 수집
             Set<String> candleKeys = redisTemplate.keys("candle:*:*");
             if (candleKeys != null) {
                 for (String key : candleKeys) {
@@ -226,7 +282,7 @@ public class CandleConfirmationScheduler {
             trackedTickers.clear();
             trackedTickers.addAll(tickers);
             
-            log.debug("[CANDLE/CONFIRM] Tracked tickers: {}", trackedTickers);
+            log.info("[CANDLE/CONFIRM] Total tracked tickers: {} - {}", trackedTickers.size(), trackedTickers);
             
         } catch (Exception e) {
             log.error("[CANDLE/CONFIRM] Failed to update tickers", e);

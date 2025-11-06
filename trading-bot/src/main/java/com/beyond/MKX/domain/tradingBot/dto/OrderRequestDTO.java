@@ -28,7 +28,7 @@ public record OrderRequestDTO(
 
         @NotNull(message = "주문 수량을 입력하세요.")
         @Min(value = 1, message = "주문 수량은 1주 이상이어야 합니다.")
-        @Max(value = 100000, message = "10만 주를 초과할 수 없습니다.")
+//        @Max(value = 100000, message = "10만 주를 초과할 수 없습니다.")
         Long quantity
 ) {
 }

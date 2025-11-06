@@ -1,6 +1,8 @@
 -- KEYS:
 --   KEYS[1] = orderbook:{ticker}:bids        -- 매수 호가 ZSET (score = priceInt, 높은 값 우선)
 --   KEYS[2] = orderbook:{ticker}:asks        -- 매도 호가 ZSET (score = priceInt, 낮은 값 우선)
+--   KEYS[3] = seq:{ticker}:bids              -- 매수 시퀀스
+--   KEYS[4] = seq:{ticker}:asks              -- 매도 시퀀스
 --
 -- ARGV:
 --   1: ticker
@@ -10,6 +12,7 @@
 --   5: guardPxInt (int or nil-string)        -- 가격 가드(시장가면 nil/빈문자)
 --   6: orderIdToAdd (string)                 -- LIMIT 잔량 적재용(시장가면 "")
 --   7: priceIntForAdd (int)                  -- LIMIT 잔량 적재 가격(시장가면 0)
+--   8: FACTOR                                 -- 가격·시간 tie-breaker 스케일
 --
 -- 주문 상세 해시(HASH) 스키마(동일 {ticker} 해시태그 슬롯 사용 필수):
 --   orders:{ticker}:{orderId}  -- fields: quantity(string), priceInt(string), side, ticker
@@ -21,6 +24,10 @@ local max_matches    = tonumber(ARGV[4])
 local guardPxInt_raw = ARGV[5]
 local orderIdToAdd   = ARGV[6] or ""
 local priceIntForAdd = tonumber(ARGV[7] or "0")
+local FACTOR         = tonumber(ARGV[8]) or 1000000
+
+-- ✅ totalVolume 관리용 키
+local totalVolumeKey = "orderbook:total:{" .. ticker .. "}"
 
 if not qty_left or qty_left <= 0 then
   return { "0", "0" }
@@ -109,6 +116,11 @@ while qty_left > 0 and matchCount < max_matches do
           redis.call("HSET", oKey, "quantity", tostring(remain))
         end
 
+        -- ✅ 체결 시 counter order의 totalVolume 감소 (양쪽 side 모두 감소)
+        -- counter order의 side가 oppositeSide이므로, oppositeSide의 totalVolume 감소
+        local oppositeField = (oppositeSide == "BUY") and "bidVolume" or "askVolume"
+        redis.call("HINCRBYFLOAT", totalVolumeKey, oppositeField, -fill)
+
         table.insert(matches, topId)
         table.insert(matches, tostring(fill))
         table.insert(matches, tostring(priceInt))
@@ -153,6 +165,10 @@ if qty_left > 0 and orderIdToAdd ~= "" then
           "priceInt", tostring(priceIntForAdd)
   )
   redis.call("ZADD", zsetKey, score, orderIdToAdd)
+  
+  -- ✅ 새 주문 추가 시 totalVolume 증가
+  local addField = (addSide == "BUY") and "bidVolume" or "askVolume"
+  redis.call("HINCRBYFLOAT", totalVolumeKey, addField, qty_left)
 end
 
 -- out: [ remaining, matchCount, orderId1, fill1, priceInt1, ... ]

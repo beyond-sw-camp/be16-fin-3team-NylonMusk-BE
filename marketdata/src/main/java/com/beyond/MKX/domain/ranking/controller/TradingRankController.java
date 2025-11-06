@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * 마켓 랭킹 컨트롤러
@@ -132,4 +133,5 @@ public class TradingRankController {
             return ApiResponse.noContent("카드섹션 조회 실패: " + e.getMessage());
         }
     }
+
 }

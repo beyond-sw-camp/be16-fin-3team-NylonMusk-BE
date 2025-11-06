@@ -15,6 +15,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.UUID;
 
 /**
  * 마켓 랭킹 조회 서비스
@@ -369,6 +370,45 @@ public class MarketRankReaderService {
                 })
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
+    }
+
+    // ========== 관심종목 API ==========
+
+    /**
+     * 사용자의 관심종목 마켓 데이터 조회
+     * 
+     * 1. PlatformClient로 사용자의 즐겨찾기 ticker 리스트 조회
+     * 2. 각 ticker의 마켓 데이터 조회 (현재가, 등락률, 거래량, 시가총액)
+     * 3. MarketStockListResDTO 리스트로 반환
+     * 
+     * @param memberId 회원 ID (헤더에서 추출)
+     * @return 관심종목 마켓 데이터 리스트
+     */
+    public List<MarketStockListResDTO> getMyFavoriteStocks(UUID memberId) {
+        try {
+            log.info("[FAVORITES] Fetching favorite stocks for memberId: {}", memberId);
+
+            // 1. PlatformClient로 즐겨찾기 ticker 리스트 조회
+            List<String> tickers = platformClient.getFavoriteTickers(memberId);
+
+            if (tickers == null || tickers.isEmpty()) {
+                log.info("[FAVORITES] No favorite stocks found for memberId: {}", memberId);
+                return Collections.emptyList();
+            }
+
+            log.info("[FAVORITES] Found {} favorite tickers for memberId: {}", tickers.size(), memberId);
+
+            // 2. 각 ticker의 마켓 데이터 조회 및 조합
+            List<MarketStockListResDTO> result = buildMarketStockList(tickers);
+
+            log.info("[FAVORITES] Built {} market stock data for memberId: {}", result.size(), memberId);
+
+            return result;
+
+        } catch (Exception e) {
+            log.error("[FAVORITES] Failed to get favorite stocks for memberId: {}", memberId, e);
+            return Collections.emptyList();
+        }
     }
 }
 

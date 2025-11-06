@@ -6,6 +6,7 @@ import com.beyond.MKX.domain.stock.dto.StockInfoResDTO;
 import com.beyond.MKX.domain.stock.entity.Stock;
 import com.beyond.MKX.domain.stock.repository.StockRepository;
 import com.beyond.MKX.domain.stock.service.StockQueryService;
+import com.beyond.MKX.domain.stockfavorite.repository.StockFavoritesRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.annotation.Validated;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -29,6 +31,7 @@ public class InternalStockController {
 
     private final StockRepository stockRepository;
     private final StockQueryService stockQueryService;
+    private final StockFavoritesRepository stockFavoritesRepository;
 
     /**
      * 종목 이름 조회 (리스트)
@@ -97,5 +100,28 @@ public class InternalStockController {
         return stockQueryService.getStockByTicker(ticker);
     }
 
+    /**
+     * 사용자의 즐겨찾기 종목 ticker 리스트 조회
+     * 
+     * marketdata 서비스의 관심종목 마켓데이터 조회에서 사용
+     * 
+     * @param memberId 회원 ID
+     * @return ticker 리스트
+     */
+    @GetMapping("/favorites/{memberId}")
+    public List<String> getFavoriteTickers(@PathVariable UUID memberId) {
+        log.info("[INTERNAL-API] Fetching favorite tickers for memberId: {}", memberId);
+
+        List<Stock> favoriteStocks = stockFavoritesRepository.findFavoriteStocks(memberId);
+        List<String> tickers = favoriteStocks.stream()
+                .map(Stock::getTicker)
+                .collect(Collectors.toList());
+
+        log.info("[INTERNAL-API] Found {} favorite tickers for memberId: {}", tickers.size(), memberId);
+
+        return tickers;
+    }
+
 }
+
 

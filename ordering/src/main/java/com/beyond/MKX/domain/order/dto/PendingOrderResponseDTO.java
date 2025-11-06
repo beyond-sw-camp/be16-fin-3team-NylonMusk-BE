@@ -16,28 +16,29 @@ import java.util.UUID;
 @NoArgsConstructor
 @Data
 @Builder
-public class OrderResponseDTO {
+public class PendingOrderResponseDTO {
     private UUID orderId;
-    private OrderStatus orderStatus;
     private String ticker;
     private Side side;
     private Long price;
     private Long quantity;
     private Long remainQuantity;
     private OrderKind orderKind;
+    private OrderStatus status;
     private LocalDateTime createdAt;
 
-    public static OrderResponseDTO from(OrderLog order) {
-        return OrderResponseDTO.builder()
+    public static PendingOrderResponseDTO from(OrderLog order) {
+        return PendingOrderResponseDTO.builder()
                 .orderId(order.getId())
-                .orderStatus(order.getStatus())
                 .ticker(order.getTicker())
                 .side(order.getSide())
                 .price(order.getPrice())
                 .quantity(order.getQuantity())
                 .remainQuantity(order.getRemainQuantity())
                 .orderKind(order.getOrderKind())
+                .status(order.getStatus())
                 .createdAt(order.getCreatedAt())
                 .build();
     }
 }
+

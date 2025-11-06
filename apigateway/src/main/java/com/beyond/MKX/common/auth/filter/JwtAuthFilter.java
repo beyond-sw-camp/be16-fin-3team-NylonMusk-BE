@@ -62,7 +62,8 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
     private static final List<String> AUTH_WHITELIST = List.of(
             "/auth/**",
             "/health",
-            "/order/**",
+            "/order",  // POST /order (주문 접수)만 허용
+            "/order/test/**",  // 테스트용 엔드포인트
             "/test/**",
             "/public/**",
 //            "/ipo/**"

@@ -12,9 +12,11 @@ import com.beyond.MKX.domain.member.dto.MemberSignUpReqDto;
 import com.beyond.MKX.domain.member.entity.Member;
 import com.beyond.MKX.domain.member.entity.MemberStatus;
 import com.beyond.MKX.domain.member.repository.MemberRepository;
+import com.beyond.MKX.domain.member.service.EmailVerificationService;
 import com.beyond.MKX.domain.securities_firm.entity.SecuritiesFirm;
 import com.beyond.MKX.domain.securities_firm.repository.SecuritiesFirmRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -23,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -33,6 +36,7 @@ public class MemberService {
     private final SecuritiesFirmRepository securitiesFirmRepository;
     private final PasswordEncoder passwordEncoder;
     private final MemberAccountInternalClient memberAccountInternalClient;
+    private final EmailVerificationService emailVerificationService;
 
 
     public MemberResDto signUp(MemberSignUpReqDto dto) {
@@ -59,10 +63,21 @@ public class MemberService {
                 .email(dto.getEmail())
                 .password(passwordEncoder.encode(dto.getPassword()))
                 .phone(dto.getPhone())
+                .birthDate(dto.getBirthDate())
                 .status(MemberStatus.ACTIVE)
                 .build();
 
         Member saved = memberRepository.save(member);
+        
+        // EMAIL_VERIFICATION: 이메일 인증 토큰 생성 및 이메일 발송
+        try {
+            emailVerificationService.generateAndSendVerificationEmail(saved);
+        } catch (Exception e) {
+            // 이메일 발송 실패해도 회원가입은 완료 (로그만 남김)
+            log.warn("회원가입 후 이메일 인증 메일 발송 실패: memberId={}, email={}", 
+                saved.getId(), saved.getEmail(), e);
+        }
+        
         return MemberResDto.from(saved);
     }
 
@@ -202,11 +217,26 @@ public class MemberService {
             throw new BadCredentialsException("비밀번호 불일치");
         }
 
+        // EMAIL_VERIFICATION: 이메일 인증 여부 확인
+        if (member.getEmailVerifiedAt() == null) {
+            throw new IllegalStateException("이메일 인증이 완료되지 않았습니다. 이메일을 확인해주세요.");
+        }
+
         return member;
     }
 
     public Member findById(UUID memberId) {
         return memberRepository.findById(memberId)
                 .orElseThrow(() -> new BadCredentialsException("이메일 없음"));
+    }
+
+    /**
+     * CHECK_EMAIL_DUPLICATE: 이메일 중복 여부 확인
+     * @param email 확인할 이메일
+     * @return 중복 여부 (true: 중복, false: 사용 가능)
+     */
+    @Transactional(readOnly = true)
+    public boolean checkEmailDuplicate(String email) {
+        return memberRepository.existsByEmail(email);
     }
 }

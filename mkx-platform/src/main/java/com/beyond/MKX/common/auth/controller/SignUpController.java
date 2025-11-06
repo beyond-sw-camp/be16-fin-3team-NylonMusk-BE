@@ -1,6 +1,7 @@
 package com.beyond.MKX.common.auth.controller;
 
 import com.beyond.MKX.common.apiResponse.ApiResponse;
+import com.beyond.MKX.common.exception.DuplicateResourceException;
 import com.beyond.MKX.domain.admin.entity.Admin;
 import com.beyond.MKX.domain.corporation.dto.CorporationSignUpReqDto;
 import com.beyond.MKX.domain.corporation.service.CorporationService;
@@ -14,9 +15,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -46,5 +49,18 @@ public class SignUpController {
     public ResponseEntity<?> memberSignUp(@Valid @RequestBody MemberSignUpReqDto request) {
         MemberResDto member = memberService.signUp(request);
         return ApiResponse.created(member, "회원 가입 완료");
+    }
+
+    /**
+     * CHECK_EMAIL_DUPLICATE: 이메일 중복 여부 확인 (회원가입 전 실시간 체크)
+     * GET /auth/signup/check-email?email=xxx
+     */
+    @GetMapping("/check-email")
+    public ResponseEntity<?> checkEmailDuplicate(@RequestParam String email) {
+        boolean isDuplicate = memberService.checkEmailDuplicate(email);
+        if (isDuplicate) {
+            throw new DuplicateResourceException("이미 가입된 이메일입니다.");
+        }
+        return ApiResponse.ok(null, "사용 가능한 이메일입니다.");
     }
 }

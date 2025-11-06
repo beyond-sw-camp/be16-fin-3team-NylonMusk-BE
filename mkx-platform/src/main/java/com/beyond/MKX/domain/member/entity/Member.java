@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -41,9 +42,33 @@ public class Member extends BaseIdAndTimeEntity {
     @Column(nullable = false, length = 15, unique = true)
     private String phone;
 
+    /** 생년월일 (신분증 OCR로 추출, 선택적) */
+    @Column(nullable = true)
+    private LocalDate birthDate;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
     private MemberStatus status = MemberStatus.ACTIVE;
+
+    /** EMAIL_VERIFICATION: 이메일 인증 토큰 */
+    @Column(nullable = true, length = 255)
+    private String emailVerificationToken;
+
+    /** EMAIL_VERIFICATION: 이메일 인증 완료 시간 */
+    @Column(nullable = true)
+    private LocalDateTime emailVerifiedAt;
+
+    /** EMAIL_VERIFICATION: 이메일 인증 토큰 만료 시간 */
+    @Column(nullable = true)
+    private LocalDateTime emailVerificationTokenExpiresAt;
+
+    /** PASSWORD_RESET: 비밀번호 재설정 토큰 */
+    @Column(nullable = true, length = 255)
+    private String passwordResetToken;
+
+    /** PASSWORD_RESET: 비밀번호 재설정 토큰 만료 시간 */
+    @Column(nullable = true)
+    private LocalDateTime passwordResetTokenExpiresAt;
 
 }

@@ -10,7 +10,6 @@ import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.web.socket.config.annotation.*;
-import org.springframework.web.socket.server.support.HttpSessionHandshakeInterceptor;
 
 /**
  * STOMP WebSocket 설정
@@ -26,7 +25,6 @@ public class StompWebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final OptionalAuthChannelInterceptor optionalAuthChannelInterceptor;
     private final RateLimitingInterceptor rateLimitingInterceptor;
-    private final GatewayAuthHandshakeInterceptor gatewayAuthHandshakeInterceptor;
 
     @Value("${spring.data.redis.host:localhost}")
     private String redisHost;
@@ -38,7 +36,6 @@ public class StompWebSocketConfig implements WebSocketMessageBrokerConfigurer {
      * STOMP 엔드포인트 등록
      *
      * SockJS fallback 지원
-     * ✅ HttpSessionHandshakeInterceptor 추가: HTTP 세션의 인증 정보를 WebSocket으로 전달
      */
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
@@ -49,14 +46,9 @@ public class StompWebSocketConfig implements WebSocketMessageBrokerConfigurer {
                         "http://localhost:3001",
                         "https://yourdomain.com"
                 )
-                .addInterceptors(
-                        gatewayAuthHandshakeInterceptor,           // ✅ 1순위: Gateway 인증 헤더 전달
-                        new HttpSessionHandshakeInterceptor()     // ✅ 2순위: HTTP 세션 전달 (fallback)
-                )
                 .withSockJS();
 
         log.info("[STOMP] ✅ Registered STOMP endpoint: /ws with SockJS");
-        log.info("[STOMP] ✅ Gateway auth headers + HTTP session will be transferred to WebSocket");
     }
 
     /**

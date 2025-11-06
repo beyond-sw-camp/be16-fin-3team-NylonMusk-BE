@@ -1,0 +1,101 @@
+server:
+  port: 8080
+
+eureka:
+  client:
+    enabled: false
+
+spring:
+  application:
+    name: api-gateway-service
+  config:
+    activate:
+      on-profile: prod
+
+  cloud:
+    gateway:
+      # 기본 응답 헤더 정리
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials
+
+      #  운영용 CORS 설정 (정확한 도메인만 허용)
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        cors-configurations:
+          '[/**]':
+            allowedOrigins:
+              - 'https://mk-exchange.shop'
+              - 'https://www.mk-exchange.shop'
+              - 'https://admin.mk-exchange.shop'
+            allowedMethods: [ GET, POST, PUT, PATCH, DELETE, OPTIONS ]
+            allowedHeaders: [ 'Content-Type', 'Authorization', 'X-CSRF-Token', 'Cookie' ]
+            allow-credentials: true
+            maxAge: 3600
+
+      #  운영 라우팅
+      routes:
+        - id: mkx-platform-service
+          predicates:
+            - Path=/mkx-platform-service/**
+          filters:
+            - StripPrefix=1
+            - PreserveHostHeader=true   # OAuth 등 외부 인증용
+            - name: RequestSize
+              args:
+                maxSize: 20MB           # 파일 업로드 허용 크기
+          uri: http://mkx-platform-service
+
+        - id: ordering-service
+          predicates:
+            - Path=/ordering-service/**
+          filters:
+            - StripPrefix=1
+          uri: http://ordering-service
+
+        - id: matching-engine-service
+          predicates:
+            - Path=/matching-engine-service/**
+          filters:
+            - StripPrefix=1
+          uri: http://matching-engine-service
+
+        - id: market-data-service
+          predicates:
+            - Path=/market-data-service/**
+          filters:
+            - StripPrefix=1
+          uri: http://market-data-service
+
+        # ✅ STOMP WebSocket 라우팅
+        - id: market-data-websocket
+          predicates:
+            - Path=/ws/**
+          filters:
+            - RewritePath=/ws/(?<segment>.*), /ws/$\{segment}
+          uri: ws://market-data-service
+
+        - id: community-service
+          predicates:
+            - Path=/community-service/**
+          filters:
+            - StripPrefix=1
+          uri: http://community-service
+
+        - id: trading-bot-service
+          predicates:
+            - Path=/trading-bot-service/**
+          filters:
+            - StripPrefix=1
+          uri: http://trading-bot-service
+
+
+
+jwt:
+  expirationAt: 900000      # 15분
+  secretKeyAt: ${JWT_SECRET_AT}  # 운영환경에서는 환경변수로 주입
+  expirationRt: 604800000   # 7일
+  secretKeyRt: ${JWT_SECRET_RT}
+
+logging:
+  level:
+    com.beyond.MKX: INFO

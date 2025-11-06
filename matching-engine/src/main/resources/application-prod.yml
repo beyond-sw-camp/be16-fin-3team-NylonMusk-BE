@@ -1,0 +1,49 @@
+server:
+  port: 8080
+
+eureka:
+  client:
+    enabled: false
+
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  application:
+    name: matching-engine-service
+
+  kafka:
+    bootstrap-servers: kafka-service:9092
+    consumer:
+      enable-auto-commit: false
+      group-id: matching-engine-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+    producer:
+      acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      retries: 3
+      batch-size: 1024
+      linger-ms: 0
+      buffer-memory: 33554432
+
+  data:
+    redis:
+      cluster:
+        nodes:
+          - ${REDIS_CLUSTER_ENDPOINT}:6379
+        max-redirects: 5
+      password: ${REDIS_PASSWORD}
+      timeout: 3000
+
+logging:
+  level:
+    root: INFO
+    org.hibernate.SQL: WARN
+    org.springframework: INFO
+    com.beyond.MKX: INFO

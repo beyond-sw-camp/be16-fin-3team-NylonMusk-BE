@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -265,6 +266,147 @@ public class BrokerageDashboardController {
         } catch (Exception e) {
             log.error("Failed to get brokerage ID for admin {}: {}", adminId, e.getMessage());
             throw new IllegalArgumentException("증권사 ID 조회 실패: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 기간별 수수료 차트 데이터 조회
+     * GET /api/brokerage/commission/chart
+     *
+     * @param adminId X-User-Id 헤더 (관리자 UUID)
+     * @param period 조회 기간 ("7days", "30days", "90days", "365days") (기본값: 7days)
+     * @param date 조회 기준 날짜 (기본값: 오늘, 형식: yyyy-MM-dd)
+     * @return 기간별 차트 데이터
+     */
+    @GetMapping("/commission/chart")
+    public ResponseEntity<?> getCommissionChart(
+            @RequestHeader(value = "X-User-Id", required = false) String adminId,
+            @RequestParam(required = false, defaultValue = "7days") String period,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        try {
+            if (adminId == null || adminId.isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("message", "X-User-Id 헤더가 필요합니다."));
+            }
+
+            // period 유효성 검사
+            List<String> validPeriods = Arrays.asList("7days", "7", "30days", "30", "90days", "90", "365days", "365", "1year");
+            if (!validPeriods.contains(period.toLowerCase())) {
+                return ResponseEntity.badRequest().body(
+                        Map.of("message", "period는 7days, 30days, 90days, 365days 중 하나여야 합니다.")
+                );
+            }
+
+            UUID brokerageId = getBrokerageId(UUID.fromString(adminId));
+            CommissionChartDTO result = brokerageDashboardService.getCommissionChart(brokerageId, period, date);
+            return ApiResponse.ok(result, "수수료 차트 데이터 조회 성공");
+        } catch (Exception e) {
+            log.error("Failed to get commission chart: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().body(Map.of("message", "수수료 차트 데이터 조회 실패: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 7일 수수료 차트 데이터 조회
+     * GET /api/brokerage/commission/chart/7days
+     *
+     * @param adminId X-User-Id 헤더 (관리자 UUID)
+     * @param date 조회 기준 날짜 (기본값: 오늘, 형식: yyyy-MM-dd)
+     * @return 7일 차트 데이터
+     */
+    @GetMapping("/commission/chart/7days")
+    public ResponseEntity<?> getCommissionChart7Days(
+            @RequestHeader(value = "X-User-Id", required = false) String adminId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        try {
+            if (adminId == null || adminId.isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("message", "X-User-Id 헤더가 필요합니다."));
+            }
+            UUID brokerageId = getBrokerageId(UUID.fromString(adminId));
+            CommissionChartDTO result = brokerageDashboardService.getCommissionChart7Days(brokerageId, date);
+            return ApiResponse.ok(result, "7일 수수료 차트 조회 성공");
+        } catch (Exception e) {
+            log.error("Failed to get 7 days commission chart: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().body(Map.of("message", "7일 차트 조회 실패: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 30일 수수료 차트 데이터 조회
+     * GET /api/brokerage/commission/chart/30days
+     *
+     * @param adminId X-User-Id 헤더 (관리자 UUID)
+     * @param date 조회 기준 날짜 (기본값: 오늘, 형식: yyyy-MM-dd)
+     * @return 30일 차트 데이터
+     */
+    @GetMapping("/commission/chart/30days")
+    public ResponseEntity<?> getCommissionChart30Days(
+            @RequestHeader(value = "X-User-Id", required = false) String adminId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        try {
+            if (adminId == null || adminId.isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("message", "X-User-Id 헤더가 필요합니다."));
+            }
+            UUID brokerageId = getBrokerageId(UUID.fromString(adminId));
+            CommissionChartDTO result = brokerageDashboardService.getCommissionChart30Days(brokerageId, date);
+            return ApiResponse.ok(result, "30일 수수료 차트 조회 성공");
+        } catch (Exception e) {
+            log.error("Failed to get 30 days commission chart: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().body(Map.of("message", "30일 차트 조회 실패: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 90일 수수료 차트 데이터 조회
+     * GET /api/brokerage/commission/chart/90days
+     *
+     * @param adminId X-User-Id 헤더 (관리자 UUID)
+     * @param date 조회 기준 날짜 (기본값: 오늘, 형식: yyyy-MM-dd)
+     * @return 90일 차트 데이터
+     */
+    @GetMapping("/commission/chart/90days")
+    public ResponseEntity<?> getCommissionChart90Days(
+            @RequestHeader(value = "X-User-Id", required = false) String adminId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        try {
+            if (adminId == null || adminId.isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("message", "X-User-Id 헤더가 필요합니다."));
+            }
+            UUID brokerageId = getBrokerageId(UUID.fromString(adminId));
+            CommissionChartDTO result = brokerageDashboardService.getCommissionChart90Days(brokerageId, date);
+            return ApiResponse.ok(result, "90일 수수료 차트 조회 성공");
+        } catch (Exception e) {
+            log.error("Failed to get 90 days commission chart: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().body(Map.of("message", "90일 차트 조회 실패: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 1년 수수료 차트 데이터 조회
+     * GET /api/brokerage/commission/chart/365days
+     *
+     * @param adminId X-User-Id 헤더 (관리자 UUID)
+     * @param date 조회 기준 날짜 (기본값: 오늘, 형식: yyyy-MM-dd)
+     * @return 1년 차트 데이터
+     */
+    @GetMapping("/commission/chart/365days")
+    public ResponseEntity<?> getCommissionChart365Days(
+            @RequestHeader(value = "X-User-Id", required = false) String adminId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        try {
+            if (adminId == null || adminId.isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("message", "X-User-Id 헤더가 필요합니다."));
+            }
+            UUID brokerageId = getBrokerageId(UUID.fromString(adminId));
+            CommissionChartDTO result = brokerageDashboardService.getCommissionChart365Days(brokerageId, date);
+            return ApiResponse.ok(result, "1년 수수료 차트 조회 성공");
+        } catch (Exception e) {
+            log.error("Failed to get 365 days commission chart: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().body(Map.of("message", "1년 차트 조회 실패: " + e.getMessage()));
         }
     }
 }

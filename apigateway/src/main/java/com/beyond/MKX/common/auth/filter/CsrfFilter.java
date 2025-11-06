@@ -45,7 +45,8 @@ public class CsrfFilter implements GlobalFilter, Ordered {
     private static final List<String> CSRF_WHITELIST = List.of(
             "/auth/**",   // 로그인/회원가입 등 인증 관련 엔드포인트
             "/health",     // 헬스체크
-            "/order/**",
+            "/order",  // POST /order (주문 접수)만 허용
+            "/order/test/**",  // 테스트용 엔드포인트
             "/test/**",
             "/public/**",
             "/api/stocks/**",

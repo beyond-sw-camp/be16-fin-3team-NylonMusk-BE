@@ -51,6 +51,7 @@ spring:
       password: ${REDIS_PASSWORD}
       timeout: 3000
 
+
 notification:
   ttl-seconds:
     execution: 180

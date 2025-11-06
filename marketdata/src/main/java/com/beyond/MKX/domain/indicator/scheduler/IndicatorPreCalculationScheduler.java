@@ -60,7 +60,7 @@ public class IndicatorPreCalculationScheduler {
      * 실행 시간: 매 분마다 (cron: 0 * * * * ?)
      */
     @Scheduled(cron = "0 * * * * ?")
-    @SchedulerLock(name = "preCalculateIndicators", lockAtMostFor = "50s", lockAtLeastFor = "30s")
+    @SchedulerLock(name = "preCalculateIndicators", lockAtMostFor = "50000", lockAtLeastFor = "30000")
     public void preCalculateIndicators() {
         long startTime = System.currentTimeMillis();
         int successCount = 0;
@@ -113,7 +113,7 @@ public class IndicatorPreCalculationScheduler {
      * 실행 시간: 매 시간 정각 (cron: 0 0 * * * ?)
      */
     @Scheduled(cron = "0 0 * * * ?")
-    @SchedulerLock(name = "cleanupExpiredCache", lockAtMostFor = "10m", lockAtLeastFor = "1m")
+    @SchedulerLock(name = "cleanupExpiredCache", lockAtMostFor = "600000", lockAtLeastFor = "60000")
     public void cleanupExpiredCache() {
         log.info("[SCHEDULER] 🧹 Starting cache cleanup...");
 
@@ -137,7 +137,7 @@ public class IndicatorPreCalculationScheduler {
      * 실행 시간: 매일 00:00 (cron: 0 0 0 * * ?)
      */
     @Scheduled(cron = "0 0 0 * * ?")
-    @SchedulerLock(name = "cleanupOldStates", lockAtMostFor = "30m", lockAtLeastFor = "5m")
+    @SchedulerLock(name = "cleanupOldStates", lockAtMostFor = "1800000", lockAtLeastFor = "300000")
     public void cleanupOldStates() {
         log.info("[SCHEDULER] 🗑️ Starting old states cleanup...");
 
@@ -163,7 +163,7 @@ public class IndicatorPreCalculationScheduler {
 //     * 실행 시간: 매 10분 (cron: 0 */10 * * * ?)
 //     */
     @Scheduled(cron = "0 */10 * * * ?")
-    @SchedulerLock(name = "indicatorHealthCheck", lockAtMostFor = "1m", lockAtLeastFor = "10s")
+    @SchedulerLock(name = "indicatorHealthCheck", lockAtMostFor = "60000", lockAtLeastFor = "10000")
     public void healthCheck() {
         log.debug("[SCHEDULER] 💓 Health check: Scheduler is running normally");
 

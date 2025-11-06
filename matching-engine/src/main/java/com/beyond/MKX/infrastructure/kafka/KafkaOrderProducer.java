@@ -79,11 +79,15 @@ public class KafkaOrderProducer {
     }
 
     /** 취소 성공 */
-    public void sendCancelSuccess(String orderId) {
+    public void sendCancelSuccess(String orderId, String ticker, String side) {
         OrderStatusEvent evt = OrderStatusEvent.builder()
-                .orderId(orderId).status("CANCEL_OK")
-                .timestamp(Instant.now().toEpochMilli()).build();
-        sendOrderStatus(orderId, evt);        // 키=orderId (특정 주문 추적)
+                .orderId(orderId)
+                .ticker(ticker)
+                .side(side)
+                .status("CANCEL_OK")
+                .timestamp(Instant.now().toEpochMilli())
+                .build();
+        sendOrderStatus(ticker != null ? ticker : orderId, evt);
     }
 
     /** 시장가 대기(가드 범위 내 반대 호가 없음) */

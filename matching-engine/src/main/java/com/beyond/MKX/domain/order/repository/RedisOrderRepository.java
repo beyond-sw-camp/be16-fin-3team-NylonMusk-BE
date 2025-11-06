@@ -70,6 +70,15 @@ public class RedisOrderRepository {
         final String sideKey = side.equalsIgnoreCase("BUY") ? "bids" : "asks";
         return "seq:{" + ticker + "}:" + sideKey;
     }
+    
+    /**
+     * 총 호가 잔량 키 (Redis HASH)
+     * key: orderbook:total:{ticker}
+     * fields: bidVolume, askVolume
+     */
+    private String totalVolumeKey(String ticker) {
+        return "orderbook:total:{" + ticker + "}";
+    }
 
     // ----------------------------------------------------------------------
     // KRW 가격 정수화/복원 (정수 가격 저장 정책)
@@ -117,6 +126,9 @@ public class RedisOrderRepository {
         idx.put("ticker", ticker);
         idx.put("side", side);
         redisTemplate.opsForHash().putAll(idxKey, idx);
+        
+        // ✅ 총 호가 잔량 증가
+        incrementTotalVolume(ticker, side, quantity);
     }
 
     // ----------------------------------------------------------------------
@@ -124,9 +136,72 @@ public class RedisOrderRepository {
     // ----------------------------------------------------------------------
     public void cancelOrder(String orderId, String ticker, String side) {
         final String bookKey = orderBookKey(ticker, side);
+        final String detailKey = orderDetailKey(ticker, orderId);
+        
+        // 주문 수량 조회 (총량 감소용)
+        String quantityStr = (String) redisTemplate.opsForHash().get(detailKey, "quantity");
+        BigDecimal quantity = null;
+        if (quantityStr != null) {
+            try {
+                quantity = new BigDecimal(quantityStr);
+            } catch (NumberFormatException e) {
+                // 수량 파싱 실패 시 무시
+            }
+        }
+        
         redisTemplate.opsForZSet().remove(bookKey, orderId);
-        redisTemplate.delete(orderDetailKey(ticker, orderId));
+        redisTemplate.delete(detailKey);
         redisTemplate.delete(orderIndexKey(orderId));
+        
+        // ✅ 총 호가 잔량 감소
+        if (quantity != null) {
+            decrementTotalVolume(ticker, side, quantity);
+        }
+    }
+    
+    // ----------------------------------------------------------------------
+    // 총 호가 잔량 관리
+    // ----------------------------------------------------------------------
+    
+    /**
+     * 총 호가 잔량 증가
+     */
+    public void incrementTotalVolume(String ticker, String side, BigDecimal quantity) {
+        final String totalKey = totalVolumeKey(ticker);
+        final String field = side.equalsIgnoreCase("BUY") ? "bidVolume" : "askVolume";
+        redisTemplate.opsForHash().increment(totalKey, field, quantity.doubleValue());
+    }
+    
+    /**
+     * 총 호가 잔량 감소
+     */
+    public void decrementTotalVolume(String ticker, String side, BigDecimal quantity) {
+        final String totalKey = totalVolumeKey(ticker);
+        final String field = side.equalsIgnoreCase("BUY") ? "bidVolume" : "askVolume";
+        redisTemplate.opsForHash().increment(totalKey, field, -quantity.doubleValue());
+    }
+    
+    /**
+     * 총 호가 잔량 조회
+     */
+    public BigDecimal getTotalVolume(String ticker, String side) {
+        final String totalKey = totalVolumeKey(ticker);
+        final String field = side.equalsIgnoreCase("BUY") ? "bidVolume" : "askVolume";
+        Object value = redisTemplate.opsForHash().get(totalKey, field);
+        if (value == null) {
+            return BigDecimal.ZERO;
+        }
+        if (value instanceof Number) {
+            return BigDecimal.valueOf(((Number) value).doubleValue());
+        }
+        if (value instanceof String) {
+            try {
+                return new BigDecimal((String) value);
+            } catch (NumberFormatException e) {
+                return BigDecimal.ZERO;
+            }
+        }
+        return BigDecimal.ZERO;
     }
 
     // ----------------------------------------------------------------------

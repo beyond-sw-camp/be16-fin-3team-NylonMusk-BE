@@ -112,7 +112,8 @@ public class WebSocketSecurityConfig {
         // Origin 설정 (✅ allowedOrigins만 사용 - allowedOriginPatterns과 충돌 방지)
         configuration.setAllowedOrigins(Arrays.asList(
                 "http://localhost:3000",
-                "http://localhost:3001"
+                "http://localhost:3001",
+                "https://www.mk-exchange.shop"
         ));
 
         // HTTP 메소드

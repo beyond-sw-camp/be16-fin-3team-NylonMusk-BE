@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 /**
  * market-data-service의 현재가 조회 FeignClient
  */
-@FeignClient(name = "market-data-service", contextId = "currentPriceClient")
+@FeignClient(name = "market-data-service", contextId = "currentPriceClient", url = "http://market-data-service")
 public interface CurrentPriceClient {
 
     /**

@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestParam;
  * 플랫폼(mkx-platform-service)의 account_list 등록 내부 API를 호출하는 Feign 클라이언트.
  * - 회원 계좌 생성 직후, 공통 계좌 메타(account_list)에 MEMBER 유형으로 등록하는 용도
  */
-@FeignClient(name = "mkx-platform-service", contextId = "accountListClient")
+@FeignClient(name = "mkx-platform-service", contextId = "accountListClient", url = "http://mkx-platform-service")
 public interface AccountListClient {
 
     /**

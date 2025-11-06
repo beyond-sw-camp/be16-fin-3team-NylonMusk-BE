@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable;
  * market-data 서비스의 현재가 정보를 조회하는 FeignClient
  * 상장폐지 보상금 계산 시 현재 주가가 필요함
  */
-@FeignClient(name = "market-data-service", contextId = "currentPriceClient")
+@FeignClient(name = "market-data-service", contextId = "currentPriceClient", url = "http://market-data-service")
 public interface CurrentPriceClient {
 
     /**

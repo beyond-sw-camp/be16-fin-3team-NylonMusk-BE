@@ -100,19 +100,27 @@ public class ChartService {
             // ✅ InfluxDB에서 해당 기간의 체결 데이터 조회
             List<Execution> executions = executionInfluxRepository.findExecutions(ticker, start, end);
             
+            Candle candle;
             if (executions.isEmpty()) {
                 log.warn("[CHART/RECALC] No executions found, creating empty candle");
-                return createEmptyCandleFromPrevious(ticker, interval, candleTime);
+                candle = createEmptyCandleFromPrevious(ticker, interval, candleTime);
+            } else {
+                // ✅ 체결 데이터로부터 정확한 OHLCV 계산
+                candle = calculateOHLCVFromExecutions(ticker, interval, candleTime, executions);
             }
             
-            // ✅ 체결 데이터로부터 정확한 OHLCV 계산
-            Candle candle = calculateOHLCVFromExecutions(ticker, interval, candleTime, executions);
+            if (candle == null) {
+                return null;
+            }
             
             // InfluxDB에 확정된 캔들 저장
             candleInfluxRepository.save(candle);
             
             // Redis에 캐싱 (조회 성능)
             cacheCandle(candle, intervalMinutes);
+            
+            // ✅ WebSocket으로 발행 (실시간 업데이트)
+            publishCandle(candle);
             
             log.info("[CHART/RECALC] ✅ Recalculated: ticker={}, interval={}, O={}, H={}, L={}, C={}, V={}", 
                     ticker, interval, candle.getOpen(), candle.getHigh(), 
@@ -216,26 +224,151 @@ public class ChartService {
 
     /**
      * 빈 캔들 생성 (거래 없는 구간)
-     * 이전 캔들의 종가를 그대로 사용
+     * 
+     * 우선순위:
+     * 1. 이전 캔들의 종가 사용 (가장 정확)
+     * 2. Redis 현재가 사용 (실시간 반영)
+     * 3. InfluxDB 마지막 체결가 사용 (과거 데이터)
+     * 4. 모두 실패 시 null 반환 (안전)
      */
     private Candle createEmptyCandleFromPrevious(String ticker, String interval, Instant candleTime) {
+        // 1️⃣ 우선: 이전 캔들의 종가 사용 (가장 정확한 방법)
         Candle previousCandle = candleInfluxRepository.findLatestCandle(ticker, interval);
         
-        if (previousCandle == null) {
-            log.warn("[CHART/RECALC] No previous candle found for ticker={}, interval={}", ticker, interval);
-            return null;
+        if (previousCandle != null) {
+            log.info("[CHART/EMPTY] ✅ Using previous candle close: ticker={}, interval={}, price={}",
+                    ticker, interval, previousCandle.getClose());
+            
+            return Candle.builder()
+                    .ticker(ticker)
+                    .interval(interval)
+                    .time(candleTime)
+                    .open(previousCandle.getClose())
+                    .high(previousCandle.getClose())
+                    .low(previousCandle.getClose())
+                    .close(previousCandle.getClose())
+                    .volume(BigDecimal.ZERO)
+                    .build();
         }
         
-        return Candle.builder()
-                .ticker(ticker)
-                .interval(interval)
-                .time(candleTime)
-                .open(previousCandle.getClose())
-                .high(previousCandle.getClose())
-                .low(previousCandle.getClose())
-                .close(previousCandle.getClose())
-                .volume(BigDecimal.ZERO)
-                .build();
+        // 2️⃣ 차선: Redis 현재가 사용 (실시간 가격 반영)
+        long basePrice = getCurrentPriceFromRedis(ticker);
+        
+        if (basePrice > 0) {
+            log.info("[CHART/EMPTY] ✅ Using current price from Redis: ticker={}, interval={}, price={}",
+                    ticker, interval, basePrice);
+            
+            return Candle.builder()
+                    .ticker(ticker)
+                    .interval(interval)
+                    .time(candleTime)
+                    .open(basePrice)
+                    .high(basePrice)
+                    .low(basePrice)
+                    .close(basePrice)
+                    .volume(BigDecimal.ZERO)
+                    .build();
+        }
+        
+        // 3️⃣ 최후: InfluxDB에서 마지막 체결가 조회 (과거 데이터)
+        basePrice = getLastExecutionPrice(ticker);
+        
+        if (basePrice > 0) {
+            log.info("[CHART/EMPTY] ✅ Using last execution price: ticker={}, interval={}, price={}",
+                    ticker, interval, basePrice);
+            
+            return Candle.builder()
+                    .ticker(ticker)
+                    .interval(interval)
+                    .time(candleTime)
+                    .open(basePrice)
+                    .high(basePrice)
+                    .low(basePrice)
+                    .close(basePrice)
+                    .volume(BigDecimal.ZERO)
+                    .build();
+        }
+        
+        // 4️⃣ 모든 방법 실패: 안전하게 null 반환
+        log.error("[CHART/EMPTY] ❌ Cannot determine base price for ticker={}, interval={}", ticker, interval);
+        return null;
+    }
+
+    /**
+     * Redis에서 현재가 조회
+     * 
+     * @param ticker 종목 코드
+     * @return 현재가 (조회 실패 시 0)
+     */
+    private long getCurrentPriceFromRedis(String ticker) {
+        try {
+            Object priceData = redisTemplate.opsForValue().get("price:" + ticker);
+            
+            if (priceData == null) {
+                log.debug("[CHART/PRICE] No current price in Redis: ticker={}", ticker);
+                return 0;
+            }
+            
+            // CurrentPrice 객체에서 price 필드 추출
+            if (priceData instanceof com.beyond.MKX.domain.price.entity.CurrentPrice) {
+                long price = ((com.beyond.MKX.domain.price.entity.CurrentPrice) priceData).getPrice();
+                log.debug("[CHART/PRICE] Found current price: ticker={}, price={}", ticker, price);
+                return price;
+            }
+            
+            // LinkedHashMap 등 다른 타입인 경우 ObjectMapper로 변환
+            com.beyond.MKX.domain.price.entity.CurrentPrice currentPrice = 
+                    objectMapper.convertValue(priceData, com.beyond.MKX.domain.price.entity.CurrentPrice.class);
+            
+            if (currentPrice != null && currentPrice.getPrice() > 0) {
+                log.debug("[CHART/PRICE] Found current price (converted): ticker={}, price={}", 
+                        ticker, currentPrice.getPrice());
+                return currentPrice.getPrice();
+            }
+            
+        } catch (Exception e) {
+            log.warn("[CHART/PRICE] Failed to get current price from Redis: ticker={}", ticker, e);
+        }
+        
+        return 0;
+    }
+
+    /**
+     * InfluxDB에서 마지막 체결가 조회
+     * 
+     * 최근 7일 이내의 마지막 체결 데이터에서 가격을 가져옴
+     * 
+     * @param ticker 종목 코드
+     * @return 마지막 체결가 (조회 실패 시 0)
+     */
+    private long getLastExecutionPrice(String ticker) {
+        try {
+            Instant now = Instant.now();
+            Instant start = now.minus(7, ChronoUnit.DAYS);
+            
+            List<Execution> executions = executionInfluxRepository.findExecutions(ticker, start, now);
+            
+            if (!executions.isEmpty()) {
+                // 시간순 정렬하여 마지막 체결가 추출
+                long lastPrice = executions.stream()
+                        .sorted(Comparator.comparing(Execution::getTimestamp).reversed())
+                        .findFirst()
+                        .map(Execution::getPrice)
+                        .orElse(0L);
+                
+                if (lastPrice > 0) {
+                    log.debug("[CHART/PRICE] Found last execution price: ticker={}, price={}", ticker, lastPrice);
+                    return lastPrice;
+                }
+            }
+            
+            log.debug("[CHART/PRICE] No executions found in last 7 days: ticker={}", ticker);
+            
+        } catch (Exception e) {
+            log.warn("[CHART/PRICE] Failed to get last execution price: ticker={}", ticker, e);
+        }
+        
+        return 0;
     }
 
     /**

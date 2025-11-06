@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
+// import org.springframework.messaging.simp.SimpMessagingTemplate;  // TODO: PRIVATE 채널 기능 구현시 주석 해제
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -369,6 +370,7 @@ public class CurrentPriceService {
     /**
      * 현재가 데이터를 Redis Pub/Sub으로 발행 (순환 참조 방지)
      *
+     * PUBLIC 채널로 기본 데이터 전송
      * 채널: market:price (ticker 정보는 메시지 내부에 포함)
      * RedisPubSubListener가 수신하여 /topic/price/{ticker}로 전송
      *
@@ -378,10 +380,11 @@ public class CurrentPriceService {
         try {
             String ticker = currentPrice.getTicker();
             
-            // 메시지 구성
+            // PUBLIC 채널용 기본 메시지 구성
             java.util.Map<String, Object> message = new java.util.HashMap<>();
             message.put("type", "price");
             message.put("ticker", ticker);
+            message.put("channel", "public");  // 채널 타입 표시
             message.put("data", java.util.Map.of(
                     "ticker", currentPrice.getTicker(),
                     "price", currentPrice.getPrice(),
@@ -397,15 +400,85 @@ public class CurrentPriceService {
             message.put("timestamp", System.currentTimeMillis());
             
             // ✅ Map 객체를 그대로 전송 (RedisTemplate이 자동으로 직렬화)
-            // JSON 문자열로 직렬화하지 않음 - 이중 직렬화 방지
+            // PUBLIC 채널로 발행 - 모든 사용자가 수신
             redisTemplate.convertAndSend(REDIS_CHANNEL, message);
             
-            log.debug("[PRICE-STOMP] 📤 Published: channel={}, ticker={}, price={}",
+            log.debug("[PRICE-STOMP] 📤 Published to PUBLIC: channel={}, ticker={}, price={}",
                     REDIS_CHANNEL, ticker, currentPrice.getPrice());
+            
+            // TODO: PRIVATE 채널 전송 기능 추가 가능
+            // 로그인한 사용자들에게 보유 수량, 평가손익, 자산 분석 등 추가 정보 전송
+            // 예: publishPrivateChannelForAuthenticatedUsers(currentPrice);
             
         } catch (Exception e) {
             log.error("[PRICE-STOMP] ❌ Failed to publish: ticker={}",
                     currentPrice.getTicker(), e);
         }
     }
+    
+    /**
+     * PRIVATE 채널로 인증된 사용자들에게 추가 정보 전송 (선택적 기능)
+     * 
+     * 사용 예시:
+     * - 보유 주식의 현재가 변동 알림
+     * - 보유 주식의 평가손익률 표시
+     * - 자산 분석 및 포트폴리오 영향도
+     * 
+     * 구현 방법:
+     * 1. 특정 종목을 보유한 사용자 목록 조회
+     * 2. 각 사용자의 보유 정보와 결합하여 개인화된 메시지 생성
+     * 3. SimpMessagingTemplate.convertAndSendToUser()로 개별 전송
+     * 
+     * @param currentPrice 현재가 데이터
+     */
+    // 예시 코드 (TODO: 실제 구현시 주석 제거)
+    /*
+    private void publishPrivateChannelForAuthenticatedUsers(CurrentPrice currentPrice) {
+        try {
+            String ticker = currentPrice.getTicker();
+            
+            // 1. 해당 종목을 보유한 사용자 목록 조회 (User Service 호출 필요)
+            List<String> authenticatedUsers = getUsersHoldingStock(ticker);
+            
+            for (String userId : authenticatedUsers) {
+                // 2. 사용자별 보유 정보 조회 (Portfolio Service 호출 필요)
+                UserHolding holding = getUserHolding(userId, ticker);
+                
+                // 3. 개인화된 메시지 구성
+                java.util.Map<String, Object> enrichedMessage = new java.util.HashMap<>();
+                enrichedMessage.put("type", "price");
+                enrichedMessage.put("ticker", ticker);
+                enrichedMessage.put("channel", "private");  // PRIVATE 채널 표시
+                enrichedMessage.put("data", java.util.Map.of(
+                        // 기본 정보
+                        "ticker", currentPrice.getTicker(),
+                        "price", currentPrice.getPrice(),
+                        "change", currentPrice.getChange(),
+                        "changePercent", currentPrice.getChangeRate(),
+                        "volume", currentPrice.getVolume(),
+                        // 추가 개인화 정보
+                        "holdingQuantity", holding.getQuantity(),
+                        "averagePrice", holding.getAverageBuyPrice(),
+                        "unrealizedProfit", calculateUnrealizedProfit(holding, currentPrice.getPrice()),
+                        "unrealizedProfitPercent", calculateUnrealizedProfitPercent(holding, currentPrice.getPrice())
+                ));
+                enrichedMessage.put("timestamp", System.currentTimeMillis());
+                
+                // 4. PRIVATE 채널로 전송 (/user/{userId}/queue/price/{ticker})
+                messagingTemplate.convertAndSendToUser(
+                    userId,
+                    "/queue/price/" + ticker,
+                    enrichedMessage
+                );
+                
+                log.debug("[PRICE-STOMP] 🔒 Published to PRIVATE: userId={}, ticker={}, profit={}",
+                    userId, ticker, enrichedMessage.get("unrealizedProfit"));
+            }
+            
+        } catch (Exception e) {
+            log.error("[PRICE-STOMP] ❌ Failed to publish private channel: ticker={}",
+                    currentPrice.getTicker(), e);
+        }
+    }
+    */
 }

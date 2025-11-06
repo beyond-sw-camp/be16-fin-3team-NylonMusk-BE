@@ -4,6 +4,7 @@ import com.beyond.MKX.domain.market.service.Week52RangeService;
 import com.beyond.MKX.domain.price.service.CurrentPriceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -33,6 +34,7 @@ public class MarketDataScheduler {
      * 거래량 변화율을 계산하고 업데이트
      */
     @Scheduled(fixedDelay = 60000, initialDelay = 10000) // 1분
+    @SchedulerLock(name = "updateVolumeChanges", lockAtMostFor = "50000", lockAtLeastFor = "10000")
     public void updateVolumeChanges() {
         try {
             // Redis에서 활성 종목 목록 조회
@@ -73,6 +75,7 @@ public class MarketDataScheduler {
      * 활성 종목(Redis에 현재가 데이터가 있는 종목)에 대해서만 실행
      */
     @Scheduled(fixedDelay = 300000, initialDelay = 60000) // 5분
+    @SchedulerLock(name = "update52WeekRanges", lockAtMostFor = "290000", lockAtLeastFor = "60000")
     public void update52WeekRanges() {
         try {
             Set<String> priceKeys = redisTemplate.keys("price:*");
@@ -115,6 +118,7 @@ public class MarketDataScheduler {
      * 주의: 순서가 바뀌면 데이터 정합성 문제 발생 가능
      */
     @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Seoul") // 매일 자정 (KST)
+    @SchedulerLock(name = "initializeAllDailyPrices", lockAtMostFor = "600000", lockAtLeastFor = "120000")
     public void initializeAllDailyPrices() {
         try {
             Set<String> priceKeys = redisTemplate.keys("price:*");

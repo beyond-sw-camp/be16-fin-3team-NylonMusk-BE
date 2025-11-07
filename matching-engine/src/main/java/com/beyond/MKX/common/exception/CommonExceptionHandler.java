@@ -1,6 +1,5 @@
 package com.beyond.MKX.common.exception;
 
-import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,17 +24,6 @@ public class CommonExceptionHandler {
                         .status_code(HttpStatus.BAD_REQUEST.value())
                         .build()
 
-                );
-    }
-
-    @ExceptionHandler(EntityNotFoundException.class)
-    public ResponseEntity<?> entityException(EntityNotFoundException e) {
-        log.error("[EntityNotFoundException] code = {}, message = {}", HttpStatus.NOT_FOUND, e.getMessage());
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(CommonErrorDTO.builder()
-                        .status_message(e.getMessage())
-                        .status_code(HttpStatus.NOT_FOUND.value())
-                        .build()
                 );
     }
 

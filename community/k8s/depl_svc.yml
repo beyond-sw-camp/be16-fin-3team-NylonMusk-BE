@@ -4,7 +4,7 @@ metadata:
   name: community-depl
   namespace: mkx
 spec:
-  replicas: 2  # 뉴스 크롤링/분석 부하 고려
+  replicas: 1  # 뉴스 크롤링/분석 부하 고려
   selector:
     matchLabels:
       app: community

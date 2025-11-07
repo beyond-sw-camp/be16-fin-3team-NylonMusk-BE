@@ -4,7 +4,7 @@ metadata:
   name: matching-engine-depl
   namespace: mkx
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: matching-engine

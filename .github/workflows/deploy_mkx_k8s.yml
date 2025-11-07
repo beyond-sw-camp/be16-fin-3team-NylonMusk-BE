@@ -1,0 +1,146 @@
+name: deploy mkx mkx-backend
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout github
+        uses: actions/checkout@v2
+      
+      - name: install kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: "v1.25.9"
+        id: install
+        
+      - name: configure aws
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_KEY }}
+          aws-secret-access-key:  ${{ secrets.AWS_SECRET }}
+          aws-region: ap-northeast-2
+
+      - name: update cluster infomation
+        run: aws eks update-kubeconfig --name mkx-cluster --region ap-northeast-2
+
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+        # apigateway 도커
+      - name: build and push docker image to ecr
+        env:
+          REGISTRY: 148761635844.dkr.ecr.ap-northeast-2.amazonaws.com/
+          REPOSITORY: mkx/api-gateway
+          IMAGE_TAG: latest
+        run: |
+          docker build \
+          -t $REGISTRY/$REPOSITORY:$IMAGE_TAG \
+          -f ./apigateway/Dockerfile ./apigateway
+          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+
+      - name: eks kubectl apply
+        run: |
+          kubectl rollout restart deployment api-gateway-depl -n mkx
+
+        # community 도커
+      - name: build and push docker image to ecr
+        env:
+          REGISTRY: 148761635844.dkr.ecr.ap-northeast-2.amazonaws.com/
+          REPOSITORY: mkx/community
+          IMAGE_TAG: latest
+        run: |
+          docker build \
+          -t $REGISTRY/$REPOSITORY:$IMAGE_TAG \
+          -f ./community/Dockerfile ./community
+          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+
+      - name: eks kubectl apply
+        run: |
+          kubectl rollout restart deployment community-depl -n mkx
+          
+        # marketdata 도커
+      - name: build and push docker image to ecr
+        env:
+          REGISTRY: 148761635844.dkr.ecr.ap-northeast-2.amazonaws.com/
+          REPOSITORY: mkx/market-data
+          IMAGE_TAG: latest
+        run: |
+          docker build \
+          -t $REGISTRY/$REPOSITORY:$IMAGE_TAG \
+          -f ./marketdata/Dockerfile ./marketdata
+          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+
+      - name: eks kubectl apply
+        run: |
+          kubectl rollout restart deployment market-data-depl -n mkx
+        
+        # matching-engine 도커
+      - name: build and push docker image to ecr
+        env:
+          REGISTRY: 148761635844.dkr.ecr.ap-northeast-2.amazonaws.com/
+          REPOSITORY: mkx/matching-engine
+          IMAGE_TAG: latest
+        run: |
+          docker build \
+          -t $REGISTRY/$REPOSITORY:$IMAGE_TAG \
+          -f ./matching-engine/Dockerfile ./matching-engine
+          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+
+      - name: eks kubectl apply
+        run: |
+          kubectl rollout restart deployment matching-engine-depl -n mkx
+        
+        # mkx-platform 도커
+      - name: build and push docker image to ecr
+        env:
+          REGISTRY: 148761635844.dkr.ecr.ap-northeast-2.amazonaws.com/
+          REPOSITORY: mkx/mkx-platform
+          IMAGE_TAG: latest
+        run: |
+          docker build \
+          -t $REGISTRY/$REPOSITORY:$IMAGE_TAG \
+          -f ./mkx-platform/Dockerfile ./mkx-platform
+          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+
+      - name: eks kubectl apply
+        run: |
+          kubectl rollout restart deployment mkx-platform-depl -n mkx
+
+        # ordering 도커
+      - name: build and push docker image to ecr
+        env:
+          REGISTRY: 148761635844.dkr.ecr.ap-northeast-2.amazonaws.com/
+          REPOSITORY: mkx/ordering
+          IMAGE_TAG: latest
+        run: |
+          docker build \
+          -t $REGISTRY/$REPOSITORY:$IMAGE_TAG \
+          -f ./ordering/Dockerfile ./ordering
+          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+
+      - name: eks kubectl apply
+        run: |
+          kubectl rollout restart deployment ordering-depl -n mkx
+          
+        # trading-bot 도커
+      - name: build and push docker image to ecr
+        env:
+          REGISTRY: 148761635844.dkr.ecr.ap-northeast-2.amazonaws.com/
+          REPOSITORY: mkx/trading-bot
+          IMAGE_TAG: latest
+        run: |
+          docker build \
+          -t $REGISTRY/$REPOSITORY:$IMAGE_TAG \
+          -f ./trading-bot/Dockerfile ./trading-bot
+          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+
+      - name: eks kubectl apply
+        run: |
+          kubectl rollout restart deployment trading-bot-depl -n mkx
+    

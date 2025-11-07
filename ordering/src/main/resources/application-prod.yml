@@ -16,8 +16,6 @@ spring:
     url: jdbc:mariadb://${DB_HOST_2}:${DB_PORT_2}/ordering
     username: admin
     password: ${DB_PASSWORD_2}
-    hikari:
-      maximum-pool-size: 1
   jpa:
     database: mysql
     database-platform: org.hibernate.dialect.MariaDBDialect

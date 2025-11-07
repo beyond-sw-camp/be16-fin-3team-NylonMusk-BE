@@ -38,7 +38,8 @@ public class GatewayHeaderAuthFilter extends OncePerRequestFilter {
     // 화이트리스트: 인증 체크 없이 통과할 경로들
     private static final AntPathMatcher MATCHER = new AntPathMatcher();
     private static final List<String> WHITELIST = List.of(
-            "/auth/**"
+            "/auth/**",
+            "/health"
     );
 
     @Override

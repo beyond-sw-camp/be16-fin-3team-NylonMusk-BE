@@ -35,7 +35,7 @@ jobs:
         # apigateway 도커
       - name: build and push docker image to ecr
         env:
-          REGISTRY: 148761635844.dkr.ecr.ap-northeast-2.amazonaws.com/
+          REGISTRY: 148761635844.dkr.ecr.ap-northeast-2.amazonaws.com
           REPOSITORY: mkx/api-gateway
           IMAGE_TAG: latest
         run: |
@@ -51,7 +51,7 @@ jobs:
         # community 도커
       - name: build and push docker image to ecr
         env:
-          REGISTRY: 148761635844.dkr.ecr.ap-northeast-2.amazonaws.com/
+          REGISTRY: 148761635844.dkr.ecr.ap-northeast-2.amazonaws.com
           REPOSITORY: mkx/community
           IMAGE_TAG: latest
         run: |
@@ -67,7 +67,7 @@ jobs:
         # marketdata 도커
       - name: build and push docker image to ecr
         env:
-          REGISTRY: 148761635844.dkr.ecr.ap-northeast-2.amazonaws.com/
+          REGISTRY: 148761635844.dkr.ecr.ap-northeast-2.amazonaws.com
           REPOSITORY: mkx/market-data
           IMAGE_TAG: latest
         run: |
@@ -83,7 +83,7 @@ jobs:
         # matching-engine 도커
       - name: build and push docker image to ecr
         env:
-          REGISTRY: 148761635844.dkr.ecr.ap-northeast-2.amazonaws.com/
+          REGISTRY: 148761635844.dkr.ecr.ap-northeast-2.amazonaws.com
           REPOSITORY: mkx/matching-engine
           IMAGE_TAG: latest
         run: |
@@ -99,7 +99,7 @@ jobs:
         # mkx-platform 도커
       - name: build and push docker image to ecr
         env:
-          REGISTRY: 148761635844.dkr.ecr.ap-northeast-2.amazonaws.com/
+          REGISTRY: 148761635844.dkr.ecr.ap-northeast-2.amazonaws.com
           REPOSITORY: mkx/mkx-platform
           IMAGE_TAG: latest
         run: |
@@ -115,7 +115,7 @@ jobs:
         # ordering 도커
       - name: build and push docker image to ecr
         env:
-          REGISTRY: 148761635844.dkr.ecr.ap-northeast-2.amazonaws.com/
+          REGISTRY: 148761635844.dkr.ecr.ap-northeast-2.amazonaws.com
           REPOSITORY: mkx/ordering
           IMAGE_TAG: latest
         run: |
@@ -131,7 +131,7 @@ jobs:
         # trading-bot 도커
       - name: build and push docker image to ecr
         env:
-          REGISTRY: 148761635844.dkr.ecr.ap-northeast-2.amazonaws.com/
+          REGISTRY: 148761635844.dkr.ecr.ap-northeast-2.amazonaws.com
           REPOSITORY: mkx/trading-bot
           IMAGE_TAG: latest
         run: |

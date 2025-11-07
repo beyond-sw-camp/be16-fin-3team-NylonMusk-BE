@@ -19,9 +19,11 @@ spring:
 
   datasource:
     driver-class-name: org.mariadb.jdbc.Driver
-    url: jdbc:mariadb://${DB_HOST_1}:${DB_PORT_1}/mkx-platform
+    url: jdbc:mariadb://${DB_HOST_1}:${DB_PORT_1}/mkx_platform
     username: admin
     password: ${DB_PASSWORD_1}
+    hikari:
+      maximum-pool-size: 5
 
   jpa:
     database: mysql

@@ -23,6 +23,8 @@ spring:
     url: jdbc:mariadb://${DB_HOST_1}:${DB_PORT_1}/community
     username: admin
     password: ${DB_PASSWORD_1}
+    hikari:
+      maximum-pool-size: 5
 
   jpa:
     database: mysql

@@ -1,6 +1,3 @@
-
-
-
 <body>
 <main class="container">
 
@@ -37,13 +34,15 @@
     <a href="#governance">5. 거버넌스(주총/공지)</a><br />
     <a href="#security">6. 보안·컴플라이언스</a><br />
     <a href="#demo">7. 발표 시나리오(데모 동선)</a><br />
-    <a href="#reqspec">8. 요구사항 명세(이미지·URL)</a><br />
-    <a href="#wbs">9. WBS(이미지·URL)</a><br />
-    <a href="#figma">10. 피그마(이미지·URL)</a><br />
-    <a href="#erd">11. 피그마(이미지·URL)</a><br />
-    <a href="#team">12. 팀 소개</a><br />
-    <a href="#timeline">13. 일정</a><br />
-    <a href="#api">14. API 명세서</a><br />
+    <a href="#demo-video">8. 기능 시연 영상</a><br />
+    <a href="#evidence">9. 단위 테스트 결과서</a><br />
+    <a href="#reqspec">10. 요구사항 명세(이미지·URL)</a><br />
+    <a href="#wbs">11. WBS(이미지·URL)</a><br />
+    <a href="#figma">12. 화면설계도(이미지·URL)</a><br />
+    <a href="#erd">13. ERD(이미지·URL)</a><br />
+    <a href="#team">14. 팀 소개</a><br />
+    <a href="#timeline">15. 일정</a><br />
+    <a href="#api">16. API 명세서</a><br />
   </div>
 
   <hr/>
@@ -171,8 +170,53 @@
     </ol>
   </section>
 
+
+  <section id="demo-video">
+    <h2>8) 기능 시연 영상</h2>
+    <p>MeX 프로젝트의 주요 기능 시연 영상을 정리합니다.</p>
+    <details>
+      <summary>
+        <b>증권사 관리자 회원가입/로그인</b>
+      </summary>
+      <b>증권사 관리자 회원가입(도로명 검색)</b>
+      <p align="center">
+        <img src="#" alt="#" width="#">
+      </p>
+      <b>증권사 관리자 로그인</b>
+      <p align="center">
+        <img src="#" alt="#" width="#">
+      </p>
+      <summary>
+        <b>기업 관리자 회원가입/로그인</b>
+      </summary>
+      <b>기업 관리자 회원가입(도로명 검색)</b>
+      <p align="center">
+        <img src="#" alt="#" width="#">
+      </p>
+      <b>기업 관리자 로그인</b>
+      <p align="center">
+        <img src="#" alt="#" width="#">
+      </p>
+      <summary>
+        <b>거래소 관리자 로그인</b>
+      </summary>
+      <b>거래소 관리자 로그인</b>
+      <p align="center">
+        <img src="#" alt="#" width="#">
+      </p>
+    </details>
+  </section>
+
+  <section id="evidence">
+    <h2>9) 단위 테스트 결과서</h2>
+    <p>MeX 프로젝트의 주요 기능 영역별 단위 테스트 결과를 정리합니다.</p>
+    <div class="card">
+      <p><a href="https://documenter.getpostman.com/view/43742779/2sB3QRnmew" target="_blank" rel="noopener">단위 테스트 결과서 (Postman Collection)</a></p>
+    </div>
+  </section>
+
   <section id="reqspec">
-    <h2>8) 요구사항 명세</h2>
+    <h2>10) 요구사항 명세</h2>
     <div class="card">
       <p><a href="https://docs.google.com/spreadsheets/d/1KsOnMh4J6d19r1ddL_Do8jKxRJrOoILHzYmdGbvL0C0/edit?gid=0#gid=0" target="_blank" rel="noopener">요구사항 명세서 문서 URL</a></p>
       <p><a href="https://github.com/user-attachments/files/22421176/_.WBS.-.WBS.pdf" target="_blank" rel="noopener">요구사항 명세서 다운로드하기</a></p>
@@ -180,7 +224,7 @@
   </section>
 
   <section id="wbs">
-    <h2>9) WBS</h2>
+    <h2>11) WBS</h2>
     <div class="card">
       <p><a href="https://docs.google.com/spreadsheets/d/1KsOnMh4J6d19r1ddL_Do8jKxRJrOoILHzYmdGbvL0C0/edit?gid=930058085#gid=930058085" target="_blank" rel="noopener">WBS 문서 URL</a></p>
       <p><a href="https://github.com/user-attachments/files/22421263/_.WBS.-.WBS.1.pdf" target="_blank" rel="noopener">WBS 문서 다운로드하기</a></p>
@@ -188,14 +232,14 @@
   </section>
 
   <section id="figma">
-    <h2>10) 화면설계도</h2>
+    <h2>12) 화면설계도</h2>
     <div class="card">
       <p><a href="https://www.figma.com/design/e0qAws8lXICFIVqCcyxCy6/%EC%A0%9C%EB%AA%A9-%EC%97%86%EC%9D%8C?node-id=2-439&t=isFparErgr1XIkiz-1" target="_blank" rel="noopener">피그마 URL</a></p>
     </div>
   </section>
 
   <section id="erd">
-    <h2>10) ERD</h2>
+    <h2>13) ERD</h2>
     <div class="card">
       <p><a href="https://www.erdcloud.com/d/T6DQu8zAzzw2Pj6FS" target="_blank" rel="noopener">ERD URL</a></p>
       <img width="5660" height="4002" alt="주식 (2)" src="https://github.com/user-attachments/assets/08ddddc7-1481-423e-a55c-795ea492f676" />
@@ -203,7 +247,7 @@
   </section>
 
   <section id="team">
-    <h2>12) 팀 소개</h2>
+    <h2>14) 팀 소개</h2>
     <table>
       <thead><tr><th>이름</th><th>역할</th><th>주요 담당</th></tr></thead>
       <tbody>
@@ -217,7 +261,7 @@
   </section>
 
   <section id="timeline">
-    <h2>13) 일정</h2>
+    <h2>15) 일정</h2>
     <ul>
       <li><strong>프로젝트 시작:</strong> 2025-09-12</li>
       <li><strong>프로젝트 종료:</strong> 2025-11-12</li>
@@ -226,10 +270,42 @@
 
   <hr/>
 
-  <section id="api">
-    <h2>14) API 명세서 및 단위테스트</h2>
+  <section id="techstack">
+    <h2>16) 기술 스택</h2>
     <div class="card">
-      <p><a href="https://documenter.getpostman.com/view/43742779/2sB3QRnmew" target="_blank" rel="noopener">API 명세서 및 단위테스트</a></p>
+      <h3>Backend</h3>
+      <p><!-- 예: Spring Boot, JPA, Kafka, Redis, MariaDB, Feign, Spring Cloud Gateway 등 --></p>
+      <h3>Frontend</h3>
+      <p><!-- 예: Vue.js / React, Vuetify, Chart.js 등 --></p>
+      <h3>Infra & DevOps</h3>
+      <p><!-- 예: AWS EC2, Docker Compose, Nginx, Elasticache, S3, GitHub Actions 등 --></p>
+    </div>
+  </section>
+
+  <section id="deployment">
+    <h2>17) 배포 환경</h2>
+    <div class="card">
+      <p><!-- 예: AWS EC2 (Ubuntu 22.04), Docker 기반 멀티 컨테이너 구조, Railway/MySQL, Render/Frontend 등 --></p>
+      <p><!-- 예: Backend와 DB는 Private Subnet 내 운영, Redis는 Elasticache SubnetGroup에 구성 등 --></p>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2>18) 시스템 아키텍처</h2>
+    <div class="card">
+      <p><!-- 예: MSA 구조(Exchange, MarketData, MatchingEngine, Brokerage, Community 등) --></p>
+      <p><!-- 예: Kafka Topic (orders, executions, order-status), Redis Cluster, MariaDB Replication 등 --></p>
+      <p align="center"><img src="#" alt="시스템 아키텍처 다이어그램" width="800"></p>
+    </div>
+  </section>
+  <!-- ✅ 추가된 섹션 끝 -->
+
+  <hr/>
+
+  <section id="api">
+    <h2>19) API 명세서</h2>
+    <div class="card">
+      <p><a href="https://documenter.getpostman.com/view/43742779/2sB3QRnmew" target="_blank" rel="noopener">API 명세서</a></p>
     </div>
   </section>
 

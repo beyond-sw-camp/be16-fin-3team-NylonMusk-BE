@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mkx-redis-deployment
+  namespace: mkx
+spec:
+  replicas: 1
+  # 아래의 label은 replicaset이 관리해야 할 파드를 결정하는데 사용 - 레플리카셋의 연동
+  selector:
+    matchLabels:
+      app: mkx-redis
+  template:
+    metadata:
+    # 아래의 labels는 service의 selector.app과 일치해야 함 - 서비스와 연동
+      labels:
+        app: mkx-redis
+    spec:
+      containers:
+      - name: mkx-redis
+        image: redis
+        ports: 
+        - containerPort: 6379
+
+# 한 파일안에 두가지 옵션(파드, 서비스)를 정의할 수 있음.
+---
+apiVersion: v1
+kind: Service
+metadata:
+# 클러스터내에서 service명은 url주소로 사용. ex)http://my-service
+  name: mkx-redis-service
+  namespace: mkx
+spec:
+  type: ClusterIP
+  ports:
+  # port는 서비스의 port, targetPort는 pod의 port이다.
+  - port: 6379
+    targetPort: 6379
+  selector: 
+    app: mkx-redis

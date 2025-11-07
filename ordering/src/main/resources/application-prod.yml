@@ -15,7 +15,7 @@ spring:
     driver-class-name: org.mariadb.jdbc.Driver
     url: jdbc:mariadb://${DB_HOST_2}:${DB_PORT_2}/ordering
     username: admin
-    password: ${DB_PASSWORD}
+    password: ${DB_PASSWORD_2}
     hikari:
       maximum-pool-size: 1
   jpa:
@@ -48,7 +48,6 @@ spring:
         nodes:
           - ${REDIS_CLUSTER_ENDPOINT}:6379
         max-redirects: 5
-      password: ${REDIS_PASSWORD}
       timeout: 3000
 
 

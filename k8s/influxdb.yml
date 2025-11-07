@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: influxdb-deployment
+  namespace: mkx
+spec:
+  replicas: 1
+  # 아래의 label은 replicaset이 관리해야 할 파드를 결정하는데 사용 - 레플리카셋의 연동
+  selector:
+    matchLabels:
+      app: mkx-influxdb
+  template:
+    metadata:
+      # 아래의 labels는 service의 selector.app과 일치해야 함 - 서비스와 연동
+      labels:
+        app: mkx-influxdb
+    spec:
+      containers:
+      - name: mkx-influxdb
+        image: influxdb:2.7
+        ports:
+        - containerPort: 8086
+        env:
+        - name: DOCKER_INFLUXDB_INIT_MODE
+          value: "setup"
+        - name: DOCKER_INFLUXDB_INIT_USERNAME
+          value: "admin"
+        - name: DOCKER_INFLUXDB_INIT_PASSWORD
+          value: "adminpassword"
+        - name: DOCKER_INFLUXDB_INIT_ORG
+          value: "MKX"
+        - name: DOCKER_INFLUXDB_INIT_BUCKET
+          value: "MKX_MarketData"
+        - name: DOCKER_INFLUXDB_INIT_ADMIN_TOKEN
+          value: "5-Sgev2iZAFZW-rxiedi6dN0c7cA5_pDFzcNuj65BINx0Q_21yYwSF1MquMEaQrY2dwzir6aL9vrdCkCWu2B4w=="
+        volumeMounts:
+        - name: influxdb-data
+          mountPath: /var/lib/influxdb2
+        - name: influxdb-config
+          mountPath: /etc/influxdb2
+      volumes:
+      - name: influxdb-data
+        persistentVolumeClaim:
+          claimName: influxdb-data-pvc
+      - name: influxdb-config
+        persistentVolumeClaim:
+          claimName: influxdb-config-pvc
+
+# 한 파일안에 두가지 옵션(파드, 서비스)를 정의할 수 있음.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  # 클러스터내에서 service명은 url주소로 사용. ex)http://influxdb-service:8086
+  name: influxdb-service
+  namespace: mkx
+spec:
+  type: ClusterIP
+  ports:
+  # port는 서비스의 port, targetPort는 pod의 port이다.
+  - port: 8086
+    targetPort: 8086
+  selector:
+    app: mkx-influxdb

@@ -37,8 +37,6 @@ spring:
       port: 6379
       database: 3
       timeout: 5000ms
-      # ✅ 패스워드는 Secret에서 주입
-      password: ${REDIS_PASSWORD}
       lettuce:
         pool:
           max-active: 50  # ✅ Production 환경에서 증가
@@ -49,7 +47,7 @@ spring:
 
 # ✅ InfluxDB - K8s Service 이름 사용
 influx:
-  url: influxdb-service:8086  # K8s Service 이름
+  url: http://influxdb-service:8086  # K8s Service 이름
   token: ${INFLUX_TOKEN}  # Secret에서 주입
   org: MKX
   bucket: MKX_MarketData
@@ -126,7 +124,6 @@ matching-engine:
       nodes:
         - ${REDIS_CLUSTER_ENDPOINT}:6379
       max-redirects: 5
-      password: ${REDIS_PASSWORD}  # Secret에서 주입
 
 # ✅ Feign Client 설정 (MSA 서비스 간 통신)
 feign:

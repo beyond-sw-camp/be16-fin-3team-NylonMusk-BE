@@ -20,9 +20,9 @@ spring:
 
   datasource:
     driver-class-name: org.mariadb.jdbc.Driver
-    url: jdbc:mariadb://${DB_HOST_1}:${DB_PORT_1}/${DB_NAME_1:community}
+    url: jdbc:mariadb://${DB_HOST_1}:${DB_PORT_1}/community
     username: admin
-    password: ${DB_PASSWORD}
+    password: ${DB_PASSWORD_1}
 
   jpa:
     database: mysql

@@ -19,9 +19,9 @@ spring:
 
   datasource:
     driver-class-name: org.mariadb.jdbc.Driver
-    url: jdbc:mariadb://${DB_HOST_1}:${DB_PORT_1}/${DB_NAME_1:mkx-platform}
+    url: jdbc:mariadb://${DB_HOST_1}:${DB_PORT_1}/mkx-platform
     username: admin
-    password: ${DB_PASSWORD}
+    password: ${DB_PASSWORD_1}
 
   jpa:
     database: mysql
@@ -39,7 +39,7 @@ spring:
   kafka:
     bootstrap-servers: kafka-service:9092
     consumer:
-      notification-group-id: ${KAFKA_GROUP_NOTIFICATION_ID}
+      notification-group-id: ${SPRING_KAFKA_CONSUMER_GROUP_ID:notification-consumer-group}
       enable-auto-commit: false
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer

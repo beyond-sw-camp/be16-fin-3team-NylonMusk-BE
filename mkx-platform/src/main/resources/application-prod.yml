@@ -102,18 +102,21 @@ auth:
     access:
       http-only: true
       secure: true #prod에서는 true (배포환경 HTTPS 인증서 필수임)
-      same-site: Lax
+      same-site: None
       path: /
+      domain: .mk-exchange.shop
     refresh:
       http-only: true
       secure: true #prod에서는 true
-      same-site: Lax
+      same-site: None
       path: /
+      domain: .mk-exchange.shop
     csrf:
       http-only: false
       secure: true #prod에서는 true
-      same-site: Lax
-      path:
+      same-site: None
+      path: /
+      domain: .mk-exchange.shop
 
 init:
   admin:

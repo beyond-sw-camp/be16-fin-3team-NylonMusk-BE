@@ -45,7 +45,8 @@ public class ChartController {
         log.info("캔들 데이터 조회 요청: ticker={}, interval={}, start={}, end={}", 
                 ticker, interval, start, end);
         
-        // 기본값 설정: 최근 24시간
+        // ✅ start가 null이면 최근 24시간, 아니면 지정된 시간부터
+        // 프론트엔드에서 처음 로드 시에는 0 (1970-01-01)을 보내서 전체 데이터 조회
         Instant startTime = start != null ? Instant.ofEpochMilli(start) : Instant.now().minusSeconds(86400);
         Instant endTime = end != null ? Instant.ofEpochMilli(end) : Instant.now();
         

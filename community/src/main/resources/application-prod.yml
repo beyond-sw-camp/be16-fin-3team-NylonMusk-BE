@@ -62,14 +62,14 @@ openai:
 
 news:
   analysis:
-    fixed-delay-ms: 60000
+    fixed-delay-ms: 120000
     batch-size: 10
     queue-capacity: 200
   crawl:
     enabled: true
-    fixed-delay-ms: 300000
+    fixed-delay-ms: 600000
     keywords: []
     use-listed: true
     listed-batch-size: 10
   rss:
-    fixed-delay-ms: 120000
+    fixed-delay-ms: 600000

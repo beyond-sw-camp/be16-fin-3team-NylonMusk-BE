@@ -119,7 +119,10 @@ public class TradingBotService {
         return convertToDTO(config);
     }
 
-    @Scheduled(fixedDelay = 750)
+    /**
+     * 자동 트레이딩 실행 (50ms마다 실행)
+     */
+    @Scheduled(fixedDelay = 500)
     public void executeTrading() {
         try {
             List<TradingBotConfig> activeBots = configRepository.findByStatusAndIsActiveTrue("START");

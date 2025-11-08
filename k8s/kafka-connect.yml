@@ -39,9 +39,8 @@ spec:
               value: "1"
             - name: CONNECT_OFFSET_STORAGE_PARTITIONS
               value: "4"
-            - name: CONNECT_STATUS_STORAGE_PARTITIONS  
+            - name: CONNECT_STATUS_STORAGE_PARTITIONS
               value: "4"
-            
 
             - name: CONNECT_ERRORS_TOLERANCE
               value: "all"
@@ -65,6 +64,15 @@ spec:
               value: "/kafka/connect"
             - name: REST_PORT
               value: "8083"
+
+          # 리소스 설정 (5개 노드 최적화)
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "384Mi"
+            limits:
+              cpu: "800m"
+              memory: "1536Mi"
 
           readinessProbe:
             httpGet:
@@ -138,11 +146,6 @@ spec:
                       -H "Content-Type: application/json" \
                       --data @/tmp/mkx-ordering-outbox.json \
                       && echo "[postStart] connector upserted"
-
-          # 필요하면 리소스 설정 열기
-          resources:
-            requests: { cpu: "250m", memory: "512Mi" }
-            limits:   { cpu: "1",    memory: "2Gi" }
 
 ---
 apiVersion: v1

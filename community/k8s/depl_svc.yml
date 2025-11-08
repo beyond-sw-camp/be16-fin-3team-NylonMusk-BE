@@ -4,7 +4,7 @@ metadata:
   name: community-depl
   namespace: mkx
 spec:
-  replicas: 1  # 뉴스 크롤링/분석 부하 고려
+  replicas: 1  # HPA 초기값 (뉴스 크롤링/분석 부하 고려)
   selector:
     matchLabels:
       app: community
@@ -18,6 +18,14 @@ spec:
         image: 148761635844.dkr.ecr.ap-northeast-2.amazonaws.com/mkx/community:latest
         ports:
         - containerPort: 8080
+        # 리소스 설정 (HPA 필수, 5개 노드 최적화)
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "384Mi"
+          limits:
+            cpu: "800m"
+            memory: "768Mi"
         env:
         - name: DB_HOST_1
           valueFrom:

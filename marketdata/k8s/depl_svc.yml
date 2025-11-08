@@ -4,7 +4,7 @@ metadata:
   name: market-data-depl
   namespace: mkx
 spec:
-  replicas: 1
+  replicas: 2  # HPA 초기값
   selector:
     matchLabels:
       app: market-data
@@ -18,6 +18,14 @@ spec:
         image: 148761635844.dkr.ecr.ap-northeast-2.amazonaws.com/mkx/market-data:latest
         ports:
         - containerPort: 8080
+        # 리소스 설정 (HPA 필수, 웹소켓/실시간 데이터 처리, 5개 노드 최적화)
+        resources:
+          requests:
+            cpu: "400m"
+            memory: "768Mi"
+          limits:
+            cpu: "1200m"
+            memory: "1536Mi"
         # 아래의 name과 application.yml의 ${}의 변수명과 일치해야함
         env:
         - name: INFLUX_TOKEN

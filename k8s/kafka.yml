@@ -21,6 +21,14 @@ spec:
           ports:
             - containerPort: 9092  # 내부 브로커 포트(클러스터 내 접근)
             - containerPort: 9093  # KRaft 컨트롤러 포트
+          # 리소스 설정 (중요 인프라, 5개 노드 최적화)
+          resources:
+            requests:
+              cpu: "400m"
+              memory: "768Mi"
+            limits:
+              cpu: "1600m"
+              memory: "1536Mi"
           env:
             # KRaft 단일 브로커 구성
             - name: KAFKA_NODE_ID

@@ -4,7 +4,7 @@ metadata:
   name: api-gateway-depl
   namespace: mkx
 spec:
-  replicas: 1
+  replicas: 2  # HPA 초기값
   selector:
     matchLabels:
       app: api-gateway
@@ -18,6 +18,14 @@ spec:
         image: 148761635844.dkr.ecr.ap-northeast-2.amazonaws.com/mkx/api-gateway:latest
         ports:
         - containerPort: 8080
+        # 리소스 설정 (HPA 필수)
+        resources:
+          requests:
+            cpu: "200m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
         # 아래의 name과 application.yml의 ${}의 변수명과 일치해야함
         env:
         - name: JWT_SECRET_AT

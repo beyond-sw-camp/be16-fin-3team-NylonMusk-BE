@@ -20,6 +20,14 @@ spec:
         image: influxdb:2.7
         ports:
         - containerPort: 8086
+        # 리소스 설정 (5개 노드 최적화)
+        resources:
+          requests:
+            cpu: "150m"
+            memory: "256Mi"
+          limits:
+            cpu: "800m"
+            memory: "768Mi"
         env:
         - name: DOCKER_INFLUXDB_INIT_MODE
           value: "setup"

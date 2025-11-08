@@ -4,7 +4,7 @@ metadata:
   name: trading-bot-depl
   namespace: mkx
 spec:
-  replicas: 1
+  replicas: 1  # 고정 (중복 실행 방지)
   selector:
     matchLabels:
       app: trading-bot
@@ -19,6 +19,14 @@ spec:
         ports:
         - containerPort: 8080
           name: http
+        # 리소스 설정 (고정 레플리카)
+        resources:
+          requests:
+            cpu: "200m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
         env:
         - name: DB_HOST_1
           valueFrom:

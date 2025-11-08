@@ -20,6 +20,14 @@ spec:
         image: redis
         ports: 
         - containerPort: 6379
+        # 리소스 설정
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
 
 # 한 파일안에 두가지 옵션(파드, 서비스)를 정의할 수 있음.
 ---

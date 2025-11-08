@@ -5,33 +5,25 @@ metadata:
   namespace: mkx
 spec:
   replicas: 1
-  # 어떤 파드를 이 ReplicaSet이 관리할지 결정
   selector:
     matchLabels:
       app: kafka-connect
   template:
     metadata:
-      # Service selector와 일치해야 연결 가능
       labels:
         app: kafka-connect
     spec:
       containers:
         - name: kafka-connect
           image: quay.io/debezium/connect:2.7
-          # Kafka Connect REST API 포트
           ports:
             - containerPort: 8083
           env:
-            # ---- 필수 클러스터 설정 (도커 compose의 environment 그대로 이식) ----
-            # 브로커 부트스트랩 (EKS 내부 DNS: 앞서 만든 kafka Service 사용)
             - name: BOOTSTRAP_SERVERS
               value: "kafka-service.mkx.svc.cluster.local:9092"
-
-            # Connect 클러스터 그룹 ID (워커 클러스터 식별자)
             - name: GROUP_ID
               value: "mkx-connect-cluster"
 
-            # Connect 내부 메타데이터 토픽들 (자동 생성 권장)
             - name: CONFIG_STORAGE_TOPIC
               value: "_mkx_connect_configs"
             - name: OFFSET_STORAGE_TOPIC
@@ -39,20 +31,18 @@ spec:
             - name: STATUS_STORAGE_TOPIC
               value: "_mkx_connect_status"
 
-            # ---- 일반 CONNECT_ 접두사 설정 (내부 토픽 복제/내구성 등) ----
-            # 브로커 수가 1대면 1, 2대 이상이면 2를 권장
             - name: CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR
               value: "1"
             - name: CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR
               value: "1"
             - name: CONNECT_STATUS_STORAGE_REPLICATION_FACTOR
               value: "1"
-
-            # (선택) 오프셋 스토리지 토픽 파티션 수 — 고부하면 늘리는 걸 고려
             - name: CONNECT_OFFSET_STORAGE_PARTITIONS
-              value: "25"
+              value: "4"
+            - name: CONNECT_STATUS_STORAGE_PARTITIONS  
+              value: "4"
+            
 
-            # 에러 허용/로깅/DLQ 설정
             - name: CONNECT_ERRORS_TOLERANCE
               value: "all"
             - name: CONNECT_ERRORS_DEADLETTERQUEUE_TOPIC_NAME
@@ -62,7 +52,6 @@ spec:
             - name: CONNECT_ERRORS_LOG_ENABLE
               value: "true"
 
-            # (권장) Key/Value Converter 설정 — 스키마 없이 JSON으로 입출력
             - name: CONNECT_KEY_CONVERTER
               value: "org.apache.kafka.connect.json.JsonConverter"
             - name: CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE
@@ -72,17 +61,11 @@ spec:
             - name: CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE
               value: "false"
 
-            # (권장) 플러그인 경로 — Debezium 이미지 기본값이 /kafka/connect
             - name: CONNECT_PLUGIN_PATH
               value: "/kafka/connect"
-
-            # (선택) REST 포트/호스트 — 내부 전용이면 기본값으로 충분
             - name: REST_PORT
               value: "8083"
-            # - name: REST_ADVERTISED_HOST_NAME
-            #   value: "kafka-connect-service.mkx.svc.cluster.local"
 
-          # 헬스 체크: Connect 워커가 살아있는지/준비됐는지 확인
           readinessProbe:
             httpGet:
               path: /connectors
@@ -100,27 +83,78 @@ spec:
             timeoutSeconds: 3
             failureThreshold: 6
 
-          # (선택) 리소스 가이드 — 부하에 맞춰 조절
-          # resources:
-          #   requests:
-          #     cpu: "250m"
-          #     memory: "512Mi"
-          #   limits:
-          #     cpu: "1"
-          #     memory: "2Gi"
+          # ★ 커넥터 자동 적용: postStart 훅
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - /bin/sh
+                  - -lc
+                  - |
+                    # 1) REST 준비될 때까지 대기
+                    until curl -fsS http://localhost:8083/connector-plugins >/dev/null; do
+                      echo "[postStart] waiting for Connect REST..."
+                      sleep 2
+                    done
+
+                    # 2) 커넥터 설정 파일 생성
+                    cat >/tmp/mkx-ordering-outbox.json <<'JSON'
+                    {
+                      "connector.class": "io.debezium.connector.mariadb.MariaDbConnector",
+                      "topic.prefix": "ordering-srv",
+                      "database.server.id": "1808880095",
+                      "database.hostname": "db-mkx-2.c34muymogw5c.ap-northeast-2.rds.amazonaws.com",
+                      "database.port": "3306",
+                      "database.user": "debezium",
+                      "database.password": "debezium",
+                      "database.ssl.mode": "disabled",
+                      "database.include.list": "ordering",
+                      "table.include.list": "ordering.order_outbox",
+                      "include.schema.changes": "false",
+                      "snapshot.mode": "schema_only_recovery",
+                      "snapshot.locking.mode": "none",
+                      "tombstones.on.delete": "false",
+                      "transforms": "outbox",
+                      "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
+                      "transforms.outbox.table.field.event.id": "id",
+                      "transforms.outbox.table.field.event.key": "kafka_key",
+                      "transforms.outbox.table.field.event.type": "event_type",
+                      "transforms.outbox.table.field.event.payload": "payload",
+                      "transforms.outbox.table.expand.json.payload": "true",
+                      "transforms.outbox.route.by.field": "event_type",
+                      "transforms.outbox.route.topic.replacement": "${routedByValue}",
+                      "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+                      "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+                      "value.converter.schemas.enable": "false",
+                      "schema.history.internal.kafka.bootstrap.servers": "kafka-service:9092",
+                      "schema.history.internal.kafka.topic": "_mkx_debezium_schema_history_ordering_v2",
+                      "schema.history.internal.store.only.captured.tables.ddl": "true",
+                      "schema.history.internal.skip.unparseable.ddl": "true"
+                    }
+                    JSON
+
+                    # 3) 존재하면 업데이트, 없으면 생성 (idempotent)
+                    curl -fsS -X PUT "http://localhost:8083/connectors/mkx-ordering-outbox/config" \
+                      -H "Content-Type: application/json" \
+                      --data @/tmp/mkx-ordering-outbox.json \
+                      && echo "[postStart] connector upserted"
+
+          # 필요하면 리소스 설정 열기
+          resources:
+            requests: { cpu: "250m", memory: "512Mi" }
+            limits:   { cpu: "1",    memory: "2Gi" }
 
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  # 내부 전용 접근 엔드포인트 (REST API): http://kafka-connect-service.mkx.svc.cluster.local:8083
   name: kafka-connect-service
   namespace: mkx
 spec:
   type: ClusterIP
   ports:
     - name: rest
-      port: 8083        # 서비스 포트
-      targetPort: 8083  # 파드 컨테이너 포트
+      port: 8083
+      targetPort: 8083
   selector:
     app: kafka-connect

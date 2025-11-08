@@ -1,0 +1,144 @@
+server:
+  port: 8080 # port번호 0설정 시 0~65535중에 중복되지 않은 port 임의로 설정
+
+eureka:
+  client:
+    enabled: false
+
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  application:
+    name: mkx-platform-service
+
+  redis:
+    host: mkx-redis-service
+    port: 6379
+
+  datasource:
+    driver-class-name: org.mariadb.jdbc.Driver
+    url: jdbc:mariadb://${DB_HOST_1}:${DB_PORT_1}/mkx_platform
+    username: admin
+    password: ${DB_PASSWORD_1}
+    hikari:
+      maximum-pool-size: 6
+
+  jpa:
+    database: mysql
+    database-platform: org.hibernate.dialect.MariaDBDialect
+    generate-ddl: true
+    hibernate:
+      ddl-auto: update
+    show_sql: true
+  #    loadbalancer 추가
+  cloud:
+    loadbalancer:
+      retry:
+        enabled: true
+
+  kafka:
+    bootstrap-servers: kafka-service:9092
+    consumer:
+      notification-group-id: ${SPRING_KAFKA_CONSUMER_GROUP_ID:notification-consumer-group}
+      enable-auto-commit: false
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+
+  # EMAIL: 이메일 발송 설정
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${EMAIL_USERNAME}  # 실제 Gmail 주소로 변경 필요
+    password: ${EMAIL_PASSWORD}     # Gmail 앱 비밀번호로 변경 필요
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 10000  # 10초 (병렬 처리 대응)
+          timeout: 10000  # 10초
+          writetimeout: 10000  # 10초
+
+feign:
+  httpclient:
+    enabled: true
+  client:
+    config:
+      default:
+        connectTimeout: 3000
+        readTimeout: 5000
+
+cloud:
+  aws:
+    credentials:
+      access-key: ${S3_ACCESS_KEY}
+      secret-key: ${S3_SECRET_KEY}
+    region:
+      static: ap-northeast-2
+    s3:
+      bucket: ${AWS_S3_BUCKET:wooyoungking-product-bucket}
+
+openai:
+  api-key: ${OPENAI_API_KEY}
+  model: gpt-3.5-turbo
+  max-tokens: 2000
+  temperature: 0.2
+
+jwt:
+  expirationAt: 900000      # 15분
+  secretKeyAt: ${JWT_SECRET_AT}  # 운영환경에서는 환경변수로 주입
+  expirationRt: 604800000   # 7일
+  secretKeyRt: ${JWT_SECRET_RT}
+
+auth:
+  cookie:
+    access:
+      http-only: true
+      secure: true #prod에서는 true (배포환경 HTTPS 인증서 필수임)
+      same-site: None
+      path: /
+      domain: .mk-exchange.shop
+    refresh:
+      http-only: true
+      secure: true #prod에서는 true
+      same-site: None
+      path: /
+      domain: .mk-exchange.shop
+    csrf:
+      http-only: false
+      secure: true #prod에서는 true
+      same-site: None
+      path: /
+      domain: .mk-exchange.shop
+
+init:
+  admin:
+    email: ${ADMIN_EMAIL}
+    password: ${ADMIN_PASSWORD}
+    name: MKX Admin
+    phone: "01011111111"
+
+ncp:
+  ocr:
+    url: "https://ggkmlh1y1s.apigw.ntruss.com/custom/v1/47445/7df6d98aea17fea8337f87b4c6d019378ddd43dfae8b052e21f815cd810386c3/document/id-card"
+    secret-key: ${NCP_OCR_SECRET}   # 실제 Secret Key
+  captcha:
+    client-id: ${NCP_CAPTCHA_CLIENT_ID}  # Application 이름 "captcha"의 Client ID
+    secret-key: ${NCP_CAPTCHA_SECRET_KEY}  # Application의 Secret Key
+    api-url: "https://naveropenapi.apigw.ntruss.com/captcha/v1/nkey"  # CAPTCHA API URL (이미지 키 발급/검증)
+    image-bin-url: "https://naveropenapi.apigw.ntruss.com/captcha-bin/v1/ncaptcha"  # CAPTCHA 이미지 파일 URL
+    audio-api-url: "https://naveropenapi.apigw.ntruss.com/scaptcha/v1/skey"  # CAPTCHA API URL (음성 키 발급/검증)
+    audio-bin-url: "https://naveropenapi.apigw.ntruss.com/scaptcha-bin/v1/scaptcha"  # CAPTCHA 음성 파일 URL
+
+# APP: 애플리케이션 설정
+app:
+  email:
+    verification:
+      base-url: https://www.trading.mk-exchange.shop  # 프론트엔드 URL

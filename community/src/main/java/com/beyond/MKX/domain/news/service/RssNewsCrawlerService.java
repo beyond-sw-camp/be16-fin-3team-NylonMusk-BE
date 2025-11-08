@@ -63,7 +63,7 @@ public class RssNewsCrawlerService {
 
     private static final DateTimeFormatter RFC1123 = DateTimeFormatter.RFC_1123_DATE_TIME;
 
-    @Scheduled(fixedDelayString = "${news.rss.fixed-delay-ms:60000}")
+    @Scheduled(fixedDelayString = "${news.rss.fixed-delay-ms}")
     @Transactional
     public void crawlLatest() {
         try {

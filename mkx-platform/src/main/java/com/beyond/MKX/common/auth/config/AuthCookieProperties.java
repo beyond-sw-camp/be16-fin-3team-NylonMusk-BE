@@ -41,5 +41,7 @@ public class AuthCookieProperties {
         private String sameSite;
         // ResponseCookie.path 값
         private String path;
+        // ResponseCookie.domain 값
+        private String domain;
     }
 }

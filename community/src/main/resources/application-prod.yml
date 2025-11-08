@@ -1,0 +1,75 @@
+server:
+  port: 8080
+
+eureka:
+  client:
+    enabled: false
+
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  application:
+    name: community-service
+
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 25MB
+
+  datasource:
+    driver-class-name: org.mariadb.jdbc.Driver
+    url: jdbc:mariadb://${DB_HOST_1}:${DB_PORT_1}/community
+    username: admin
+    password: ${DB_PASSWORD_1}
+    hikari:
+      maximum-pool-size: 5
+
+  jpa:
+    database: mysql
+    database-platform: org.hibernate.dialect.MariaDBDialect
+    generate-ddl: false
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+cloud:
+  aws:
+    credentials:
+      access-key: ${S3_ACCESS_KEY}
+      secret-key: ${S3_SECRET_KEY}
+    region:
+      static: ap-northeast-2
+    s3:
+      bucket: ${AWS_S3_BUCKET:wooyoungking-product-bucket}
+
+logging:
+  level:
+    root: INFO
+    org.hibernate.SQL: WARN
+    org.springframework: INFO
+    com.beyond.MKX: INFO
+
+openai:
+  api-key: ${OPENAI_API_KEY}
+  model: gpt-4o-mini
+  enabled: true
+  max-rpm: 5
+
+news:
+  analysis:
+    fixed-delay-ms: 120000
+    batch-size: 10
+    queue-capacity: 200
+  crawl:
+    enabled: true
+    fixed-delay-ms: 600000
+    keywords: []
+    use-listed: true
+    listed-batch-size: 10
+  rss:
+    fixed-delay-ms: 600000

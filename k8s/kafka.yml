@@ -67,6 +67,13 @@ spec:
           volumeMounts:
             - name: kafka-data
               mountPath: /tmp/kraft-combined-logs  # KRaft 로그/데이터 경로
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2000m"
+              memory: "2Gi"
       volumes:
         # 데모/내부 테스트면 emptyDir로 충분.
         # 영속 필요 시 PVC로 교체(아래 예시 참고).

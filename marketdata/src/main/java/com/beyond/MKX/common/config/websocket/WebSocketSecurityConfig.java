@@ -113,7 +113,7 @@ public class WebSocketSecurityConfig {
         configuration.setAllowedOrigins(Arrays.asList(
                 "http://localhost:3000",
                 "http://localhost:3001",
-                "https://www.mk-exchange.shop"
+                "https://www.trading.mk-exchange.shop"
         ));
 
         // HTTP 메소드

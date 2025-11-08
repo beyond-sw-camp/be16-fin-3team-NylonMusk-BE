@@ -62,9 +62,9 @@ kafka:
 websocket:
   endpoint: /ws
   allowed-origins:
-    - https://mk-exchange.shop  # ✅ 실제 프로덕션 도메인
-    - https://www.mk-exchange.shop
-    - https://admin.mk-exchange.shop
+    - https://trading.mk-exchange.shop  # ✅ 실제 프로덕션 도메인
+    - https://www.trading.mk-exchange.shop
+    - https://managing.mk-exchange.shop
   sockjs:
     enabled: true
     heartbeat-time: 25000

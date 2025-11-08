@@ -138,4 +138,4 @@ ncp:
 app:
   email:
     verification:
-      base-url: https://www.mk-exchange.shop  # 프론트엔드 URL
+      base-url: https://www.trading.mk-exchange.shop  # 프론트엔드 URL

@@ -24,9 +24,8 @@ spring:
         cors-configurations:
           '[/**]':
             allowedOrigins:
-              - 'https://mk-exchange.shop'
-              - 'https://www.mk-exchange.shop'
-              - 'https://admin.mk-exchange.shop'
+              - 'https://www.trading.mk-exchange.shop'
+              - 'https://managing.mk-exchange.shop'
             allowedMethods: [ GET, POST, PUT, PATCH, DELETE, OPTIONS ]
             allowedHeaders: [ 'Content-Type', 'Authorization', 'X-CSRF-Token', 'Cookie' ]
             allow-credentials: true

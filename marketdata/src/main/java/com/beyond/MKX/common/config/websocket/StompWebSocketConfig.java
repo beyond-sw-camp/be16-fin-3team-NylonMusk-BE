@@ -47,7 +47,7 @@ public class StompWebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 .setAllowedOrigins(
                         "http://localhost:3000",
                         "http://localhost:3001",
-                        "https://yourdomain.com"
+                        "https://www.trading.mk-exchange.shop"
                 )
                 .addInterceptors(
                         gatewayAuthHandshakeInterceptor,           // ✅ 1순위: Gateway 인증 헤더 전달

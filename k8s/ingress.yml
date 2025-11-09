@@ -1,0 +1,41 @@
+# ingress-controller 설치 명령어
+# kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.1/deploy/static/provider/aws/deploy.yaml
+# aws lb -> ingress controller pod -> ingress -> service로의 라우팅
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mkx-ingress
+  namespace: mkx
+  annotations:
+  # 여기서 "nginx"로 지정한 것은 이 Ingress가 NGINX 기반 Ingress Controller에 의해 처리된다는 의미
+    kubernetes.io/ingress.class: nginx
+    # nginx.ingress.kubernetes.io/rewrite-target: /$1 #첫번쨰 prefix제거
+    
+spec:
+# https 프로토콜의 2가지 인증서: ssl < tls(좀 더 보안강화가 됨.)
+  tls:
+  - hosts:
+    - "server.mk-exchange.shop"
+    # https.yml의 Certificate_spec_secretName이다.
+    secretName: server-mk-exchange-shop-tls    
+  rules:
+  - host: server.mk-exchange.shop # 설정하려는 도메인 이름.
+    http:
+      paths:
+      # server.charliekim20022.shop/charlie1
+      - path: /
+      # - path: /charlie1/ #charlie1으로 시작하는 모든 url요청을 nginx-service1로 라우팅한다는 정규표현식
+        pathType: Prefix
+        backend:
+          service:
+            name: api-gateway-service
+            port:
+              number: 80
+      # - path: /bradkim2/ #bradkim2으로 시작하는 모든 url요청을 nginx-service2로 라우팅한다는 정규표현식
+      #   pathType: Prefix
+      #   backend:
+      #     service:
+      #       name: nginx-service2
+      #       port:
+      #         number: 80

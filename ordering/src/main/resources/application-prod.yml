@@ -1,0 +1,60 @@
+server:
+  port: 8080
+
+eureka:
+  client:
+    enabled: false
+
+spring:
+  config:
+    activate:
+      on-profile: prod
+  application:
+    name: ordering-service
+  datasource:
+    driver-class-name: org.mariadb.jdbc.Driver
+    url: jdbc:mariadb://${DB_HOST_2}:${DB_PORT_2}/ordering
+    username: admin
+    password: ${DB_PASSWORD_2}
+  jpa:
+    database: mysql
+    database-platform: org.hibernate.dialect.MariaDBDialect
+    generate-ddl: true
+    hibernate:
+      ddl-auto: update
+    show_sql: true
+  kafka:
+#    bootstrap-servers: kafka-bootstrap.kafka.svc.cluster.local:9092
+    bootstrap-servers: kafka-service:9092
+    consumer:
+      execution-group-id: execution-consumer-group
+      order-status-group-id: order-status-consumer-group
+      fill-notification-group-id: fill-notification-consumer-group
+      transaction-group-id: transaction-consumer-group
+      enable-auto-commit: false
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+  redis:
+    common:
+      host: mkx-redis-service
+      port: 6379
+    order-book:
+      cluster:
+        nodes:
+          - ${REDIS_CLUSTER_ENDPOINT}:6379
+        max-redirects: 5
+      timeout: 3000
+
+
+feign:
+  client:
+    url:
+      mkx-platform-service: "http://mkx-platform-service"
+
+notification:
+  ttl-seconds:
+    execution: 180
+

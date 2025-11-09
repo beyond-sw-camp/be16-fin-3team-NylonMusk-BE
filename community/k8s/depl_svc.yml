@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: community-depl
+  namespace: mkx
+spec:
+  replicas: 1  # HPA 초기값 (뉴스 크롤링/분석 부하 고려)
+  selector:
+    matchLabels:
+      app: community
+  template:
+    metadata:
+      labels:
+        app: community
+    spec:
+      containers:
+      - name: community-container
+        image: 148761635844.dkr.ecr.ap-northeast-2.amazonaws.com/mkx/community:latest
+        ports:
+        - containerPort: 8080
+        # 리소스 설정 (HPA 필수, 5개 노드 최적화)
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "384Mi"
+          limits:
+            cpu: "800m"
+            memory: "768Mi"
+        env:
+        - name: DB_HOST_1
+          valueFrom:
+            secretKeyRef:
+              name: mkx-secrets
+              key: DB_HOST_1
+        - name: DB_PORT_1
+          valueFrom:
+            secretKeyRef:
+              name: mkx-secrets
+              key: DB_PORT_1
+        - name: DB_PASSWORD_1
+          valueFrom:
+            secretKeyRef:
+              name: mkx-secrets
+              key: DB_PASSWORD_1
+        - name: S3_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: mkx-secrets
+              key: S3_ACCESS_KEY
+        - name: S3_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: mkx-secrets
+              key: S3_SECRET_KEY
+        - name: AWS_S3_BUCKET
+          value: "wooyoungking-product-bucket"
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: mkx-secrets
+              key: OPENAI_API_KEY
+        readinessProbe:
+          httpGet:
+            # healthcheck 경로
+            path: /health
+            port: 8080
+          # 컨테이너 시작 후 지연
+          initialDelaySeconds: 10
+          # 확인 반복 주기
+          periodSeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: community-service
+  namespace: mkx
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8080
+  selector:
+    app: community

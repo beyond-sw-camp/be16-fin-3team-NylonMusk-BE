@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /** ordering-service 내부 회원 계좌 조회 Feign */
-@FeignClient(name = "ordering-service", contextId = "memberAccountInternalClient")
+@FeignClient(name = "ordering-service", contextId = "memberAccountInternalClient", url = "${feign.client.url.ordering-service}")
 public interface MemberAccountInternalClient {
 
     @GetMapping("/api/internal/member-accounts/{memberId}")

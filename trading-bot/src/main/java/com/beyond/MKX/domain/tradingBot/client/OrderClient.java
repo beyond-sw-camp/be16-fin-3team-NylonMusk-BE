@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 /**
  * ordering-service의 주문 API FeignClient
  */
-@FeignClient(name = "ordering-service", contextId = "orderClient")
+@FeignClient(name = "ordering-service", contextId = "orderClient", url = "${feign.client.url.ordering-service}")
 public interface OrderClient {
 
     /**

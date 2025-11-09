@@ -13,7 +13,7 @@ import java.util.UUID;
 
 @FeignClient(
         name = "mkx-platform-service",
-//        url = "${platform.service.url}",           // ex) http://mkx-platform-service:8080
+        url = "${feign.client.url.mkx-platform-service}",
         contextId = "stockInternalClient"
 )
 public interface PlatformClient {

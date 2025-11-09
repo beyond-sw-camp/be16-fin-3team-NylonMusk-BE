@@ -13,7 +13,7 @@ import java.util.List;
  * ordering 서비스의 주식 보유 정보를 조회하는 FeignClient
  * 상장폐지 보상금 계산 시 보유자 정보가 필요함
  */
-@FeignClient(name = "ordering-service", contextId = "stockHoldingClient")
+@FeignClient(name = "ordering-service", contextId = "stockHoldingClient", url = "${feign.client.url.ordering-service}")
 public interface StockHoldingClient {
 
     /**

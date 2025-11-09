@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: market-data-depl
+  namespace: mkx
+spec:
+  replicas: 2  # HPA 초기값
+  selector:
+    matchLabels:
+      app: market-data
+  template:
+    metadata:
+      labels:
+        app: market-data
+    spec:
+      containers:
+      - name: market-data-container
+        image: 148761635844.dkr.ecr.ap-northeast-2.amazonaws.com/mkx/market-data:latest
+        ports:
+        - containerPort: 8080
+        # 리소스 설정 (HPA 필수, 웹소켓/실시간 데이터 처리, 5개 노드 최적화)
+        resources:
+          requests:
+            cpu: "400m"
+            memory: "768Mi"
+          limits:
+            cpu: "1200m"
+            memory: "1536Mi"
+        # 아래의 name과 application.yml의 ${}의 변수명과 일치해야함
+        env:
+        - name: INFLUX_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: mkx-secrets
+              key: INFLUX_TOKEN
+        - name: JWT_SECRET_AT
+          valueFrom:
+            secretKeyRef:
+              name: mkx-secrets
+              key: JWT_SECRET_AT
+        - name: JWT_SECRET_RT
+          valueFrom:
+            secretKeyRef:
+              name: mkx-secrets
+              key: JWT_SECRET_RT
+        - name: REDIS_CLUSTER_ENDPOINT
+          valueFrom:
+            secretKeyRef:
+              name: mkx-secrets
+              key: REDIS_CLUSTER_ENDPOINT
+        # 컨테이너 상태 확인을 통해 롤링업데이트 최적화 
+        readinessProbe:
+          httpGet:
+            # healthcheck 경로
+            path: /health
+            port: 8080
+          # 컨테이너 시작 후 지연
+          initialDelaySeconds: 10
+          # 확인 반복 주기
+          periodSeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: market-data-service
+  namespace: mkx
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8080
+  selector:
+    app: market-data

@@ -48,9 +48,6 @@ public class OptionalAuthChannelInterceptor implements ChannelInterceptor {
     @Value("${jwt.secretKeyAt:default-secret-key-for-development-only-minimum-256-bits}")
     private String jwtSecret;
 
-    @Value("${jwt.expiration:86400000}")
-    private long jwtExpiration;
-
     /**
      * 메시지 전송 전 인터셉트
      *

@@ -82,10 +82,13 @@ public class WebSocketSecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         
         // Origin 설정 (✅ allowedOrigins만 사용 - allowedOriginPatterns과 충돌 방지)
+        // setAllowCredentials(true)를 사용하므로 와일드카드 패턴 사용 불가
         configuration.setAllowedOrigins(Arrays.asList(
                 "http://localhost:3000",
                 "http://localhost:3001",
-                "https://www.trading.mk-exchange.shop"
+                "https://trading.mk-exchange.shop",
+                "https://www.trading.mk-exchange.shop",
+                "https://managing.mk-exchange.shop"
         ));
 
         // HTTP 메소드
@@ -114,7 +117,7 @@ public class WebSocketSecurityConfig {
         source.registerCorsConfiguration("/**", configuration);
 
         log.info("[SECURITY] ✅ CORS configured");
-        log.info("[SECURITY]   - Allowed origins: localhost:3000, localhost:3001");
+        log.info("[SECURITY]   - Allowed origins: localhost:3000, localhost:3001, trading.mk-exchange.shop, managing.mk-exchange.shop");
         log.info("[SECURITY]   - Credentials: allowed");
         
         return source;

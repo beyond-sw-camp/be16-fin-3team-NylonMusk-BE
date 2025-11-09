@@ -1,0 +1,136 @@
+server:
+  port: 8080  # ✅ K8s에서는 고정 포트 사용 (Service가 라우팅)
+
+eureka:
+  client:
+    enabled: false
+
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  application:
+    name: market-data-service
+
+  # ✅ Kafka - K8s Service 이름 사용
+
+  kafka:
+    bootstrap-servers: kafka-service:9092
+    consumer:
+      group-id: marketdata-consumer-group
+      enable-auto-commit: false
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+        spring.json.type.mapping: executionEvent:com.beyond.MKX.domain.execution.dto.ExecutionEventDTO,orderStatusEvent:com.beyond.MKX.domain.orderbook.dto.OrderStatusEventDTO
+    listener:
+      concurrency: 3  # ✅ Production 환경에서 증가
+
+
+  # ✅ Redis - K8s Service 이름 사용
+  data:
+    redis:
+      host: mkx-redis-service  # K8s Service 이름
+      port: 6379
+      database: 3
+      timeout: 5000ms
+      lettuce:
+        pool:
+          max-active: 50  # ✅ Production 환경에서 증가
+          max-idle: 20
+          min-idle: 10
+          max-wait: 3000ms
+        shutdown-timeout: 200ms
+
+# ✅ InfluxDB - K8s Service 이름 사용
+influx:
+  url: http://influxdb-service:8086  # K8s Service 이름
+  token: ${INFLUX_TOKEN}  # Secret에서 주입
+  org: MKX
+  bucket: MKX_MarketData
+  candle-bucket: MKX_CandleData
+
+kafka:
+  topics:
+    executions: executions
+    order-status: order-status
+
+# ✅ WebSocket 설정 - Production 도메인
+websocket:
+  endpoint: /ws
+  allowed-origins:
+    - https://trading.mk-exchange.shop  # ✅ 실제 프로덕션 도메인
+    - https://www.trading.mk-exchange.shop
+    - https://managing.mk-exchange.shop
+  sockjs:
+    enabled: true
+    heartbeat-time: 25000
+  stomp:
+    heartbeat:
+      incoming: 10000
+      outgoing: 10000
+  transport:
+    message-size-limit: 8192
+    send-buffer-size-limit: 524288
+    send-time-limit: 20000
+
+# ✅ Redis Pub/Sub 채널 설정
+redis:
+  pubsub:
+    channels:
+      orderbook: market:orderbook
+      trades: market:trades
+      price: market:price
+      chart: market:chart
+      indicator: market:indicator
+      summary: market:summary
+    private-channel-pattern: user:*
+
+market-data:
+  dynamic-subscription:
+    enabled: true
+    auto-unsubscribe: true  # ✅ Production에서는 true
+
+# ✅ Logging - Production 레벨
+logging:
+  level:
+    root: INFO
+    com.beyond.MKX: INFO  # ✅ DEBUG → INFO
+    org.springframework.cloud.gateway: WARN
+    org.springframework.web.socket: WARN
+    org.springframework.messaging: WARN
+    org.springframework.messaging.simp: WARN
+    org.springframework.web.socket.messaging: WARN
+
+jwt:
+  expirationAt: 900000      # 15분
+  secretKeyAt: ${JWT_SECRET_AT}  # 운영환경에서는 환경변수로 주입
+  expirationRt: 604800000   # 7일
+  secretKeyRt: ${JWT_SECRET_RT}
+
+# Rate Limiting 설정
+rate-limit:
+  websocket:
+    messages-per-second: 100
+    burst-capacity: 200
+
+# ✅ Matching Engine Redis Cluster - K8s Service 사용
+matching-engine:
+  redis:
+    cluster:
+      nodes:
+        - ${REDIS_CLUSTER_ENDPOINT}:6379
+      max-redirects: 5
+
+# ✅ Feign Client 설정 (MSA 서비스 간 통신)
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 5000
+        loggerLevel: basic
+

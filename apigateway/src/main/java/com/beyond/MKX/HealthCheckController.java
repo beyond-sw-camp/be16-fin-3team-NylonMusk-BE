@@ -9,6 +9,6 @@ public class HealthCheckController {
 
     @GetMapping("/health")
     public String healthCheck() {
-        return "api-gateway OK";
+        return "api-gateway OK / 1109Sunday1500";
     }
 }

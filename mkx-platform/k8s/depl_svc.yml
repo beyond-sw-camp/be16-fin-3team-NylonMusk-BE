@@ -1,0 +1,139 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mkx-platform-depl
+  namespace: mkx
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: mkx-platform
+  template:
+    metadata:
+      labels:
+        app: mkx-platform
+    spec:
+      containers:
+      - name: mkx-platform-container
+        image: 148761635844.dkr.ecr.ap-northeast-2.amazonaws.com/mkx/mkx-platform:latest
+        ports:
+        - containerPort: 8080
+        # 리소스 설정 (HPA 필수, 다양한 기능, 5개 노드 최적화)
+        resources:
+          requests:
+            cpu: "400m"
+            memory: "768Mi"
+          limits:
+            cpu: "1200m"
+            memory: "1536Mi"
+        # 아래의 name과 application.yml의 ${}의 변수명과 일치해야함
+        env:
+        - name: DB_HOST_1
+          valueFrom:
+            secretKeyRef:
+              name: mkx-secrets
+              key: DB_HOST_1
+        - name: DB_PORT_1
+          valueFrom:
+            secretKeyRef:
+              name: mkx-secrets
+              key: DB_PORT_1
+        - name: DB_PASSWORD_1
+          valueFrom:
+            secretKeyRef:
+              name: mkx-secrets
+              key: DB_PASSWORD_1
+        - name: EMAIL_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: mkx-secrets
+              key: EMAIL_USERNAME
+        - name: EMAIL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mkx-secrets
+              key: EMAIL_PASSWORD
+        - name: S3_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: mkx-secrets
+              key: S3_ACCESS_KEY
+        - name: S3_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: mkx-secrets
+              key: S3_SECRET_KEY
+        - name: AWS_S3_BUCKET
+          valueFrom:
+            secretKeyRef:
+              name: mkx-secrets
+              key: AWS_S3_BUCKET
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: mkx-secrets
+              key: OPENAI_API_KEY
+        - name: JWT_SECRET_AT
+          valueFrom:
+            secretKeyRef:
+              name: mkx-secrets
+              key: JWT_SECRET_AT
+        - name: JWT_SECRET_RT
+          valueFrom:
+            secretKeyRef:
+              name: mkx-secrets
+              key: JWT_SECRET_RT
+        - name: ADMIN_EMAIL
+          valueFrom:
+            secretKeyRef:
+              name: mkx-secrets
+              key: ADMIN_EMAIL
+        - name: ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mkx-secrets
+              key: ADMIN_PASSWORD
+        - name: NCP_CAPTCHA_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: mkx-secrets
+              key: NCP_CAPTCHA_CLIENT_ID
+        - name: NCP_OCR_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: mkx-secrets
+              key: NCP_OCR_SECRET
+        - name: NCP_CAPTCHA_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: mkx-secrets
+              key: NCP_CAPTCHA_SECRET_KEY
+        # KAFKA Notification 관련 설정
+        - name: SPRING_KAFKA_CONSUMER_NOTIFICATION_GROUP_ID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        # 컨테이너 상태 확인을 통해 롤링업데이트 최적화 
+        readinessProbe:
+          httpGet:
+            # healthcheck 경로
+            path: /health
+            port: 8080
+          # 컨테이너 시작 후 지연
+          initialDelaySeconds: 10
+          # 확인 반복 주기
+          periodSeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mkx-platform-service
+  namespace: mkx
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8080
+  selector:
+    app: mkx-platform

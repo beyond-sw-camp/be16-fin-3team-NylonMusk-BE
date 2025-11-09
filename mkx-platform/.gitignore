@@ -38,5 +38,9 @@ out/
 
 ### yml설정 ###
 application-local.yml
+<<<<<<< HEAD
+
+=======
+>>>>>>> 819509fc1301d7ea876db571185f38b6dc2b3f97
 ### macOS ###
 .DS_Store

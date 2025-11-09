@@ -1,0 +1,47 @@
+server:
+  port: 8080
+
+eureka:
+  client:
+    enabled: false
+
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  application:
+    name: trading-bot-service
+
+  datasource:
+    driver-class-name: org.mariadb.jdbc.Driver
+    url: jdbc:mariadb://${DB_HOST_1}:${DB_PORT_1}/trading_bot
+    username: admin
+    password: ${DB_PASSWORD_1}
+    hikari:
+      maximum-pool-size: 4
+
+  jpa:
+    database: mysql
+    database-platform: org.hibernate.dialect.MariaDBDialect
+    generate-ddl: true
+    hibernate:
+      ddl-auto: update
+    show_sql: true
+
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 10000
+        loggerLevel: basic
+  hystrix:
+    enabled: false
+
+logging:
+  level:
+    root: INFO
+    org.hibernate.SQL: WARN
+    org.springframework: INFO
+    com.beyond.MKX: INFO

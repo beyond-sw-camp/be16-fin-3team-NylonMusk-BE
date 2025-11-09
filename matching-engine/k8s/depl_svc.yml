@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: matching-engine-depl
+  namespace: mkx
+spec:
+  replicas: 2  # 고정 (순서 보장 및 고가용성)
+  selector:
+    matchLabels:
+      app: matching-engine
+  template:
+    metadata:
+      labels:
+        app: matching-engine
+    spec:
+      containers:
+      - name: matching-engine-container
+        image: 148761635844.dkr.ecr.ap-northeast-2.amazonaws.com/mkx/matching-engine:latest
+        ports:
+        - containerPort: 8080
+        # 리소스 설정 (중요 서비스, 고정 레플리카, 5개 노드 최적화)
+        resources:
+          requests:
+            cpu: "800m"
+            memory: "1200Mi"
+          limits:
+            cpu: "1800m"
+            memory: "2560Mi"
+        env:
+        - name: REDIS_CLUSTER_ENDPOINT
+          valueFrom:
+            secretKeyRef:
+              name: mkx-secrets
+              key: REDIS_CLUSTER_ENDPOINT
+        readinessProbe:
+          httpGet:
+            # healthcheck 경로
+            path: /health
+            port: 8080
+          # 컨테이너 시작 후 지연
+          initialDelaySeconds: 10
+          # 확인 반복 주기
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: matching-engine-service
+  namespace: mkx
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8080
+  selector:
+    app: matching-engine

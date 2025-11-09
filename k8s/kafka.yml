@@ -1,0 +1,108 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-deployment
+  namespace: mkx
+spec:
+  replicas: 1
+  # 어떤 파드를 이 ReplicaSet이 관리할지 결정
+  selector:
+    matchLabels:
+      app: kafka
+  template:
+    metadata:
+      # Service의 selector와 일치해야 서비스 연결 가능
+      labels:
+        app: kafka
+    spec:
+      containers:
+        - name: kafka
+          image: apache/kafka:3.7.0
+          ports:
+            - containerPort: 9092  # 내부 브로커 포트(클러스터 내 접근)
+            - containerPort: 9093  # KRaft 컨트롤러 포트
+          # 리소스 설정 (중요 인프라, 5개 노드 최적화)
+          resources:
+            requests:
+              cpu: "400m"
+              memory: "768Mi"
+            limits:
+              cpu: "1600m"
+              memory: "1536Mi"
+          env:
+            # KRaft 단일 브로커 구성
+            - name: KAFKA_NODE_ID
+              value: "1"
+            - name: KAFKA_PROCESS_ROLES
+              value: "broker,controller"
+
+            # 컨테이너가 바인딩할 리스너(내부/컨트롤러만)
+            - name: KAFKA_LISTENERS
+              value: "PLAINTEXT_INTERNAL://:9092,CONTROLLER://:9093"
+
+            # 클라이언트에게 알려줄 접근 주소(내부 DNS만 사용)
+            # ↓ 서비스 DNS로 고정하므로 파드 재시작/재스케줄 영향 최소화
+            - name: KAFKA_ADVERTISED_LISTENERS
+              value: "PLAINTEXT_INTERNAL://kafka-service:9092"
+
+            # 리스너 프로토콜 매핑
+            - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+              value: "PLAINTEXT_INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT"
+
+            # 브로커 간 통신에 사용할 리스너명
+            - name: KAFKA_INTER_BROKER_LISTENER_NAME
+              value: "PLAINTEXT_INTERNAL"
+
+            # 컨트롤러 리스너명
+            - name: KAFKA_CONTROLLER_LISTENER_NAMES
+              value: "CONTROLLER"
+
+            # 단일 노드 KRaft 투표자(컨트롤러 주소는 내부 DNS 사용)
+            - name: KAFKA_CONTROLLER_QUORUM_VOTERS
+              value: "1@kafka-service:9093"
+
+            # 데이터/로그 경로 및 운영 파라미터
+            - name: KAFKA_LOG_DIRS
+              value: "/tmp/kraft-combined-logs"
+            - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE
+              value: "true"
+            - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_NUM_PARTITIONS
+              value: "4"
+            - name: KAFKA_LOG_RETENTION_HOURS
+              value: "168"
+          volumeMounts:
+            - name: kafka-data
+              mountPath: /tmp/kraft-combined-logs  # KRaft 로그/데이터 경로
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2000m"
+              memory: "2Gi"
+      volumes:
+        # 데모/내부 테스트면 emptyDir로 충분.
+        # 영속 필요 시 PVC로 교체(아래 예시 참고).
+        - name: kafka-data
+          emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  # 내부 전용 접근 엔드포인트(DNS: mkx-kafka.mkx.svc.cluster.local)
+  name: kafka-service
+  namespace: mkx
+spec:
+  type: ClusterIP
+  ports:
+    - name: broker-internal
+      port: 9092       # 서비스 포트
+      targetPort: 9092 # 파드 컨테이너 포트
+    - name: controller
+      port: 9093
+      targetPort: 9093
+  selector:
+    app: kafka

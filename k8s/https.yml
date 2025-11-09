@@ -1,0 +1,42 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: mkx-issuer
+spec:
+  acme:
+  # ca 서버 주소. 해당 서버를 통해 인증서 발행
+    server: https://acme-v02.api.letsencrypt.org/directory
+  # 인증서 만료 또는 갱신 필요시 알람 email
+    email: hyungkey0601@gmail.com
+    privateKeySecretRef:
+    # 인증서를 발급받기 위해 ca와 통신시에 사용되는 Secret 이름(중요X)
+      name: mkx-issuer
+    solvers:
+    - http01:
+        ingress:
+        # 도메인의 소유권을 확인하기 위해 cert-manager는 nginx기반의 ingress controller를 활용해 검증한다는 의미
+          class: nginx
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: server-mk-exchange-shop-tls
+  namespace: mkx
+spec:
+# cert-manager가 아래 secretName에서 지정한 이름으로 Secret을 생성
+  secretName: server-mk-exchange-shop-tls
+  duration: 2160h #90day
+  renewBefore: 360h #before 15day
+  issuerRef:
+  # ClusterIssuer의 이름을 참조
+    name: mkx-issuer
+    kind: ClusterIssuer
+  dnsNames:
+    - server.mk-exchange.shop
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  # commonName과 dnsNames 중에 dnsNames가 중요하다.
+  # 추가적인 서브도메인을 추가하고 싶은경우에 여기에 나열
+  # - server.mk-exchange.shop
+  # - monitor.mk-exchange.shop

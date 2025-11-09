@@ -17,7 +17,7 @@ import java.util.UUID;
  * - 서비스명: mkx-platform-service (Eureka 등록명)
  * - 엔드포인트: GET /api/internal/admins/{adminId}/brokerage-id
  */
-@FeignClient(name = "mkx-platform-service", contextId = "adminInternalClient")
+@FeignClient(name = "mkx-platform-service", contextId = "adminInternalClient", url = "http://mkx-platform-service")
 public interface AdminInternalClient {
 
     /**

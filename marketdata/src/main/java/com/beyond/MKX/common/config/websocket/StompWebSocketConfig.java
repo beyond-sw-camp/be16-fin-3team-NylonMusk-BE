@@ -44,7 +44,7 @@ public class StompWebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 .setAllowedOrigins(
                         "http://localhost:3000",
                         "http://localhost:3001",
-                        "https://yourdomain.com"
+                        "https://www.trading.mk-exchange.shop"
                 )
                 .withSockJS();
 

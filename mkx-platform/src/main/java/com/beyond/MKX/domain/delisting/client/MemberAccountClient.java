@@ -19,7 +19,7 @@ import java.util.UUID;
  * @author MKX Platform Team
  * @since 2025-01-15
  */
-@FeignClient(name = "ordering-service", path = "/api/internal/member-accounts", contextId = "delistingMemberAccountClient", url = "http://ordering-service")
+@FeignClient(name = "ordering-service", path = "/api/internal/member-accounts", contextId = "delistingMemberAccountClient", url = "${feign.client.url.ordering-service}")
 public interface MemberAccountClient {
 
     /**

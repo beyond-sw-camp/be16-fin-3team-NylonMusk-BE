@@ -60,6 +60,11 @@ openai:
   enabled: true
   max-rpm: 5
 
+feign:
+  client:
+    url:
+      mkx-platform-service: "http://mkx-platform-service"
+
 news:
   analysis:
     fixed-delay-ms: 120000

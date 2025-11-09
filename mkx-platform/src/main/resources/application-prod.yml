@@ -70,6 +70,10 @@ feign:
   httpclient:
     enabled: true
   client:
+    url:
+      community-service: "http://community-service"
+      market-data-service: "http://market-data-service"
+      ordering-service: "http://ordering-service"
     config:
       default:
         connectTimeout: 3000

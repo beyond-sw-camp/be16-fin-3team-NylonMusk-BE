@@ -9,7 +9,7 @@ import java.util.Map;
 /**
  * community 서비스의 뉴스 재매핑 API를 호출하는 FeignClient
  */
-@FeignClient(name = "community-service", contextId = "newsRemappingClient", url = "http://community-service")
+@FeignClient(name = "community-service", contextId = "newsRemappingClient", url = "${feign.client.url.community-service}")
 public interface NewsRemappingClient {
 
     @PostMapping("/api/internal/news-articles/remap")

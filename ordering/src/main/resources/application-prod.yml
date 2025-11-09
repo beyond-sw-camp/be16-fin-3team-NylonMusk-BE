@@ -49,6 +49,11 @@ spring:
       timeout: 3000
 
 
+feign:
+  client:
+    url:
+      mkx-platform-service: "http://mkx-platform-service"
+
 notification:
   ttl-seconds:
     execution: 180

@@ -128,6 +128,8 @@ matching-engine:
 # ✅ Feign Client 설정 (MSA 서비스 간 통신)
 feign:
   client:
+    url:
+      mkx-platform-service: "http://mkx-platform-service"
     config:
       default:
         connectTimeout: 5000

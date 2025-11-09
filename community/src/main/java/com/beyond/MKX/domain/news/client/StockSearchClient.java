@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import java.util.List;
 import java.util.UUID;
 
-@FeignClient(name = "mkx-platform-service", contextId = "stockSearchClient", url = "http://mkx-platform-service")
+@FeignClient(name = "mkx-platform-service", contextId = "stockSearchClient", url = "${feign.client.url.mkx-platform-service}")
 public interface StockSearchClient {
 
     @GetMapping("/api/stocks")

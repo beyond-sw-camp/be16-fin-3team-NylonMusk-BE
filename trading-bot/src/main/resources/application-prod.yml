@@ -31,6 +31,9 @@ spring:
 
 feign:
   client:
+    url:
+      market-data-service: "http://market-data-service"
+      ordering-service: "http://ordering-service"
     config:
       default:
         connectTimeout: 5000

@@ -2,7 +2,6 @@ package com.beyond.MKX.common.config.websocket;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
@@ -26,29 +25,28 @@ public class StompWebSocketConfig implements WebSocketMessageBrokerConfigurer {
     private final OptionalAuthChannelInterceptor optionalAuthChannelInterceptor;
     private final RateLimitingInterceptor rateLimitingInterceptor;
 
-    @Value("${spring.data.redis.host:localhost}")
-    private String redisHost;
-
-    @Value("${spring.data.redis.port:6379}")
-    private int redisPort;
-
     /**
      * STOMP 엔드포인트 등록
      *
      * SockJS fallback 지원
+     * 
+     * ⚠️ 주의: setAllowedOriginPatterns와 setAllowedOrigins를 동시에 사용할 수 없음
+     * setAllowCredentials(true)를 사용하므로 setAllowedOrigins 사용 (와일드카드 불가)
      */
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*")
                 .setAllowedOrigins(
                         "http://localhost:3000",
                         "http://localhost:3001",
-                        "https://www.trading.mk-exchange.shop"
+                        "https://trading.mk-exchange.shop",
+                        "https://www.trading.mk-exchange.shop",
+                        "https://managing.mk-exchange.shop"
                 )
                 .withSockJS();
 
         log.info("[STOMP] ✅ Registered STOMP endpoint: /ws with SockJS");
+        log.info("[STOMP]   - Allowed origins: localhost:3000, localhost:3001, trading.mk-exchange.shop");
     }
 
     /**

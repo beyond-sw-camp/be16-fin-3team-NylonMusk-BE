@@ -293,12 +293,9 @@
   <section id="architecture">
     <h2>18) 시스템 아키텍처</h2>
     <div class="card">
-      <p><!-- 예: MSA 구조(Exchange, MarketData, MatchingEngine, Brokerage, Community 등) --></p>
-      <p><!-- 예: Kafka Topic (orders, executions, order-status), Redis Cluster, MariaDB Replication 등 --></p>
-      <p align="center"><img src="#" alt="시스템 아키텍처 다이어그램" width="800"></p>
+      <p align="center"><img src="https://github.com/user-attachments/assets/b303dbc7-93a0-43cf-8143-24cf18d62ae9" alt="시스템 아키텍처 다이어그램" width="800"></p>
     </div>
   </section>
-  <!-- ✅ 추가된 섹션 끝 -->
 
   <hr/>
 

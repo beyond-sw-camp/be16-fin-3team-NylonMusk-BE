@@ -246,19 +246,26 @@ public class CandleConfirmationScheduler {
     private void updateTrackedTickers() {
         try {
             Set<String> tickers = new HashSet<>();
+            int filteredCount = 0;
             
             // ✅ 기본 종목 세트 추가 (테스트/개발용)
             String defaultTickers = "MKX001,MKX002,MKX003,MKX004,MKX005,MKX006,MKX007,MKX008,MKX009,MKX010";
             tickers.addAll(Arrays.asList(defaultTickers.split(",")));
             log.info("[CANDLE/CONFIRM] Added default tickers: {}", defaultTickers);
             
-            // Redis에서 활성 종목 추가 수집
+            // ✅ 개선: Redis에서 활성 종목 추가 수집 (유효성 검증 포함)
             Set<String> candleKeys = redisTemplate.keys("candle:*:*");
             if (candleKeys != null) {
                 for (String key : candleKeys) {
                     String[] parts = key.split(":");
                     if (parts.length >= 2) {
-                        tickers.add(parts[1]);
+                        String ticker = parts[1];
+                        if (isValidTicker(ticker)) {
+                            tickers.add(ticker);
+                        } else {
+                            filteredCount++;
+                            log.debug("[CANDLE/CONFIRM] Filtered invalid ticker from candle key: {}", ticker);
+                        }
                     }
                 }
             }
@@ -267,7 +274,12 @@ public class CandleConfirmationScheduler {
             if (orderBookKeys != null) {
                 for (String key : orderBookKeys) {
                     String ticker = key.substring("orderbook:".length());
-                    tickers.add(ticker);
+                    if (isValidTicker(ticker)) {
+                        tickers.add(ticker);
+                    } else {
+                        filteredCount++;
+                        log.debug("[CANDLE/CONFIRM] Filtered invalid ticker from orderbook key: {}", ticker);
+                    }
                 }
             }
             
@@ -275,17 +287,54 @@ public class CandleConfirmationScheduler {
             if (priceKeys != null) {
                 for (String key : priceKeys) {
                     String ticker = key.substring("price:".length());
-                    tickers.add(ticker);
+                    if (isValidTicker(ticker)) {
+                        tickers.add(ticker);
+                    } else {
+                        filteredCount++;
+                        log.debug("[CANDLE/CONFIRM] Filtered invalid ticker from price key: {}", ticker);
+                    }
                 }
             }
             
             trackedTickers.clear();
             trackedTickers.addAll(tickers);
             
-            log.info("[CANDLE/CONFIRM] Total tracked tickers: {} - {}", trackedTickers.size(), trackedTickers);
+            log.info("[CANDLE/CONFIRM] Total tracked tickers: {} (filtered: {}) - {}", 
+                    trackedTickers.size(), filteredCount, trackedTickers);
             
         } catch (Exception e) {
             log.error("[CANDLE/CONFIRM] Failed to update tickers", e);
         }
+    }
+    
+    /**
+     * ✅ Ticker 유효성 검증
+     * 
+     * 잘못된 ticker 데이터로 인한 CPU 과부하 방지
+     * - prev_로 시작하는 메타데이터 키 제외
+     * - 콜론(:)이 포함된 비정상 ticker 제외
+     * - 정상적인 ticker 패턴만 허용 (영대문자+숫자)
+     * 
+     * @param ticker 검증할 ticker
+     * @return 유효하면 true
+     */
+    private boolean isValidTicker(String ticker) {
+        if (ticker == null || ticker.isEmpty()) {
+            return false;
+        }
+        
+        // prev_로 시작하는 메타데이터 키 제외
+        if (ticker.startsWith("prev_")) {
+            return false;
+        }
+        
+        // 콜론이 포함된 비정상 ticker 제외 (예: "prev_close:DEPL03")
+        if (ticker.contains(":")) {
+            return false;
+        }
+        
+        // 정상적인 ticker 패턴 (대문자+숫자 조합, 3~10자리)
+        // 예: DEPL04, MKX001, AAPL, GOOGL
+        return ticker.matches("^[A-Z][A-Z0-9]{2,9}$");
     }
 }

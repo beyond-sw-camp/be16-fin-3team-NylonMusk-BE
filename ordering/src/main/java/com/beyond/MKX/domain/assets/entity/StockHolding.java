@@ -84,4 +84,8 @@ public class StockHolding extends BaseIdAndTimeEntity {
         this.totalPurchasePrice = Math.subtractExact(this.totalPurchasePrice, totalAmount);
     }
 
+    public void resetTotalPurchasePrice() {
+        this.totalPurchasePrice = 0L;
+    }
+
 }

@@ -44,7 +44,7 @@ public class MarketRankReaderService {
      * 오늘 날짜의 등락률 상위 30개 조회 (상승률)
      */
     public List<MarketStockListResDTO> getTodayTop30BySoarChangeRate() {
-        LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+        LocalDate today = LocalDate.now(ZoneId.of("UTC"));
         return getTop30ByChangeRate(today, ChangeRateType.SOAR);
     }
 
@@ -52,7 +52,7 @@ public class MarketRankReaderService {
      * 오늘 날짜의 등락률 하위 30개 조회 (하락률)
      */
     public List<MarketStockListResDTO> getTodayTop30ByDescentChangeRate() {
-        LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+        LocalDate today = LocalDate.now(ZoneId.of("UTC"));
         return getTop30ByChangeRate(today, ChangeRateType.DESCENT);
     }
 
@@ -60,7 +60,7 @@ public class MarketRankReaderService {
      * 오늘 날짜의 거래대금 상위 30개 조회
      */
     public List<MarketStockListResDTO> getTodayTop30ByTradingValue() {
-        LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+        LocalDate today = LocalDate.now(ZoneId.of("UTC"));
         return getTop30ByTradingValue(today);
     }
 
@@ -68,7 +68,7 @@ public class MarketRankReaderService {
      * 오늘 날짜의 거래량 상위 30개 조회
      */
     public List<MarketStockListResDTO> getTodayTop30ByTradingVolume() {
-        LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+        LocalDate today = LocalDate.now(ZoneId.of("UTC"));
         return getTop30ByTradingVolume(today);
     }
 
@@ -275,7 +275,7 @@ public class MarketRankReaderService {
      * 상승률 TOP 3 조회
      */
     private List<CardSectionItemDTO> getTop3ByChangeRate() {
-        LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+        LocalDate today = LocalDate.now(ZoneId.of("UTC"));
         String dateStr = today.format(DateTimeFormatter.BASIC_ISO_DATE);
         String key = RANK_CHANGE_RATE_KEY + dateStr;
 
@@ -296,7 +296,7 @@ public class MarketRankReaderService {
      * 거래량 TOP 3 조회
      */
     private List<CardSectionItemDTO> getTop3ByTradingVolume() {
-        LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+        LocalDate today = LocalDate.now(ZoneId.of("UTC"));
         String dateStr = today.format(DateTimeFormatter.BASIC_ISO_DATE);
         String key = RANK_VOLUME_KEY + dateStr;
 

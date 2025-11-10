@@ -20,11 +20,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -38,6 +38,16 @@ public class TradingBotService {
     private final OrderClient orderClient;
     private final TradingBotConfigRepository configRepository;
     private final ObjectMapper objectMapper;
+    
+    // 각 봇의 마지막 주문 시간을 추적 (주문 빈도 제어)
+    private final Map<UUID, LocalDateTime> lastOrderTimeMap = new ConcurrentHashMap<>();
+    
+    // 최소 주문 간격 (밀리초) - 랜덤하게 500ms~2000ms 사이 (더 빠르게)
+    private static final long MIN_ORDER_INTERVAL_MS = 500;
+    private static final long MAX_ORDER_INTERVAL_MS = 2000;
+    
+    // 거래량 데이터 쌓기용 봇 간격 (25초)
+    private static final long VOLUME_BUILDING_INTERVAL_MS = 25000;
 
     /**
      * 봇 설정 생성
@@ -120,7 +130,7 @@ public class TradingBotService {
     }
 
     /**
-     * 자동 트레이딩 실행 (50ms마다 실행)
+     * 자동 트레이딩 실행 (500ms마다 실행, 하지만 각 봇은 랜덤 간격으로 주문)
      */
     @Scheduled(fixedDelay = 500)
     public void executeTrading() {
@@ -135,7 +145,15 @@ public class TradingBotService {
 
             for (TradingBotConfig bot : activeBots) {
                 try {
+                    // 주문 간격 체크 - 마지막 주문 후 일정 시간이 지나지 않으면 스킵
+                    if (shouldSkipOrder(bot)) {
+                        continue;
+                    }
+                    
                     executeOrder(bot);
+                    
+                    // 주문 성공 시 마지막 주문 시간 업데이트
+                    lastOrderTimeMap.put(bot.getId(), LocalDateTime.now());
                 } catch (Exception e) {
                     log.error("Failed to execute order for bot {}: {}", bot.getId(), e.getMessage());
                     updateBotStatus(bot, BotExecutionStatus.ERROR, "예상치 못한 에러: " + e.getMessage());
@@ -144,6 +162,51 @@ public class TradingBotService {
         } catch (Exception e) {
             log.error("Error in scheduled trading execution: {}", e.getMessage());
         }
+    }
+    
+    /**
+     * 주문을 스킵해야 하는지 판단 (주문 빈도 제어)
+     */
+    private boolean shouldSkipOrder(TradingBotConfig bot) {
+        LocalDateTime lastOrderTime = lastOrderTimeMap.get(bot.getId());
+        
+        // 첫 주문이거나 마지막 주문 시간이 없으면 주문 실행
+        if (lastOrderTime == null) {
+            return false;
+        }
+        
+        // 마지막 주문 후 경과 시간 계산 (밀리초 단위)
+        long millisSinceLastOrder = java.time.Duration.between(lastOrderTime, LocalDateTime.now()).toMillis();
+        
+        // 거래량 데이터 쌓기용 봇인지 확인 (description에 "거래량" 또는 "VOLUME" 포함)
+        boolean isVolumeBuildingBot = bot.getDescription() != null && 
+                                      (bot.getDescription().contains("거래량") || 
+                                       bot.getDescription().contains("VOLUME") ||
+                                       bot.getDescription().contains("차트"));
+        
+        if (isVolumeBuildingBot) {
+            // 거래량 데이터 쌓기용 봇: 25초마다 한 번씩만 주문
+            if (millisSinceLastOrder < VOLUME_BUILDING_INTERVAL_MS) {
+                return true;
+            }
+            return false; // 25초가 지났으면 주문 실행
+        }
+        
+        // 일반 봇: 랜덤한 최소 간격 계산 (각 봇마다 다른 간격 사용)
+        long minInterval = MIN_ORDER_INTERVAL_MS + 
+                          (long)(Math.random() * (MAX_ORDER_INTERVAL_MS - MIN_ORDER_INTERVAL_MS));
+        
+        // 간격이 지나지 않았으면 스킵
+        if (millisSinceLastOrder < minInterval) {
+            return true;
+        }
+        
+        // 추가로 20% 확률로 랜덤 스킵 (더 빠른 주문을 위해 확률 낮춤)
+        if (Math.random() < 0.2) {
+            return true;
+        }
+        
+        return false;
     }
 
     /**
@@ -161,25 +224,66 @@ public class TradingBotService {
             }
 
             // 2. 매수/매도 가격 계산 (각각 다른 가격대)
+            // 거래량 데이터 쌓기용 봇인지 확인
+            boolean isVolumeBuildingBot = bot.getDescription() != null && 
+                                          (bot.getDescription().contains("거래량") || 
+                                           bot.getDescription().contains("VOLUME") ||
+                                           bot.getDescription().contains("차트"));
+            
             Long buyPrice = null;
             Long sellPrice = null;
             
             if (bot.getBuyAccountId() != null) {
-                buyPrice = calculateBuyPrice(currentPrice, bot.getTradingStrategy());
+                if (isVolumeBuildingBot) {
+                    // 거래량 데이터 쌓기용: 가격 변동을 엄청 크게
+                    buyPrice = calculateVolumeBuildingBuyPrice(currentPrice);
+                } else {
+                    buyPrice = calculateBuyPrice(currentPrice, bot.getTradingStrategy());
+                }
                 if (buyPrice == null) {
                     log.warn("Bot {}: 매수 가격 계산 실패", bot.getId());
                 }
             }
             
             if (bot.getSellAccountId() != null) {
-                sellPrice = calculateSellPrice(currentPrice, bot.getTradingStrategy());
+                if (isVolumeBuildingBot) {
+                    // 거래량 데이터 쌓기용: 가격 변동을 엄청 크게
+                    sellPrice = calculateVolumeBuildingSellPrice(currentPrice);
+                } else {
+                    sellPrice = calculateSellPrice(currentPrice, bot.getTradingStrategy());
+                }
                 if (sellPrice == null) {
                     log.warn("Bot {}: 매도 가격 계산 실패", bot.getId());
                 }
             }
 
-            // 3. 주문 수량 결정 (기본 수량 사용)
-            Long quantity = bot.getQuantity().longValue();
+            // 3. 주문 수량 결정 (큰 수량으로 단일 주문, 부분체결 방지)
+            long baseQuantity = bot.getQuantity().longValue();
+            
+            // 호가 layer마다 큰 주문량이 쌓이도록 (부분체결 최소화)
+            // 대부분 큰 수량, 가끔 매우 큰 수량
+            double random = Math.random();
+            long quantity;
+            
+            if (random < 0.7) {
+                // 70% 확률: 큰 수량 (기본의 150% ~ 300%)
+                long minQty = (long)(baseQuantity * 1.5);
+                long maxQty = (long)(baseQuantity * 3.0);
+                quantity = minQty + (long)(Math.random() * (maxQty - minQty + 1));
+            } else if (random < 0.9) {
+                // 20% 확률: 매우 큰 수량 (기본의 300% ~ 500%)
+                long minQty = (long)(baseQuantity * 3.0);
+                long maxQty = (long)(baseQuantity * 5.0);
+                quantity = minQty + (long)(Math.random() * (maxQty - minQty + 1));
+            } else {
+                // 10% 확률: 중간 수량 (기본의 100% ~ 150%) - 다양성을 위해
+                long minQty = baseQuantity;
+                long maxQty = (long)(baseQuantity * 1.5);
+                quantity = minQty + (long)(Math.random() * (maxQty - minQty + 1));
+            }
+            
+            // 최소 1주 보장
+            quantity = Math.max(1, quantity);
             int successCount = 0;
             boolean hasFailure = false;
 
@@ -461,94 +565,272 @@ public class TradingBotService {
 
     /**
      * 매수 가격 계산 (현재가보다 낮게 설정하여 체결 유도)
-     * 10원 단위로 가격 변동
+     * 현재가에 따라 적절한 단위(10원 또는 50원)로 가격 반올림
      */
     private Long calculateBuyPrice(Long currentPrice, TradingStrategy strategy) {
         if (currentPrice == null || currentPrice <= 0) {
             return null;
         }
 
-        // 기본: 현재가보다 10원 ~ 100원 낮게 매수
-        long baseOffset = 10 + (long)(Math.random() * 90); // 10 ~ 100원
+        // 기본: 현재가의 0.1% ~ 2% 낮게 매수 (현재가 기반으로 dynamic하게)
+        long baseOffsetMin = (long)(currentPrice * 0.001); // 0.1%
+        long baseOffsetMax = (long)(currentPrice * 0.02);  // 2%
+        long baseOffset = baseOffsetMin + (long)(Math.random() * (baseOffsetMax - baseOffsetMin));
+        baseOffset = Math.max(10, Math.min(baseOffset, 1000)); // 최소 10원, 최대 1000원
         
         if (strategy == null) {
-            return Math.max(currentPrice - baseOffset, 1L);
+            // 추가 랜덤 요소: ±10% 변동
+            double randomVariation = 0.9 + (Math.random() * 0.2); // 0.9 ~ 1.1
+            baseOffset = (long)(baseOffset * randomVariation);
+            long calculatedPrice = Math.max(currentPrice - baseOffset, 1L);
+            return roundToAppropriateUnit(calculatedPrice, currentPrice);
         }
 
         long offset;
         switch (strategy) {
             case SIDEWAYS:
-                // 횡보: 현재가 -10원 ~ -100원
-                offset = 10 + (long)(Math.random() * 90);
+                // 횡보: 현재가의 0.1% ~ 2% 낮게 (더 넓은 범위)
+                long sidewaysMin = (long)(currentPrice * 0.001); // 0.1%
+                long sidewaysMax = (long)(currentPrice * 0.02);  // 2%
+                offset = sidewaysMin + (long)(Math.random() * (sidewaysMax - sidewaysMin));
+                // 최소 10원, 최대 1000원 보장
+                offset = Math.max(10, Math.min(offset, 1000));
                 break;
             case DOWNWARD:
-                // 하락: 현재가 -20원 ~ -200원
-                offset = 20 + (long)(Math.random() * 180);
+                // 하락: 현재가의 0.2% ~ 3% 낮게 (더 넓은 범위)
+                long downwardMin = (long)(currentPrice * 0.002); // 0.2%
+                long downwardMax = (long)(currentPrice * 0.03);  // 3%
+                offset = downwardMin + (long)(Math.random() * (downwardMax - downwardMin));
+                // 최소 20원, 최대 1500원 보장
+                offset = Math.max(20, Math.min(offset, 1500));
                 break;
             case UPWARD:
-                // 상승: 현재가 -5원 ~ -50원 (약간만 낮게)
-                offset = 5 + (long)(Math.random() * 45);
+                // 상승: 현재가의 0.05% ~ 1% 낮게 (더 넓은 범위)
+                long upwardMin = (long)(currentPrice * 0.0005); // 0.05%
+                long upwardMax = (long)(currentPrice * 0.01);   // 1%
+                offset = upwardMin + (long)(Math.random() * (upwardMax - upwardMin));
+                // 최소 5원, 최대 500원 보장
+                offset = Math.max(5, Math.min(offset, 500));
                 break;
             case SHARP_DOWN:
-                // 급하락: 현재가 -50원 ~ -500원
-                offset = 50 + (long)(Math.random() * 450);
+                // 급하락: 현재가의 0.5% ~ 5% 낮게 (더 넓은 범위로 팍팍 내리기)
+                long sharpDownMin = (long)(currentPrice * 0.005); // 0.5%
+                long sharpDownMax = (long)(currentPrice * 0.05);  // 5%
+                offset = sharpDownMin + (long)(Math.random() * (sharpDownMax - sharpDownMin));
+                // 최소 250원, 최대 2500원 보장
+                offset = Math.max(250, Math.min(offset, 2500));
                 break;
             case SHARP_UP:
-                // 급상승: 현재가 -5원 ~ -30원 (매우 작게)
-                offset = 5 + (long)(Math.random() * 25);
+                // 급상승: 현재가의 0.1% ~ 1.5% 낮게 (더 넓은 범위)
+                long sharpUpMin = (long)(currentPrice * 0.001); // 0.1%
+                long sharpUpMax = (long)(currentPrice * 0.015);  // 1.5%
+                offset = sharpUpMin + (long)(Math.random() * (sharpUpMax - sharpUpMin));
+                // 최소 100원, 최대 750원 보장
+                offset = Math.max(100, Math.min(offset, 750));
                 break;
             default:
-                offset = 10 + (long)(Math.random() * 90);
+                // 기본: 현재가의 0.1% ~ 2% 낮게
+                long defaultMin = (long)(currentPrice * 0.001);
+                long defaultMax = (long)(currentPrice * 0.02);
+                offset = defaultMin + (long)(Math.random() * (defaultMax - defaultMin));
+                offset = Math.max(10, Math.min(offset, 1000));
         }
+        
+        // 추가 랜덤 요소: ±15% 변동 (호가를 더 다양하게 분산)
+        double randomVariation = 0.85 + (Math.random() * 0.3); // 0.85 ~ 1.15
+        offset = (long)(offset * randomVariation);
 
         long calculatedPrice = currentPrice - offset;
         // 가격은 최소 1원 이상
-        return Math.max(calculatedPrice, 1L);
+        long finalPrice = Math.max(calculatedPrice, 1L);
+        // 현재가에 따라 적절한 단위로 반올림
+        return roundToAppropriateUnit(finalPrice, currentPrice);
+    }
+    
+    /**
+     * 거래량 데이터 쌓기용 매수 가격 계산 (가격 변동 엄청 크게, 완전 랜덤하게)
+     */
+    private Long calculateVolumeBuildingBuyPrice(Long currentPrice) {
+        if (currentPrice == null || currentPrice <= 0) {
+            return null;
+        }
+        
+        // 완전 랜덤: 가끔은 작게, 가끔은 엄청 크게
+        double random = Math.random();
+        double randomPercent;
+        
+        if (random < 0.2) {
+            // 20% 확률: 작은 변동 (5% ~ 10%)
+            randomPercent = 0.05 + (Math.random() * 0.05);
+        } else if (random < 0.5) {
+            // 30% 확률: 중간 변동 (10% ~ 20%)
+            randomPercent = 0.10 + (Math.random() * 0.10);
+        } else if (random < 0.8) {
+            // 30% 확률: 큰 변동 (20% ~ 35%)
+            randomPercent = 0.20 + (Math.random() * 0.15);
+        } else {
+            // 20% 확률: 엄청 큰 변동 (35% ~ 50%)
+            randomPercent = 0.35 + (Math.random() * 0.15);
+        }
+        
+        long offset = (long)(currentPrice * randomPercent);
+        
+        // 추가 완전 랜덤 요소: ±30% 변동
+        double randomVariation = 0.7 + (Math.random() * 0.6); // 0.7 ~ 1.3
+        offset = (long)(offset * randomVariation);
+        
+        // 최소 500원, 최대 15000원 보장 (더 넓은 범위)
+        offset = Math.max(500, Math.min(offset, 15000));
+        
+        long calculatedPrice = currentPrice - offset;
+        long finalPrice = Math.max(calculatedPrice, 1L);
+        return roundToAppropriateUnit(finalPrice, currentPrice);
+    }
+    
+    /**
+     * 거래량 데이터 쌓기용 매도 가격 계산 (가격 변동 엄청 크게, 완전 랜덤하게)
+     */
+    private Long calculateVolumeBuildingSellPrice(Long currentPrice) {
+        if (currentPrice == null || currentPrice <= 0) {
+            return null;
+        }
+        
+        // 완전 랜덤: 가끔은 작게, 가끔은 엄청 크게
+        double random = Math.random();
+        double randomPercent;
+        
+        if (random < 0.2) {
+            // 20% 확률: 작은 변동 (5% ~ 10%)
+            randomPercent = 0.05 + (Math.random() * 0.05);
+        } else if (random < 0.5) {
+            // 30% 확률: 중간 변동 (10% ~ 20%)
+            randomPercent = 0.10 + (Math.random() * 0.10);
+        } else if (random < 0.8) {
+            // 30% 확률: 큰 변동 (20% ~ 35%)
+            randomPercent = 0.20 + (Math.random() * 0.15);
+        } else {
+            // 20% 확률: 엄청 큰 변동 (35% ~ 50%)
+            randomPercent = 0.35 + (Math.random() * 0.15);
+        }
+        
+        long offset = (long)(currentPrice * randomPercent);
+        
+        // 추가 완전 랜덤 요소: ±30% 변동
+        double randomVariation = 0.7 + (Math.random() * 0.6); // 0.7 ~ 1.3
+        offset = (long)(offset * randomVariation);
+        
+        // 최소 500원, 최대 15000원 보장 (더 넓은 범위)
+        offset = Math.max(500, Math.min(offset, 15000));
+        
+        long calculatedPrice = currentPrice + offset;
+        return roundToAppropriateUnit(calculatedPrice, currentPrice);
+    }
+    
+    /**
+     * 가격을 현재가에 따라 적절한 단위로 반올림
+     * - 현재가 100원 미만: 10원 단위
+     * - 현재가 100원 이상: 50원 단위 (하지만 더 세밀한 분산을 위해 가끔 10원 단위도 허용)
+     * 
+     * 같은 가격대에 여러 주문이 쌓이지 않도록 가격을 더 다양하게 분산
+     */
+    private long roundToAppropriateUnit(long price, long currentPrice) {
+        if (currentPrice < 100) {
+            // 현재가가 100원 미만이면 10원 단위로 반올림
+            long rounded = Math.round(price / 10.0) * 10;
+            // 최소 10원 보장 (0원이 되지 않도록)
+            return Math.max(rounded, 10);
+        } else {
+            // 현재가가 100원 이상이면 주로 50원 단위, 가끔 10원 단위로 반올림
+            // 같은 가격대에 여러 주문이 쌓이지 않도록 더 세밀하게 분산
+            if (Math.random() < 0.3) {
+                // 30% 확률: 10원 단위로 반올림 (더 다양한 호가)
+                return Math.round(price / 10.0) * 10;
+            } else {
+                // 70% 확률: 50원 단위로 반올림
+                return Math.round(price / 50.0) * 50;
+            }
+        }
     }
 
     /**
      * 매도 가격 계산 (현재가보다 높게 설정하여 체결 유도)
-     * 10원 단위로 가격 변동
+     * 현재가에 따라 적절한 단위(10원 또는 50원)로 가격 반올림
      */
     private Long calculateSellPrice(Long currentPrice, TradingStrategy strategy) {
         if (currentPrice == null || currentPrice <= 0) {
             return null;
         }
 
-        // 기본: 현재가보다 10원 ~ 100원 높게 매도
-        long baseOffset = 10 + (long)(Math.random() * 90); // 10 ~ 100원
+        // 기본: 현재가의 0.1% ~ 2% 높게 매도 (현재가 기반으로 dynamic하게)
+        long baseOffsetMin = (long)(currentPrice * 0.001); // 0.1%
+        long baseOffsetMax = (long)(currentPrice * 0.02);  // 2%
+        long baseOffset = baseOffsetMin + (long)(Math.random() * (baseOffsetMax - baseOffsetMin));
+        baseOffset = Math.max(10, Math.min(baseOffset, 1000)); // 최소 10원, 최대 1000원
         
         if (strategy == null) {
-            return currentPrice + baseOffset;
+            // 추가 랜덤 요소: ±10% 변동
+            double randomVariation = 0.9 + (Math.random() * 0.2); // 0.9 ~ 1.1
+            baseOffset = (long)(baseOffset * randomVariation);
+            return roundToAppropriateUnit(currentPrice + baseOffset, currentPrice);
         }
 
         long offset;
         switch (strategy) {
             case SIDEWAYS:
-                // 횡보: 현재가 +10원 ~ +100원
-                offset = 10 + (long)(Math.random() * 90);
+                // 횡보: 현재가의 0.1% ~ 2% 높게 (더 넓은 범위)
+                long sidewaysSellMin = (long)(currentPrice * 0.001); // 0.1%
+                long sidewaysSellMax = (long)(currentPrice * 0.02);  // 2%
+                offset = sidewaysSellMin + (long)(Math.random() * (sidewaysSellMax - sidewaysSellMin));
+                // 최소 10원, 최대 1000원 보장
+                offset = Math.max(10, Math.min(offset, 1000));
                 break;
             case DOWNWARD:
-                // 하락: 현재가 +5원 ~ +50원 (약간만 높게)
-                offset = 5 + (long)(Math.random() * 45);
+                // 하락: 현재가의 0.05% ~ 1% 높게 (약간만 높게, 더 넓은 범위)
+                long downwardSellMin = (long)(currentPrice * 0.0005); // 0.05%
+                long downwardSellMax = (long)(currentPrice * 0.01);   // 1%
+                offset = downwardSellMin + (long)(Math.random() * (downwardSellMax - downwardSellMin));
+                // 최소 5원, 최대 500원 보장
+                offset = Math.max(5, Math.min(offset, 500));
                 break;
             case UPWARD:
-                // 상승: 현재가 +20원 ~ +200원
-                offset = 20 + (long)(Math.random() * 180);
+                // 상승: 현재가의 0.2% ~ 3% 높게 (더 넓은 범위)
+                long upwardSellMin = (long)(currentPrice * 0.002); // 0.2%
+                long upwardSellMax = (long)(currentPrice * 0.03);  // 3%
+                offset = upwardSellMin + (long)(Math.random() * (upwardSellMax - upwardSellMin));
+                // 최소 20원, 최대 1500원 보장
+                offset = Math.max(20, Math.min(offset, 1500));
                 break;
             case SHARP_DOWN:
-                // 급하락: 현재가 +5원 ~ +30원 (매우 작게)
-                offset = 5 + (long)(Math.random() * 25);
+                // 급하락: 현재가의 0.5% ~ 5% 높게 매도 (더 넓은 범위로 팍팍 내리기)
+                long sharpDownSellMin = (long)(currentPrice * 0.005); // 0.5%
+                long sharpDownSellMax = (long)(currentPrice * 0.05);  // 5%
+                offset = sharpDownSellMin + (long)(Math.random() * (sharpDownSellMax - sharpDownSellMin));
+                // 최소 250원, 최대 2500원 보장
+                offset = Math.max(250, Math.min(offset, 2500));
                 break;
             case SHARP_UP:
-                // 급상승: 현재가 +50원 ~ +500원
-                offset = 50 + (long)(Math.random() * 450);
+                // 급상승: 현재가의 0.5% ~ 5% 높게 매도 (더 넓은 범위로 팍팍 오르기)
+                long sharpUpSellMin = (long)(currentPrice * 0.005); // 0.5%
+                long sharpUpSellMax = (long)(currentPrice * 0.05);  // 5%
+                offset = sharpUpSellMin + (long)(Math.random() * (sharpUpSellMax - sharpUpSellMin));
+                // 최소 250원, 최대 2500원 보장
+                offset = Math.max(250, Math.min(offset, 2500));
                 break;
             default:
-                offset = 10 + (long)(Math.random() * 90);
+                // 기본: 현재가의 0.1% ~ 2% 높게
+                long defaultSellMin = (long)(currentPrice * 0.001);
+                long defaultSellMax = (long)(currentPrice * 0.02);
+                offset = defaultSellMin + (long)(Math.random() * (defaultSellMax - defaultSellMin));
+                offset = Math.max(10, Math.min(offset, 1000));
         }
+        
+        // 추가 랜덤 요소: ±15% 변동 (호가를 더 다양하게 분산)
+        double randomVariation = 0.85 + (Math.random() * 0.3); // 0.85 ~ 1.15
+        offset = (long)(offset * randomVariation);
 
-        return currentPrice + offset;
+        long calculatedPrice = currentPrice + offset;
+        // 현재가에 따라 적절한 단위로 반올림
+        return roundToAppropriateUnit(calculatedPrice, currentPrice);
     }
 
     /**
@@ -626,6 +908,66 @@ public class TradingBotService {
         createBotConfig(sellRequest);
 
         log.info("✅ Simple bots created for ticker: {}", ticker);
+    }
+
+    /**
+     * 거래량 데이터 쌓기용 봇 생성 (25초마다 한 번씩, 가격 변동 엄청 크게)
+     * 차트와 거래량 데이터만 쌓기 위함
+     */
+    public void createVolumeBuildingBot(String ticker, UUID buyAccountId, UUID sellAccountId) {
+        log.info("🚀 Creating volume building bot for ticker: {} (25초마다 주문, 가격 변동 5~15%)", ticker);
+
+        // 기존 거래량 봇들 비활성화
+        List<TradingBotConfig> existingBots = configRepository.findByTickerAndIsActiveTrue(ticker);
+        existingBots.stream()
+                .filter(bot -> bot.getDescription() != null && 
+                              (bot.getDescription().contains("거래량") || 
+                               bot.getDescription().contains("VOLUME") ||
+                               bot.getDescription().contains("차트")))
+                .forEach(bot -> {
+                    bot.setIsActive(false);
+                    configRepository.save(bot);
+                });
+
+        // 매수 봇 생성
+        if (buyAccountId != null) {
+            CreateTradingBotConfigRequest buyRequest = new CreateTradingBotConfigRequest();
+            buyRequest.setTicker(ticker);
+            buyRequest.setStatus("START");
+            buyRequest.setPriceLimitHigh(Long.MAX_VALUE);
+            buyRequest.setPriceLimitLow(1L);
+            buyRequest.setQuantity(BigDecimal.valueOf(50)); // 큰 수량
+            buyRequest.setSide("BUY");
+            buyRequest.setOrderType("LIMIT");
+            buyRequest.setBrokerageId("VOLUME_BROKER");
+            buyRequest.setDescription("거래량 데이터 쌓기용 매수 봇 (25초 간격, 가격 변동 5~15%)");
+            buyRequest.setBuyAccountId(buyAccountId);
+            buyRequest.setSellAccountId(null);
+            buyRequest.setTradingStrategy(null); // 전략 없이 특별한 가격 계산 사용
+            createBotConfig(buyRequest);
+            log.info("✅ Volume building buy bot created");
+        }
+
+        // 매도 봇 생성
+        if (sellAccountId != null) {
+            CreateTradingBotConfigRequest sellRequest = new CreateTradingBotConfigRequest();
+            sellRequest.setTicker(ticker);
+            sellRequest.setStatus("START");
+            sellRequest.setPriceLimitHigh(Long.MAX_VALUE);
+            sellRequest.setPriceLimitLow(1L);
+            sellRequest.setQuantity(BigDecimal.valueOf(50)); // 큰 수량
+            sellRequest.setSide("SELL");
+            sellRequest.setOrderType("LIMIT");
+            sellRequest.setBrokerageId("VOLUME_BROKER");
+            sellRequest.setDescription("거래량 데이터 쌓기용 매도 봇 (25초 간격, 가격 변동 5~15%)");
+            sellRequest.setBuyAccountId(null);
+            sellRequest.setSellAccountId(sellAccountId);
+            sellRequest.setTradingStrategy(null); // 전략 없이 특별한 가격 계산 사용
+            createBotConfig(sellRequest);
+            log.info("✅ Volume building sell bot created");
+        }
+
+        log.info("✅ Volume building bots created for ticker: {}", ticker);
     }
 
     /**

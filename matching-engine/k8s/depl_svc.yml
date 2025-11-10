@@ -27,6 +27,8 @@ spec:
             cpu: "1800m"
             memory: "2560Mi"
         env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "prod"
         - name: REDIS_CLUSTER_ENDPOINT
           valueFrom:
             secretKeyRef:

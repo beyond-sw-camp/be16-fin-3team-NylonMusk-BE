@@ -115,4 +115,13 @@ public class TradingBotController {
         TradingBotConfigDTO res = tradingBotService.getBotConfig(id);
         return ApiResponse.ok(res, "트레이딩 봇 상태 조회 성공");
     }
+
+    /** 거래량 데이터 쌓기용 봇 생성 (25초마다 한 번씩, 가격 변동 엄청 크게) */
+    @PostMapping("/test/volume-bot/{ticker}")
+    public ResponseEntity<?> createVolumeBuildingBot(@PathVariable String ticker,
+                                                      @RequestParam(required = false) UUID buyAccountId,
+                                                      @RequestParam(required = false) UUID sellAccountId) {
+        tradingBotService.createVolumeBuildingBot(ticker, buyAccountId, sellAccountId);
+        return ApiResponse.ok(null, ticker + " 종목의 거래량 데이터 쌓기용 봇이 생성되었습니다! (25초마다 주문, 가격 변동 5~15%)");
+    }
 }

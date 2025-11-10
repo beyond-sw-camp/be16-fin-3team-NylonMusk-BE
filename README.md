@@ -27,22 +27,25 @@
 
   <h2 id="toc">목차</h2>
   <div class="toc">
-    <a href="#value">1. 문제정의 & 가치제안</a><br />
-    <a href="#scope">2. 범위(Out of Scope 포함)</a><br />
-    <a href="#features">3. 핵심 기능 요약</a><br />
-    <a href="#order-supply">4. 공급망형 주문관리(SSOM) 흐름</a><br />
-    <a href="#governance">5. 거버넌스(주총/공지)</a><br />
-    <a href="#security">6. 보안·컴플라이언스</a><br />
-    <a href="#demo">7. 발표 시나리오(데모 동선)</a><br />
-    <a href="#demo-video">8. 기능 시연 영상</a><br />
-    <a href="#evidence">9. 단위 테스트 결과서</a><br />
-    <a href="#reqspec">10. 요구사항 명세(이미지·URL)</a><br />
-    <a href="#wbs">11. WBS(이미지·URL)</a><br />
-    <a href="#figma">12. 화면설계도(이미지·URL)</a><br />
-    <a href="#erd">13. ERD(이미지·URL)</a><br />
-    <a href="#team">14. 팀 소개</a><br />
-    <a href="#timeline">15. 일정</a><br />
-    <a href="#api">16. API 명세서</a><br />
+  <a href="#value">1. 문제정의 & 가치제안</a><br />
+  <a href="#scope">2. 범위(Out of Scope 포함)</a><br />
+  <a href="#features">3. 핵심 기능 요약</a><br />
+  <a href="#order-supply">4. 공급망형 주문관리(SSOM) 흐름</a><br />
+  <a href="#governance">5. 거버넌스(주총/공지)</a><br />
+  <a href="#security">6. 보안·컴플라이언스</a><br />
+  <a href="#demo">7. 발표 시나리오(데모 동선)</a><br />
+  <a href="#demo-video">8. 기능 시연 영상</a><br />
+  <a href="#evidence">9. 단위 테스트 결과서</a><br />
+  <a href="#reqspec">10. 요구사항 명세(이미지·URL)</a><br />
+  <a href="#wbs">11. WBS(이미지·URL)</a><br />
+  <a href="#figma">12. 화면설계도(이미지·URL)</a><br />
+  <a href="#erd">13. ERD(이미지·URL)</a><br />
+  <a href="#team">14. 팀 소개</a><br />
+  <a href="#timeline">15. 일정</a><br />
+  <a href="#techstack">16. 기술 스택</a><br />
+  <a href="#deployment">17. 배포 환경</a><br />
+  <a href="#architecture">18. 시스템 아키텍처</a><br />
+  <a href="#api">19. API 명세서</a><br />
   </div>
 
   <hr/>
@@ -293,12 +296,9 @@
   <section id="architecture">
     <h2>18) 시스템 아키텍처</h2>
     <div class="card">
-      <p><!-- 예: MSA 구조(Exchange, MarketData, MatchingEngine, Brokerage, Community 등) --></p>
-      <p><!-- 예: Kafka Topic (orders, executions, order-status), Redis Cluster, MariaDB Replication 등 --></p>
-      <p align="center"><img src="#" alt="시스템 아키텍처 다이어그램" width="800"></p>
+      <p align="center"><img src="https://github.com/user-attachments/assets/b303dbc7-93a0-43cf-8143-24cf18d62ae9" alt="시스템 아키텍처 다이어그램" width="800"></p>
     </div>
   </section>
-  <!-- ✅ 추가된 섹션 끝 -->
 
   <hr/>
 

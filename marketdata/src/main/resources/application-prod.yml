@@ -94,6 +94,26 @@ market-data:
     enabled: true
     auto-unsubscribe: true  # ✅ Production에서는 true
 
+# ✅ Actuator 설정 (Kubernetes Health Check)
+management:
+  endpoints:
+    web:
+      base-path: /actuator
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true  # Kubernetes Probes 지원
+  health:
+    livenessState:
+      enabled: true
+    readinessState:
+      enabled: true
+  server:
+    port: 8080  # 동일 포트 사용
+
 # ✅ Logging - Production 레벨
 logging:
   level:

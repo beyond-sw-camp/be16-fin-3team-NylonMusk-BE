@@ -240,8 +240,7 @@ public class  AuthController {
                 .httpOnly(option.isHttpOnly())
                 .secure(option.isSecure())
                 .sameSite(option.getSameSite())
-                .path(option.getPath())
-                .domain(option.getDomain());
+                .path(option.getPath());
 
         if (Duration.ZERO.equals(maxAge)) {
             builder.maxAge(0);
@@ -259,16 +258,16 @@ public class  AuthController {
             if (req.getCaptchaKey() == null || req.getCaptchaValue() == null || req.getCaptchaType() == null) {
                 int remainingAttempts = loginAttemptService.getRemainingAttempts(req.getEmail());
                 return ApiResponse.error(
-                    HttpStatus.BAD_REQUEST,
-                    "로그인 실패 횟수가 5회를 초과했습니다. CAPTCHA를 입력해주세요.",
-                    Map.of("requiresCaptcha", true, "failedAttempts", loginAttemptService.getFailedAttempts(req.getEmail()))
+                        HttpStatus.BAD_REQUEST,
+                        "로그인 실패 횟수가 5회를 초과했습니다. CAPTCHA를 입력해주세요.",
+                        Map.of("requiresCaptcha", true, "failedAttempts", loginAttemptService.getFailedAttempts(req.getEmail()))
                 );
             }
-            
+
             // CAPTCHA 검증: 타입에 따라 이미지 또는 음성 검증
             boolean captchaValid = false;
             String captchaType = req.getCaptchaType().toLowerCase();
-            
+
             if ("image".equals(captchaType)) {
                 // 이미지 CAPTCHA 검증
                 captchaValid = captchaService.verifyCaptcha(req.getCaptchaKey(), req.getCaptchaValue());
@@ -277,17 +276,17 @@ public class  AuthController {
                 captchaValid = captchaService.verifyAudioCaptcha(req.getCaptchaKey(), req.getCaptchaValue());
             } else {
                 return ApiResponse.error(
-                    HttpStatus.BAD_REQUEST,
-                    "잘못된 CAPTCHA 타입입니다. (image 또는 audio)",
-                    Map.of("requiresCaptcha", true, "failedAttempts", loginAttemptService.getFailedAttempts(req.getEmail()))
+                        HttpStatus.BAD_REQUEST,
+                        "잘못된 CAPTCHA 타입입니다. (image 또는 audio)",
+                        Map.of("requiresCaptcha", true, "failedAttempts", loginAttemptService.getFailedAttempts(req.getEmail()))
                 );
             }
-            
+
             if (!captchaValid) {
                 return ApiResponse.error(
-                    HttpStatus.BAD_REQUEST,
-                    "CAPTCHA 검증에 실패했습니다. 다시 시도해주세요.",
-                    Map.of("requiresCaptcha", true, "failedAttempts", loginAttemptService.getFailedAttempts(req.getEmail()))
+                        HttpStatus.BAD_REQUEST,
+                        "CAPTCHA 검증에 실패했습니다. 다시 시도해주세요.",
+                        Map.of("requiresCaptcha", true, "failedAttempts", loginAttemptService.getFailedAttempts(req.getEmail()))
                 );
             }
         }
@@ -321,35 +320,36 @@ public class  AuthController {
 
             LoginResponseDto response = LoginResponseDto.builder()
                     .userId(member.getId())
+                    .name(member.getName())
                     .email(member.getEmail())
                     .role(role)
                     .status(member.getStatus().name())
                     .build();
 
             return ApiResponse.ok(response, "회원 로그인 완료");
-            
+
         } catch (Exception e) {
             // LOGIN_FAILED: 로그인 실패 시 횟수 증가
             int failedAttempts = loginAttemptService.incrementFailedAttempts(req.getEmail());
             int remainingAttempts = loginAttemptService.getRemainingAttempts(req.getEmail());
             boolean nowRequiresCaptcha = loginAttemptService.requiresCaptcha(req.getEmail());
-            
+
             String errorMessage = e.getMessage() != null ? e.getMessage() : "로그인에 실패했습니다.";
-            
+
             if (nowRequiresCaptcha) {
                 errorMessage = "로그인 실패 횟수가 5회를 초과했습니다. CAPTCHA를 입력해주세요.";
             } else if (remainingAttempts > 0) {
                 errorMessage = String.format("로그인에 실패했습니다. 남은 시도 횟수: %d회", remainingAttempts);
             }
-            
+
             return ApiResponse.error(
-                HttpStatus.UNAUTHORIZED,
-                errorMessage,
-                Map.of(
-                    "requiresCaptcha", nowRequiresCaptcha,
-                    "failedAttempts", failedAttempts,
-                    "remainingAttempts", remainingAttempts
-                )
+                    HttpStatus.UNAUTHORIZED,
+                    errorMessage,
+                    Map.of(
+                            "requiresCaptcha", nowRequiresCaptcha,
+                            "failedAttempts", failedAttempts,
+                            "remainingAttempts", remainingAttempts
+                    )
             );
         }
     }

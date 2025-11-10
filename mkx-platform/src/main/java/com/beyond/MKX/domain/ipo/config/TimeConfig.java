@@ -10,6 +10,6 @@ import java.time.ZoneId;
 public class TimeConfig {
     @Bean
     public Clock clock() {
-        return Clock.system(ZoneId.of("Asia/Seoul"));
+        return Clock.system(ZoneId.of("UTC"));
     }
 }

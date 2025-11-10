@@ -115,7 +115,7 @@ public class CurrentPriceService {
 
             // 동락률 랭킹 업데이트
             LocalDate executionDate = Instant.ofEpochMilli(execution.getTimestamp())
-                    .atZone(ZoneId.of("Asia/Seoul"))
+                    .atZone(ZoneId.of("UTC"))
                     .toLocalDate();
             marketRankWriterService.updateChangeRateRank(currentPrice, executionDate);
 

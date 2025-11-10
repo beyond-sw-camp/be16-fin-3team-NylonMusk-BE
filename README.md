@@ -1,7 +1,7 @@
 <body>
 <main class="container">
-
-  <h1>MeX — 기업을 위한 증권 공급망 거래소</h1>
+  <h1>MKX — 기업을 위한 증권 공급망 거래소</h1>
+  <img width="550" height="224" alt="image" src="https://github.com/user-attachments/assets/4cb4801b-6e73-4000-9705-768a1a7648cf" />
   <div class="muted">프로젝트 기간: <strong>2025.09.12</strong> ~ <strong>2025.11.12</strong> · 작성자: 김진호 · 김형진 · 박혜성 · 이우영 · 윤세진</div>
   <div style="margin-top:10px">
     <span class="badge">B2B 전용</span>
@@ -14,7 +14,7 @@
 
   <div class="card">
     <h2>소개</h2>
-    <p><strong>MeX</strong>는 <em>기업을 위한 증권 공급망 관리(SSOM: Securities Supply–Order Management)</em>를 핵심 컨셉으로 하는 B2B 거래소입니다. 
+    <p><strong>MKX</strong>는 <em>기업을 위한 증권 공급망 관리(SSOM: Securities Supply–Order Management)</em>를 핵심 컨셉으로 하는 B2B 거래소입니다. 
       기업은 상장(공급 등록) → 발행/유상증자(공급 확장) → 거래/정산 → 공시/주주총회(거버넌스) → 상장폐지/관리까지 <strong>end-to-end</strong>로 처리할 수 있습니다.
       우리는 일반 리테일 브로커가 아닌, <strong>거래소 그 자체</strong>입니다. <strong>법인 전용</strong> 거래/관리 흐름에 집중합니다.</p>
     <ul class="list-tight">
@@ -58,7 +58,7 @@
   </p>
 
   <p>
-    MeX는 이와 달리, <strong>발행·공급에서 거래·정산, 나아가 거버넌스</strong>에 이르기까지 전 과정을 단일한 <strong>주문·공급망 데이터 모델</strong> 위에서 통합합니다. 이를 통해 각각 분리되어 있던 프로세스를 하나의 흐름으로 연결하고, 기업과 투자자 간의 정보 단절을 해소합니다.
+    MKX는 이와 달리, <strong>발행·공급에서 거래·정산, 나아가 거버넌스</strong>에 이르기까지 전 과정을 단일한 <strong>주문·공급망 데이터 모델</strong> 위에서 통합합니다. 이를 통해 각각 분리되어 있던 프로세스를 하나의 흐름으로 연결하고, 기업과 투자자 간의 정보 단절을 해소합니다.
   </p>
 
   <p>
@@ -66,7 +66,7 @@
   </p>
 
   <p>
-    결과적으로 MeX는 단순한 거래 플랫폼을 넘어, 기업의 자본 활동과 투자자의 의사결정이 실시간으로 유기적으로 맞물리는 새로운 생태계를 제공합니다. 이는 단순한 기술적 개선을 넘어, <strong>시장 운영 방식 자체를 혁신적으로 재편하는 핵심 동력</strong>입니다.
+    결과적으로 MKX는 단순한 거래 플랫폼을 넘어, 기업의 자본 활동과 투자자의 의사결정이 실시간으로 유기적으로 맞물리는 새로운 생태계를 제공합니다. 이는 단순한 기술적 개선을 넘어, <strong>시장 운영 방식 자체를 혁신적으로 재편하는 핵심 동력</strong>입니다.
   </p>
 </section>
 
@@ -175,7 +175,7 @@
 
   <section id="demo-video">
     <h2>8) 기능 시연 영상</h2>
-    <p>MeX 프로젝트의 주요 기능 시연 영상을 정리합니다.</p>
+    <p>MKX 프로젝트의 주요 기능 시연 영상을 정리합니다.</p>
     <details>
       <summary>
         <b>증권사 관리자 회원가입/로그인</b>
@@ -211,7 +211,7 @@
 
   <section id="evidence">
     <h2>9) 단위 테스트 결과서</h2>
-    <p>MeX 프로젝트의 주요 기능 영역별 단위 테스트 결과를 정리합니다.</p>
+    <p>MKX 프로젝트의 주요 기능 영역별 단위 테스트 결과를 정리합니다.</p>
     <div class="card">
       <p><a href="https://documenter.getpostman.com/view/43742779/2sB3QRnmew" target="_blank" rel="noopener">단위 테스트 결과서 (Postman Collection)</a></p>
     </div>
@@ -336,7 +336,7 @@
   <hr/>
 
   <footer class="muted" style="margin-top:28px">
-    © MeX. All rights reserved.
+    © MKX. All rights reserved.
   </footer>
 
 </main>

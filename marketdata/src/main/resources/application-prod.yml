@@ -126,7 +126,7 @@ logging:
     org.springframework.web.socket.messaging: WARN
 
 jwt:
-  expirationAt: 900000      # 15분
+  expirationAt: 604800000      # 15분
   secretKeyAt: ${JWT_SECRET_AT}  # 운영환경에서는 환경변수로 주입
   expirationRt: 604800000   # 7일
   secretKeyRt: ${JWT_SECRET_RT}

@@ -12,8 +12,8 @@ import java.time.ZoneId;
 @MappedSuperclass
 @Getter
 public abstract class BaseTimeEntity {
-//    RDB에 UTC vs KST로 저장할 지 의논해야 됨.
-    private static final ZoneId ZONE_ID = ZoneId.of("Asia/Seoul");
+//    RDB에 UTC로 저장
+    private static final ZoneId ZONE_ID = ZoneId.of("UTC");
 
     @Column(name = "created_at", updatable = false, nullable = false)
     protected LocalDateTime createdAt;

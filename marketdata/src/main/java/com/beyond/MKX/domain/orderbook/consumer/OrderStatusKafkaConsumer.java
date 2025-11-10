@@ -119,7 +119,7 @@ public class OrderStatusKafkaConsumer {
     private static LocalDate translateTradingDate(OrderStatusEventDTO orderStatus) {
         long timestamp = orderStatus.getTimestamp();
         return Instant.ofEpochMilli(timestamp)
-                .atZone(ZoneId.of("Asia/Seoul"))
+                .atZone(ZoneId.of("UTC"))
                 .toLocalDate();
     }
 }

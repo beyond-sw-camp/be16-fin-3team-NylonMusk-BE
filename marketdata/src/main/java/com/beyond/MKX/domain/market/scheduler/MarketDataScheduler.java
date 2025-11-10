@@ -117,7 +117,7 @@ public class MarketDataScheduler {
      * 
      * 주의: 순서가 바뀌면 데이터 정합성 문제 발생 가능
      */
-    @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Seoul") // 매일 자정 (KST)
+    @Scheduled(cron = "0 0 0 * * *") // 매일 자정 (시스템 UTC 기준)
     @SchedulerLock(name = "initializeAllDailyPrices", lockAtMostFor = "600000", lockAtLeastFor = "120000")
     public void initializeAllDailyPrices() {
         try {

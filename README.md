@@ -273,17 +273,51 @@
 
   <hr/>
 
-  <section id="techstack">
-    <h2>16) 기술 스택</h2>
-    <div class="card">
-      <h3>Backend</h3>
-      <p><!-- 예: Spring Boot, JPA, Kafka, Redis, MariaDB, Feign, Spring Cloud Gateway 등 --></p>
-      <h3>Frontend</h3>
-      <p><!-- 예: Vue.js / React, Vuetify, Chart.js 등 --></p>
-      <h3>Infra & DevOps</h3>
-      <p><!-- 예: AWS EC2, Docker Compose, Nginx, Elasticache, S3, GitHub Actions 등 --></p>
+<section id="techstack">
+  <h2>16) 기술 스택</h2>
+  <div class="card">
+    <div align="center"><h3>📚 STACKS</h3></div>
+    <div align="center">
+      <!-- Language & Framework -->
+      <img src="https://img.shields.io/badge/Java-007396?style=for-the-badge&logo=java&logoColor=white">
+      <img src="https://img.shields.io/badge/Spring%20Boot%20v3-6DB33F?style=for-the-badge&logo=springboot&logoColor=white">
+      <img src="https://img.shields.io/badge/Spring%20JPA-59666C?style=for-the-badge&logo=spring&logoColor=white">
+      <img src="https://img.shields.io/badge/Lua%20Script-2C2D72?style=for-the-badge&logo=lua&logoColor=white">
+      <img src="https://img.shields.io/badge/Kafka-231F20?style=for-the-badge&logo=apachekafka&logoColor=white">
+      <img src="https://img.shields.io/badge/Kafka%20Debezium-E6522C?style=for-the-badge&logo=apachekafka&logoColor=white">
+      <img src="https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white">
+      <img src="https://img.shields.io/badge/Redis%20Sharding-DC382D?style=for-the-badge&logo=redis&logoColor=white">
+      <img src="https://img.shields.io/badge/Redis%20Clustering-DC382D?style=for-the-badge&logo=redis&logoColor=white">
+      <br>
+      <!-- AWS & Infra -->
+      <img src="https://img.shields.io/badge/AWS%20S3-569A31?style=for-the-badge&logo=amazons3&logoColor=white">
+      <img src="https://img.shields.io/badge/CloudFront-232F3E?style=for-the-badge&logo=amazoncloudfront&logoColor=white">
+      <img src="https://img.shields.io/badge/Elastic%20Kubernetes%20Service-FF9900?style=for-the-badge&logo=amazonEKS&logoColor=white">
+      <img src="https://img.shields.io/badge/Elastic%20Container%20Registry-FF9900?style=for-the-badge&logo=amazonecr&logoColor=white">
+      <img src="https://img.shields.io/badge/Elastic%20Cache-FF4F8B?style=for-the-badge&logo=amazonelasticache&logoColor=white">
+      <img src="https://img.shields.io/badge/RDS-527FFF?style=for-the-badge&logo=amazonrds&logoColor=white">
+      <img src="https://img.shields.io/badge/Route%2053-8C4FFF?style=for-the-badge&logo=amazonroute53&logoColor=white">
+      <img src="https://img.shields.io/badge/EC2-FF9900?style=for-the-badge&logo=amazonec2&logoColor=white">
+      <img src="https://img.shields.io/badge/Certificate%20Manager-569A31?style=for-the-badge&logo=amazonaws&logoColor=white">
+      <img src="https://img.shields.io/badge/VPC-0073BB?style=for-the-badge&logo=amazonvpc&logoColor=white">
+      <img src="https://img.shields.io/badge/IAM-232F3E?style=for-the-badge&logo=awsiam&logoColor=white">
+      <br>
+      <!-- DevOps -->
+      <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white">
+      <img src="https://img.shields.io/badge/Docker%20Compose-1D63ED?style=for-the-badge&logo=docker&logoColor=white">
+      <img src="https://img.shields.io/badge/GitHub%20Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white">
+      <img src="https://img.shields.io/badge/Nginx-009639?style=for-the-badge&logo=nginx&logoColor=white">
     </div>
-  </section>
+    <hr/>
+    <h3>Backend</h3>
+    <p>Spring Boot v3 · Spring JPA · Kafka · Kafka Debezium · Lua Script · Redis (Sharding/Clustering) · MariaDB</p>
+    <h3>Frontend</h3>
+    <p>Vue.js / React · Vuetify · Chart.js</p>
+    <h3>Infra & DevOps</h3>
+    <p>AWS EC2 · ECR · EKS · S3 · CloudFront · RDS · Elastic Cache · Route53 · VPC · IAM · Certificate Manager · Docker · Docker Compose · Nginx · GitHub Actions</p>
+  </div>
+</section>
+
 
   <section id="deployment">
     <h2>17) 배포 환경</h2>

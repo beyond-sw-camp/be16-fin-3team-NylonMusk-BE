@@ -17,14 +17,12 @@ import com.beyond.MKX.domain.order.entity.Side;
 import com.beyond.MKX.domain.order.repository.OrderLogRepository;
 import com.beyond.MKX.domain.order.service.FeePolicyService;
 import jakarta.persistence.EntityNotFoundException;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -83,9 +81,20 @@ public class AskExecutionService {
         StockHolding stockHolding = stockHoldingRepository
                 .findByMemberAccountIdAndTicker(memberAccount.getId(), executionEvent.getTicker())
                 .orElseThrow(() -> new EntityNotFoundException("해당 보유 주식이 존재하지 않습니다."));
+        
+        // 평단가 계산 (totalQuantity 감소 전에 계산해야 함)
+        long averagePrice = stockHolding.getTotalPurchasePrice() / stockHolding.getTotalQuantity();
+        
         stockHolding.decreaseTotalQuantity(executionEvent.getQuantity());
         log.info("보유 주식 {}개 감소", executionEvent.getQuantity());
-        stockHolding.decTotalPurchasePrice(executionEvent.getQuantity(), executionEvent.getPrice());
+        // 평단가 * 판매 주식 수만큼만 차감
+        stockHolding.decTotalPurchasePrice(executionEvent.getQuantity(), averagePrice);
+        
+        // totalQuantity가 0이 되면 totalPurchasePrice를 0으로 설정
+        if (stockHolding.getTotalQuantity() == 0L) {
+            stockHolding.resetTotalPurchasePrice();
+            log.info("보유 주식 수량이 0이 되어 totalPurchasePrice를 0으로 설정: ticker={}", executionEvent.getTicker());
+        }
 
         /// 4. 돈 계산(체결 단위)
         // 체결 이벤트 값으로 총체결금액, 수수로, 거래금액 계산.

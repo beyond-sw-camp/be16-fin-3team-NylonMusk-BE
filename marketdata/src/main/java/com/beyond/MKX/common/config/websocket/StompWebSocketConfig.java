@@ -51,10 +51,7 @@ public class StompWebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
         log.info("[STOMP] ✅ Registered STOMP endpoint: /ws with SockJS");
         log.info("[STOMP]   - Allowed origins: localhost:3000, localhost:3001, server.mk-exchange.shop, trading/managing");
-<<<<<<< HEAD
-=======
         log.info("[STOMP]   - SockJS: CORS suppressed, stream limit 512KB");
->>>>>>> 5efed87bbf425b061cf1f6f389dc234b18207d4c
     }
 
     /**

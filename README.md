@@ -43,9 +43,8 @@
   <a href="#team">14. 팀 소개</a><br />
   <a href="#timeline">15. 일정</a><br />
   <a href="#techstack">16. 기술 스택</a><br />
-  <a href="#deployment">17. 배포 환경</a><br />
-  <a href="#architecture">18. 시스템 아키텍처</a><br />
-  <a href="#api">19. API 명세서</a><br />
+  <a href="#architecture">17. 시스템 아키텍처</a><br />
+  <a href="#api">18. API 명세서</a><br />
   </div>
 
   <hr/>
@@ -254,11 +253,11 @@
     <table>
       <thead><tr><th>이름</th><th>역할</th><th>주요 담당</th></tr></thead>
       <tbody>
-        <tr><td>김진호</td><td>Domain & Listing Lead</td><td>상장/상폐·공시 도메인 설계, 기업 커뮤니케이션, 관리자 상장심사 UI/흐름</td></tr>
-        <tr><td>김형진</td><td>Trading Engine Lead</td><td>주문/호가/체결, 조건주문, 블록딜/다크풀 라우팅, 가상거래 시나리오</td></tr>
-        <tr><td>박혜성</td><td>Trading Engine Lead</td><td>주문/호가/체결, 조건주문, 블록딜/다크풀 라우팅, 가상거래 시나리오</td></tr>
-        <tr><td>이우영</td><td>Identity & Admin</td><td>회원/계좌/KYB·KYC, MFA/세션/권한, 관리자 RBAC/감사로그, 온라인 주주총회</td></tr>
-        <tr><td>윤세진</td><td>Data & Governance</td><td>차트/보조지표/MCP 분석, 기업 개요/재무, 기업 정보 시각화</td></tr>
+        <tr><td>김진호</td><td>Domain & Listing Lead</td><td>상장, 공모, 청약, 배정, 수요예측, 유상증자, 거래소 백오피스</td></tr>
+        <tr><td>김형진</td><td>Trading Engine Lead</td><td>시장가/지정가 주문, 종목 랭킹, 체결 후처리, 주문 파이프라인 연결, EKS 배포</td></tr>
+        <tr><td>박혜성</td><td>Trading Engine Lead</td><td>오더북 설계, 시장가/지정가 주문 체결, 상장폐지, 커뮤니티, 증권사 백오피스</td></tr>
+        <tr><td>이우영</td><td>Identity & Admin</td><td>로그인, 회원가입, OCR 인증, 캡차 인증, 공시, 뉴스, 검색</td></tr>
+        <tr><td>윤세진</td><td>Data & Governance</td><td>차트/보조지표, 호가창 시각화, 기업 정보 시각화</td></tr>
       </tbody>
     </table>
   </section>
@@ -273,28 +272,53 @@
 
   <hr/>
 
-  <section id="techstack">
-    <h2>16) 기술 스택</h2>
-    <div class="card">
-      <h3>Backend</h3>
-      <p><!-- 예: Spring Boot, JPA, Kafka, Redis, MariaDB, Feign, Spring Cloud Gateway 등 --></p>
-      <h3>Frontend</h3>
-      <p><!-- 예: Vue.js / React, Vuetify, Chart.js 등 --></p>
-      <h3>Infra & DevOps</h3>
-      <p><!-- 예: AWS EC2, Docker Compose, Nginx, Elasticache, S3, GitHub Actions 등 --></p>
+<section id="techstack">
+  <h2>16) 기술 스택</h2>
+  <div class="card">
+    <div align="center"><h3>📚 STACKS</h3></div>
+    <div align="center">
+      <!-- Language & Framework -->
+      <img src="https://img.shields.io/badge/Java-007396?style=for-the-badge&logo=java&logoColor=white">
+      <img src="https://img.shields.io/badge/Spring%20Boot%20v3-6DB33F?style=for-the-badge&logo=springboot&logoColor=white">
+      <img src="https://img.shields.io/badge/Spring%20JPA-59666C?style=for-the-badge&logo=spring&logoColor=white">
+      <img src="https://img.shields.io/badge/Lua%20Script-2C2D72?style=for-the-badge&logo=lua&logoColor=white">
+      <img src="https://img.shields.io/badge/Kafka-231F20?style=for-the-badge&logo=apachekafka&logoColor=white">
+      <img src="https://img.shields.io/badge/Kafka%20Debezium-E6522C?style=for-the-badge&logo=apachekafka&logoColor=white">
+      <img src="https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white">
+      <img src="https://img.shields.io/badge/Redis%20Sharding-DC382D?style=for-the-badge&logo=redis&logoColor=white">
+      <img src="https://img.shields.io/badge/Redis%20Clustering-DC382D?style=for-the-badge&logo=redis&logoColor=white">
+      <br>
+      <!-- AWS & Infra -->
+      <img src="https://img.shields.io/badge/AWS%20S3-569A31?style=for-the-badge&logo=amazons3&logoColor=white">
+      <img src="https://img.shields.io/badge/CloudFront-232F3E?style=for-the-badge&logo=amazoncloudfront&logoColor=white">
+      <img src="https://img.shields.io/badge/Elastic%20Kubernetes%20Service-FF9900?style=for-the-badge&logo=amazonEKS&logoColor=white">
+      <img src="https://img.shields.io/badge/Elastic%20Container%20Registry-FF9900?style=for-the-badge&logo=amazonecr&logoColor=white">
+      <img src="https://img.shields.io/badge/Elastic%20Cache-FF4F8B?style=for-the-badge&logo=amazonelasticache&logoColor=white">
+      <img src="https://img.shields.io/badge/RDS-527FFF?style=for-the-badge&logo=amazonrds&logoColor=white">
+      <img src="https://img.shields.io/badge/Route%2053-8C4FFF?style=for-the-badge&logo=amazonroute53&logoColor=white">
+      <img src="https://img.shields.io/badge/EC2-FF9900?style=for-the-badge&logo=amazonec2&logoColor=white">
+      <img src="https://img.shields.io/badge/Certificate%20Manager-569A31?style=for-the-badge&logo=amazonaws&logoColor=white">
+      <img src="https://img.shields.io/badge/VPC-0073BB?style=for-the-badge&logo=amazonvpc&logoColor=white">
+      <img src="https://img.shields.io/badge/IAM-232F3E?style=for-the-badge&logo=awsiam&logoColor=white">
+      <br>
+      <!-- DevOps -->
+      <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white">
+      <img src="https://img.shields.io/badge/Docker%20Compose-1D63ED?style=for-the-badge&logo=docker&logoColor=white">
+      <img src="https://img.shields.io/badge/GitHub%20Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white">
+      <img src="https://img.shields.io/badge/Nginx-009639?style=for-the-badge&logo=nginx&logoColor=white">
     </div>
-  </section>
-
-  <section id="deployment">
-    <h2>17) 배포 환경</h2>
-    <div class="card">
-      <p><!-- 예: AWS EC2 (Ubuntu 22.04), Docker 기반 멀티 컨테이너 구조, Railway/MySQL, Render/Frontend 등 --></p>
-      <p><!-- 예: Backend와 DB는 Private Subnet 내 운영, Redis는 Elasticache SubnetGroup에 구성 등 --></p>
-    </div>
-  </section>
+    <hr/>
+    <h3>Backend</h3>
+    <p>Spring Boot v3 · Spring JPA · Kafka · Kafka Debezium · Lua Script · Redis (Sharding/Clustering) · MariaDB</p>
+    <h3>Frontend</h3>
+    <p>Vue.js / React · Vuetify · Chart.js</p>
+    <h3>Infra & DevOps</h3>
+    <p>AWS EC2 · ECR · EKS · S3 · CloudFront · RDS · Elastic Cache · Route53 · VPC · IAM · Certificate Manager · Docker · Docker Compose · Nginx · GitHub Actions</p>
+  </div>
+</section>
 
   <section id="architecture">
-    <h2>18) 시스템 아키텍처</h2>
+    <h2>17) 시스템 아키텍처</h2>
     <div class="card">
       <p align="center"><img src="https://github.com/user-attachments/assets/b303dbc7-93a0-43cf-8143-24cf18d62ae9" alt="시스템 아키텍처 다이어그램" width="800"></p>
     </div>
@@ -303,7 +327,7 @@
   <hr/>
 
   <section id="api">
-    <h2>19) API 명세서</h2>
+    <h2>18) API 명세서</h2>
     <div class="card">
       <p><a href="https://documenter.getpostman.com/view/43742779/2sB3QRnmew" target="_blank" rel="noopener">API 명세서</a></p>
     </div>

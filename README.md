@@ -253,11 +253,11 @@
     <table>
       <thead><tr><th>이름</th><th>역할</th><th>주요 담당</th></tr></thead>
       <tbody>
-        <tr><td>김진호</td><td>Domain & Listing Lead</td><td>상장/상폐·공시 도메인 설계, 기업 커뮤니케이션, 관리자 상장심사 UI/흐름</td></tr>
-        <tr><td>김형진</td><td>Trading Engine Lead</td><td>주문/호가/체결, 조건주문, 블록딜/다크풀 라우팅, 가상거래 시나리오</td></tr>
-        <tr><td>박혜성</td><td>Trading Engine Lead</td><td>주문/호가/체결, 조건주문, 블록딜/다크풀 라우팅, 가상거래 시나리오</td></tr>
-        <tr><td>이우영</td><td>Identity & Admin</td><td>회원/계좌/KYB·KYC, MFA/세션/권한, 관리자 RBAC/감사로그, 온라인 주주총회</td></tr>
-        <tr><td>윤세진</td><td>Data & Governance</td><td>차트/보조지표/MCP 분석, 기업 개요/재무, 기업 정보 시각화</td></tr>
+        <tr><td>김진호</td><td>Domain & Listing Lead</td><td>상장, 공모, 청약, 배정, 수요예측, 유상증자, 거래소 백오피스</td></tr>
+        <tr><td>김형진</td><td>Trading Engine Lead</td><td>시장가/지정가 주문, 종목 랭킹, 체결 후처리, 주문 파이프라인 연결, EKS 배포</td></tr>
+        <tr><td>박혜성</td><td>Trading Engine Lead</td><td>오더북 설계, 시장가/지정가 주문 체결, 상장폐지, 커뮤니티, 증권사 백오피스</td></tr>
+        <tr><td>이우영</td><td>Identity & Admin</td><td>로그인, 회원가입, OCR 인증, 캡차 인증, 공시, 뉴스, 검색</td></tr>
+        <tr><td>윤세진</td><td>Data & Governance</td><td>차트/보조지표, 호가창 시각화, 기업 정보 시각화</td></tr>
       </tbody>
     </table>
   </section>

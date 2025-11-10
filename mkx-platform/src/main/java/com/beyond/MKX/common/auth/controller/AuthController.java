@@ -240,7 +240,8 @@ public class  AuthController {
                 .httpOnly(option.isHttpOnly())
                 .secure(option.isSecure())
                 .sameSite(option.getSameSite())
-                .path(option.getPath());
+                .path(option.getPath())
+                .domain(option.getDomain());
 
         if (Duration.ZERO.equals(maxAge)) {
             builder.maxAge(0);

@@ -180,9 +180,9 @@
       <summary>
         <b>증권사 관리자 회원가입/로그인</b>
       </summary>
-      <b>증권사 관리자 회원가입(도로명 검색)</b>
+      <b>증권사 관리자 회원가입</b>
       <p align="center">
-        <img src="#" alt="#" width="#">
+        <img src="https://github.com/user-attachments/assets/58276bb1-2dc3-4fa4-8742-839bf360032d" alt="#" width="#">
       </p>
       <b>증권사 관리자 로그인</b>
       <p align="center">

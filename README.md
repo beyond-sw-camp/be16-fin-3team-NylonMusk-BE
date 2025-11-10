@@ -1,7 +1,7 @@
 <body>
 <main class="container">
   <h1>MKX — 기업을 위한 증권 공급망 거래소</h1>
-  <img width="550" height="224" alt="image" src="https://github.com/user-attachments/assets/4cb4801b-6e73-4000-9705-768a1a7648cf" />
+ <img width="1200" height="710" alt="MKX 리드미 배너" src="https://github.com/user-attachments/assets/5a5f48d4-dae1-4e99-aaf4-15a9c1d54028" />
   <div class="muted">프로젝트 기간: <strong>2025.09.12</strong> ~ <strong>2025.11.12</strong> · 작성자: 김진호 · 김형진 · 박혜성 · 이우영 · 윤세진</div>
   <div style="margin-top:10px">
     <span class="badge">B2B 전용</span>

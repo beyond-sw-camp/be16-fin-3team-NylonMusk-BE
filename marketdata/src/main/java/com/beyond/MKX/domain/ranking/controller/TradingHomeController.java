@@ -21,10 +21,9 @@ public class TradingHomeController {
     // 홈 화면 리스트 (거래대금 상위)
     @GetMapping("/ranking")
     public ResponseEntity<?> getRankingTradeList(
-            @RequestParam(defaultValue = "10") int limit,
-            @RequestParam(defaultValue = "Asia/Seoul") String zone
+            @RequestParam(defaultValue = "10") int limit
     ) {
-        List<TradingHomeItemResDTO> resDTOList = tradingHomeService.getTopByTurnoverWithMeta(limit, ZoneId.of(zone));
+        List<TradingHomeItemResDTO> resDTOList = tradingHomeService.getTopByTurnoverWithMeta(limit, ZoneId.systemDefault());
         return ApiResponse.ok(resDTOList);
     }
 

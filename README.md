@@ -43,9 +43,8 @@
   <a href="#team">14. 팀 소개</a><br />
   <a href="#timeline">15. 일정</a><br />
   <a href="#techstack">16. 기술 스택</a><br />
-  <a href="#deployment">17. 배포 환경</a><br />
-  <a href="#architecture">18. 시스템 아키텍처</a><br />
-  <a href="#api">19. API 명세서</a><br />
+  <a href="#architecture">17. 시스템 아키텍처</a><br />
+  <a href="#api">18. API 명세서</a><br />
   </div>
 
   <hr/>
@@ -318,17 +317,8 @@
   </div>
 </section>
 
-
-  <section id="deployment">
-    <h2>17) 배포 환경</h2>
-    <div class="card">
-      <p><!-- 예: AWS EC2 (Ubuntu 22.04), Docker 기반 멀티 컨테이너 구조, Railway/MySQL, Render/Frontend 등 --></p>
-      <p><!-- 예: Backend와 DB는 Private Subnet 내 운영, Redis는 Elasticache SubnetGroup에 구성 등 --></p>
-    </div>
-  </section>
-
   <section id="architecture">
-    <h2>18) 시스템 아키텍처</h2>
+    <h2>17) 시스템 아키텍처</h2>
     <div class="card">
       <p align="center"><img src="https://github.com/user-attachments/assets/b303dbc7-93a0-43cf-8143-24cf18d62ae9" alt="시스템 아키텍처 다이어그램" width="800"></p>
     </div>
@@ -337,7 +327,7 @@
   <hr/>
 
   <section id="api">
-    <h2>19) API 명세서</h2>
+    <h2>18) API 명세서</h2>
     <div class="card">
       <p><a href="https://documenter.getpostman.com/view/43742779/2sB3QRnmew" target="_blank" rel="noopener">API 명세서</a></p>
     </div>

@@ -65,13 +65,11 @@ spring:
             - StripPrefix=1
           uri: http://market-data-service
 
-        # ✅ STOMP WebSocket 라우팅
+        # ✅ STOMP WebSocket 라우팅 (SockJS는 HTTP로 시작)
         - id: market-data-websocket
           predicates:
             - Path=/ws/**
-          filters:
-            - RewritePath=/ws/(?<segment>.*), /ws/$\{segment}
-          uri: ws://market-data-service
+          uri: http://market-data-service
 
         - id: community-service
           predicates:

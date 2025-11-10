@@ -39,6 +39,7 @@ public class StompWebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 .setAllowedOrigins(
                         "http://localhost:3000",
                         "http://localhost:3001",
+                        "https://server.mk-exchange.shop",        // ✅ API Gateway 도메인 추가
                         "https://trading.mk-exchange.shop",
                         "https://www.trading.mk-exchange.shop",
                         "https://managing.mk-exchange.shop"
@@ -46,7 +47,7 @@ public class StompWebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 .withSockJS();
 
         log.info("[STOMP] ✅ Registered STOMP endpoint: /ws with SockJS");
-        log.info("[STOMP]   - Allowed origins: localhost:3000, localhost:3001, trading.mk-exchange.shop");
+        log.info("[STOMP]   - Allowed origins: localhost:3000, localhost:3001, server.mk-exchange.shop, trading/managing");
     }
 
     /**

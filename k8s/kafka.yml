@@ -15,6 +15,16 @@ spec:
       labels:
         app: kafka
     spec:
+      # Kafka + Redis 전용 노드 배치 (Messaging)
+      nodeSelector:
+        workload: messaging
+      
+      tolerations:
+      - key: workload
+        operator: Equal
+        value: messaging
+        effect: NoSchedule
+      
       containers:
         - name: kafka
           image: apache/kafka:3.7.0

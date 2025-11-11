@@ -15,25 +15,36 @@ spec:
       labels:
         app: mkx-influxdb
     spec:
+      # InfluxDB 전용 노드 배치 (t3.2xlarge, ap-northeast-2c)
+      nodeSelector:
+        workload: database
+        app: influxdb
+      
+      tolerations:
+      - key: workload
+        operator: Equal
+        value: database
+        effect: NoSchedule
+      
       containers:
       - name: mkx-influxdb
         image: influxdb:2.7
         ports:
         - containerPort: 8086
-        # 리소스 설정 (5개 노드 최적화, 대량 쓰기 대응)
+        # 리소스 설정 (t3.2xlarge 전용 노드, 8 vCPU 32GB)
         resources:
           requests:
-            cpu: "500m"
-            memory: "512Mi"
+            cpu: "4000m"
+            memory: "8Gi"
           limits:
-            cpu: "2000m"
-            memory: "1536Mi"
+            cpu: "7500m"
+            memory: "28Gi"
         env:
-        # InfluxDB 캐시 메모리 제한 설정 (OOM 방지)
+        # InfluxDB 캐시 메모리 제한 설정 (대용량 노드 최적화)
         - name: INFLUXD_STORAGE_CACHE_MAX_MEMORY_SIZE
-          value: "524288000"  # 500MB
+          value: "4294967296"  # 4GB
         - name: INFLUXD_STORAGE_CACHE_SNAPSHOT_MEMORY_SIZE
-          value: "26214400"   # 25MB
+          value: "209715200"   # 200MB
         - name: INFLUXD_STORAGE_CACHE_SNAPSHOT_WRITE_COLD_DURATION
           value: "10m"
         - name: DOCKER_INFLUXDB_INIT_MODE

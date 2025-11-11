@@ -24,11 +24,18 @@ spec:
         resources:
           requests:
             cpu: "150m"
-            memory: "256Mi"
+            memory: "512Mi"
           limits:
             cpu: "800m"
-            memory: "768Mi"
+            memory: "1536Mi"
         env:
+        # InfluxDB 캐시 메모리 제한 설정 (OOM 방지)
+        - name: INFLUXD_STORAGE_CACHE_MAX_MEMORY_SIZE
+          value: "524288000"  # 500MB
+        - name: INFLUXD_STORAGE_CACHE_SNAPSHOT_MEMORY_SIZE
+          value: "26214400"   # 25MB
+        - name: INFLUXD_STORAGE_CACHE_SNAPSHOT_WRITE_COLD_DURATION
+          value: "10m"
         - name: DOCKER_INFLUXDB_INIT_MODE
           value: "setup"
         - name: DOCKER_INFLUXDB_INIT_USERNAME

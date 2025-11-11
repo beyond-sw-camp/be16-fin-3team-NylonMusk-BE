@@ -856,10 +856,7 @@
 
 <details>
 <summary><b>회원가입</b></summary>
-
-<details>
-<summary><b>증권사 선택</b></summary>
-<p align="center"><img src="#" alt="증권사 선택" width="#"></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/93b1ef23-f75e-495b-8714-6857de4cf8a7" alt="로그인 캡챠 인증" width="#"></p>
 </details>
 
 <details>
@@ -881,26 +878,6 @@
 
 <details>
 <summary><b>홈 페이지</b></summary>
-
-<details>
-<summary><b>시가총액순</b></summary>
-<p align="center"><img src="#" alt="시가총액순" width="#"></p>
-</details>
-
-<details>
-<summary><b>거래량순</b></summary>
-<p align="center"><img src="#" alt="거래량순" width="#"></p>
-</details>
-
-<details>
-<summary><b>24H 변동성순</b></summary>
-<p align="center"><img src="#" alt="24H 변동성순" width="#"></p>
-</details>
-
-<details>
-<summary><b>주식 즐겨찾기</b></summary>
-<p align="center"><img src="#" alt="주식 즐겨찾기" width="#"></p>
-</details>
 </details>
 
 <details>
@@ -942,22 +919,22 @@
 
 <details>
 <summary><b>뉴스 공유 링크 자동 생성</b></summary>
-<p align="center"><img src="#" alt="뉴스 공유 링크 자동 생성" width="#"></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/aab79ec3-3ab6-42eb-93cf-53e0286d8595" alt="뉴스 공유 링크 자동 생성" width="#"></p>
 </details>
 
 <details>
 <summary><b>관련 주식</b></summary>
-<p align="center"><img src="#" alt="관련 주식" width="#"></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/c2846054-55de-4c2b-8f82-007192ec9192" alt="관련 주식" width="#"></p>
 </details>
 
 <details>
 <summary><b>인기순</b></summary>
-<p align="center"><img src="#" alt="인기순" width="#"></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/a2d55ef3-89b4-419c-9268-8031399c72ea" alt="인기순" width="#"></p>
 </details>
 
 <details>
 <summary><b>뉴스 상세 조회</b></summary>
-<p align="center"><img src="#" alt="뉴스 상세 조회" width="#"></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/baddde83-9376-49ce-af6b-dc3b6b117676" alt="뉴스 상세 조회" width="#"></p>
 </details>
 </details>
 
@@ -966,12 +943,12 @@
 
 <details>
 <summary><b>조건별 순위</b></summary>
-<p align="center"><img src="#" alt="조건별 순위" width="#"></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/0de1fbab-c2fa-4df9-a6dd-fa0667dc6823" alt="조건별 순위" width="#"></p>
 </details>
 
 <details>
 <summary><b>실시간 반영</b></summary>
-<p align="center"><img src="#" alt="실시간 반영" width="#"></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/9846c3eb-8204-4d27-8692-24897d5f6bd4" alt="실시간 반영" width="#"></p>
 </details>
 </details>
 
@@ -998,28 +975,24 @@
 <summary><b>내 계좌 페이지</b></summary>
 
 <details>
-<summary><b>보유 주식 가치에 따른 실시간 변화</b></summary>
-<p align="center"><img src="#" alt="보유 주식 실시간 변화" width="#"></p>
-</details>
-
-<details>
-<summary><b>보유 주식 라우팅</b></summary>
-<p align="center"><img src="#" alt="보유 주식 라우팅" width="#"></p>
+<summary><b>보유 주식 가치에 따른 실시간 변화 및 라우팅</b></summary>
+<p align="center"><img src="https://github.com/user-attachments/assets/01dd7dd4-eb33-4708-a34d-c51c5da595cc" alt="보유 주식 실시간 변화" width="#"></p>
 </details>
 
 <details>
 <summary><b>입금</b></summary>
-<p align="center"><img src="#" alt="입금" width="#"></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/493e59d6-1ac6-45f2-9d51-b8033e8f079a" alt="입금" width="#"></p>
 </details>
 
 <details>
 <summary><b>출금</b></summary>
-<p align="center"><img src="#" alt="출금" width="#"></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/72dec4f5-e74a-4b26-91f1-f62818773ad4" alt="출금" width="#"></p>
 </details>
+
 
 <details>
 <summary><b>계좌이체</b></summary>
-<p align="center"><img src="#" alt="계좌이체" width="#"></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/43a33e62-7c25-4b71-8558-0e25463c3988" alt="계좌이체" width="#"></p>
 </details>
 
 <details>
@@ -1027,7 +1000,7 @@
 
 <details>
 <summary><b>거래내역 카테고리별 필터</b></summary>
-<p align="center"><img src="#" alt="거래내역 카테고리별 필터" width="#"></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/260b011d-976c-4199-8934-eb4dd24fb217" alt="거래내역 카테고리별 필터" width="#"></p>
 </details>
 
 <details>
@@ -1037,8 +1010,9 @@
 
 <details>
 <summary><b>거래내역 상세 조회 모달</b></summary>
-<p align="center"><img src="#" alt="거래내역 상세 조회 모달" width="#"></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/dcd11207-4e08-40c1-a8fa-b857842bea54" alt="거래내역 상세 조회 모달" width="#"></p>
 </details>
+
 </details>
 </details>
 
@@ -1047,13 +1021,13 @@
 
 <details>
 <summary><b>주식 즐겨찾기 해제</b></summary>
-<p align="center"><img src="#" alt="주식 즐겨찾기 해제" width="#"></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/7f1f5f04-e0fc-4d23-9977-4a1fb8de9ea1" alt="주식 즐겨찾기 해제" width="#"></p>
 </details>
 </details>
 
 <details>
 <summary><b>내 정보 페이지</b></summary>
-<p align="center"><img src="#" alt="내 정보 페이지" width="#"></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/73375e95-b15a-44fb-a268-33c341c8cd9b" alt="내 정보 페이지" width="#"></p>
 </details>
 
 <details>
@@ -1089,17 +1063,17 @@
 
 <details>
 <summary><b>전체</b></summary>
-<p align="center"><img src="#" alt="전체 검색" width="#"></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/b3e43b24-438b-4bee-84a8-00c9b1da4132" alt="전체 검색" width="#"></p>
 </details>
 
 <details>
 <summary><b>종목</b></summary>
-<p align="center"><img src="#" alt="종목 검색" width="#"></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/fbc7ebac-38a5-477c-97b9-a02bc479e540" alt="종목 검색" width="#"></p>
 </details>
 
 <details>
 <summary><b>뉴스</b></summary>
-<p align="center"><img src="#" alt="뉴스 검색" width="#"></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/7803cb58-8bec-4ad7-b928-f54c9e9e1625" alt="뉴스 검색" width="#"></p>
 </details>
 
 <details>

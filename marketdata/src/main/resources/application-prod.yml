@@ -114,16 +114,16 @@ management:
   server:
     port: 8080  # 동일 포트 사용
 
-# ✅ Logging - Production 레벨
+# ✅ Logging - Production 레벨 (모두 ERROR로 변경)
 logging:
   level:
-    root: INFO
-    com.beyond.MKX: INFO  # ✅ DEBUG → INFO
-    org.springframework.cloud.gateway: WARN
-    org.springframework.web.socket: WARN
-    org.springframework.messaging: WARN
-    org.springframework.messaging.simp: WARN
-    org.springframework.web.socket.messaging: WARN
+    root: ERROR
+    com.beyond.MKX: ERROR
+    org.springframework.cloud.gateway: ERROR
+    org.springframework.web.socket: ERROR
+    org.springframework.messaging: ERROR
+    org.springframework.messaging.simp: ERROR
+    org.springframework.web.socket.messaging: ERROR
 
 jwt:
   expirationAt: 604800000      # 15분

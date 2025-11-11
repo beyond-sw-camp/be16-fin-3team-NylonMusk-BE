@@ -15,6 +15,16 @@ spec:
       labels:
         app: mkx-redis
     spec:
+      # Kafka + Redis 전용 노드 배치 (Messaging)
+      nodeSelector:
+        workload: messaging
+      
+      tolerations:
+      - key: workload
+        operator: Equal
+        value: messaging
+        effect: NoSchedule
+      
       containers:
       - name: mkx-redis
         image: redis

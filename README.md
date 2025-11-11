@@ -1,4 +1,4 @@
-![증권사 관리자-고객 관리 페이지](https://github.com/user-attachments/assets/6d059ae8-7f02-4941-ac6d-93d9727db6b2)<body>
+<body>
 <main class="container">
   <h1>MKX — 기업을 위한 증권 공급망 거래소</h1>
  <img width="1200" height="710" alt="MKX 리드미 배너" src="https://github.com/user-attachments/assets/5a5f48d4-dae1-4e99-aaf4-15a9c1d54028" />

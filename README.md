@@ -173,41 +173,1002 @@
   </section>
 
 
-  <section id="demo-video">
-    <h2>8) 기능 시연 영상</h2>
-    <p>MKX 프로젝트의 주요 기능 시연 영상을 정리합니다.</p>
-    <details>
-      <summary>
-        <b>증권사 관리자 회원가입/로그인</b>
-      </summary>
-      <b>증권사 관리자 회원가입</b>
-      <p align="center">
-        <img src="https://github.com/user-attachments/assets/58276bb1-2dc3-4fa4-8742-839bf360032d" alt="#" width="#">
-      </p>
-      <b>증권사 관리자 로그인</b>
-      <p align="center">
-        <img src="#" alt="#" width="#">
-      </p>
-      <summary>
-        <b>기업 관리자 회원가입/로그인</b>
-      </summary>
-      <b>기업 관리자 회원가입(도로명 검색)</b>
-      <p align="center">
-        <img src="#" alt="#" width="#">
-      </p>
-      <b>기업 관리자 로그인</b>
-      <p align="center">
-        <img src="#" alt="#" width="#">
-      </p>
-      <summary>
-        <b>거래소 관리자 로그인</b>
-      </summary>
-      <b>거래소 관리자 로그인</b>
-      <p align="center">
-        <img src="#" alt="#" width="#">
-      </p>
-    </details>
-  </section>
+<section id="demo-video">
+  <h2>8) 기능 시연 영상</h2>
+  <p>MKX 프로젝트의 주요 기능 시연 영상을 정리합니다.</p>
+
+  <!-- 회원가입 / 로그인 -->
+<details>
+<summary><b>① 회원가입 / 로그인</b></summary>
+
+<details>
+<summary><b>관리자 회원가입 / 로그인</b></summary>
+
+<details>
+<summary><b>기업 관리자 회원가입</b></summary>
+<p align="center">
+<img src="#" alt="기업 관리자 회원가입" width="#">
+</p>
+</details>
+
+<details>
+<summary><b>증권사 관리자 회원가입</b></summary>
+<p align="center">
+<img src="#" alt="증권사 관리자 회원가입" width="#">
+</p>
+</details>
+
+<details>
+<summary><b>관리자 로그인</b></summary>
+<p align="center">
+<img src="#" alt="관리자 로그인" width="#">
+</p>
+</details>
+</details>
+
+<details>
+<summary><b>일반 유저 회원가입 / 로그인</b></summary>
+
+<details>
+<summary><b>일반 유저 회원가입</b></summary>
+<p align="center">
+<img src="#" alt="일반 유저 회원가입" width="#">
+</p>
+</details>
+
+<details>
+<summary><b>일반 유저 로그인</b></summary>
+<p align="center">
+<img src="#" alt="일반 유저 로그인" width="#">
+</p>
+</details>
+
+<details>
+<summary><b>일반 유저 캡챠 시연</b></summary>
+<p align="center">
+<img src="#" alt="일반 유저 캡챠 시연" width="#">
+</p>
+</details>
+</details>
+</details>
+
+<!-- 기업 관리자 페이지 -->
+<details>
+<summary><b>② 기업 관리자 페이지</b></summary>
+
+<details>
+<summary><b>공시 관리</b></summary>
+
+<details>
+<summary><b>공시 목록 페이지</b></summary>
+<p align="center"><img src="#" alt="공시 목록 페이지" width="#"></p>
+</details>
+
+<details>
+<summary><b>공시 목록 필터</b></summary>
+<p align="center"><img src="#" alt="공시 목록 필터" width="#"></p>
+</details>
+
+<details>
+<summary><b>공시 등록 페이지</b></summary>
+
+<details>
+<summary><b>본공시</b></summary>
+<p align="center"><img src="#" alt="본공시" width="#"></p>
+</details>
+
+<details>
+<summary><b>정정공시</b></summary>
+<p align="center"><img src="#" alt="정정공시" width="#"></p>
+</details>
+
+<details>
+<summary><b>추가공시</b></summary>
+<p align="center"><img src="#" alt="추가공시" width="#"></p>
+</details>
+</details>
+</details>
+
+<details>
+<summary><b>상장 관리</b></summary>
+
+<details>
+<summary><b>상장 신청</b></summary>
+
+<details>
+<summary><b>공모</b></summary>
+<p align="center"><img src="#" alt="공모 상장 신청" width="#"></p>
+</details>
+
+<details>
+<summary><b>직상장</b></summary>
+<p align="center"><img src="#" alt="직상장 신청" width="#"></p>
+</details>
+</details>
+
+<details>
+<summary><b>공모 등록</b></summary>
+<p align="center"><img src="#" alt="공모 등록" width="#"></p>
+</details>
+
+<details>
+<summary><b>공모 목록</b></summary>
+
+<details>
+<summary><b>공모 목록 필터</b></summary>
+<p align="center"><img src="#" alt="공모 목록 필터" width="#"></p>
+</details>
+
+<details>
+<summary><b>공모 목록 검색</b></summary>
+<p align="center"><img src="#" alt="공모 목록 검색" width="#"></p>
+</details>
+
+<details>
+<summary><b>공모 참여</b></summary>
+<p align="center"><img src="#" alt="공모 참여" width="#"></p>
+</details>
+</details>
+
+<details>
+<summary><b>수요예측 참여하기</b></summary>
+
+<details>
+<summary><b>수요예측 목록</b></summary>
+<p align="center"><img src="#" alt="수요예측 목록" width="#"></p>
+</details>
+
+<details>
+<summary><b>수요예측 참여</b></summary>
+<p align="center"><img src="#" alt="수요예측 참여" width="#"></p>
+</details>
+</details>
+
+<details>
+<summary><b>내 청약 내역</b></summary>
+
+<details>
+<summary><b>청약 내역 조회</b></summary>
+<p align="center"><img src="#" alt="청약 내역 조회" width="#"></p>
+</details>
+
+<details>
+<summary><b>추가 납입</b></summary>
+<p align="center"><img src="#" alt="추가 납입" width="#"></p>
+</details>
+
+<details>
+<summary><b>정산</b></summary>
+<p align="center"><img src="#" alt="정산" width="#"></p>
+</details>
+</details>
+
+<details>
+<summary><b>상장 현황</b></summary>
+<p align="center"><img src="#" alt="상장 현황 페이지" width="#"></p>
+</details>
+
+<details>
+<summary><b>주식 관리</b></summary>
+
+<details>
+<summary><b>주식 관리 페이지</b></summary>
+<p align="center"><img src="#" alt="주식 관리 페이지" width="#"></p>
+</details>
+
+<details>
+<summary><b>공시 문제 발생 시 재제출</b></summary>
+<p align="center"><img src="#" alt="공시 재제출" width="#"></p>
+</details>
+</details>
+</details>
+
+<details>
+<summary><b>자산</b></summary>
+
+<details>
+<summary><b>계좌 등록 신청</b></summary>
+<p align="center"><img src="#" alt="계좌 등록 신청" width="#"></p>
+</details>
+
+<details>
+<summary><b>입금</b></summary>
+<p align="center"><img src="#" alt="입금" width="#"></p>
+</details>
+
+<details>
+<summary><b>출금</b></summary>
+<p align="center"><img src="#" alt="출금" width="#"></p>
+</details>
+
+<details>
+<summary><b>거래내역 조회</b></summary>
+
+<details>
+<summary><b>거래내역 검색</b></summary>
+<p align="center"><img src="#" alt="거래내역 검색" width="#"></p>
+</details>
+
+<details>
+<summary><b>거래내역 기간별 조회</b></summary>
+<p align="center"><img src="#" alt="거래내역 기간조회" width="#"></p>
+</details>
+</details>
+</details>
+</details>
+
+<!-- 증권사 관리자 페이지 -->
+<details>
+<summary><b>③ 증권사 관리자 페이지</b></summary>
+
+<details>
+<summary><b>대시보드</b></summary>
+
+<details>
+<summary><b>대시보드 페이지</b></summary>
+<p align="center"><img src="#" alt="대시보드 페이지" width="#"></p>
+</details>
+
+<details>
+<summary><b>실시간 고객 활동 자세히 보기 모달</b></summary>
+<p align="center"><img src="#" alt="실시간 고객 활동 모달" width="#"></p>
+</details>
+</details>
+
+<details>
+<summary><b>고객 관리</b></summary>
+
+<details>
+<summary><b>고객 목록</b></summary>
+
+<details>
+<summary><b>고객 목록 조회</b></summary>
+<p align="center"><img src="#" alt="고객 목록 조회" width="#"></p>
+</details>
+
+<details>
+<summary><b>고객 목록 필터</b></summary>
+<p align="center"><img src="#" alt="고객 목록 필터" width="#"></p>
+</details>
+
+<details>
+<summary><b>고객 목록 상세 검색</b></summary>
+<p align="center"><img src="#" alt="고객 목록 상세 검색" width="#"></p>
+</details>
+
+<details>
+<summary><b>고객 상세 모달</b></summary>
+<p align="center"><img src="#" alt="고객 상세 모달" width="#"></p>
+</details>
+</details>
+
+<details>
+<summary><b>거래 내역</b></summary>
+
+<details>
+<summary><b>거래 내역 조회</b></summary>
+<p align="center"><img src="#" alt="거래 내역 조회" width="#"></p>
+</details>
+
+<details>
+<summary><b>거래 내역 필터</b></summary>
+<p align="center"><img src="#" alt="거래 내역 필터" width="#"></p>
+</details>
+
+<details>
+<summary><b>거래 내역 날짜 검색</b></summary>
+<p align="center"><img src="#" alt="거래 내역 날짜 검색" width="#"></p>
+</details>
+
+<details>
+<summary><b>거래 내역 상세 검색</b></summary>
+<p align="center"><img src="#" alt="거래 내역 상세 검색" width="#"></p>
+</details>
+
+<details>
+<summary><b>거래 내역 상세 모달</b></summary>
+<p align="center"><img src="#" alt="거래 내역 상세 모달" width="#"></p>
+</details>
+</details>
+</details>
+
+<details>
+<summary><b>수익 관리</b></summary>
+
+<details>
+<summary><b>수수료 관리 페이지</b></summary>
+<p align="center"><img src="#" alt="수수료 관리 페이지" width="#"></p>
+</details>
+
+<details>
+<summary><b>수수료 설정</b></summary>
+<p align="center"><img src="#" alt="수수료 설정" width="#"></p>
+</details>
+</details>
+
+<details>
+<summary><b>자금 관리</b></summary>
+
+<details>
+<summary><b>입금</b></summary>
+<p align="center"><img src="#" alt="입금" width="#"></p>
+</details>
+
+<details>
+<summary><b>출금</b></summary>
+<p align="center"><img src="#" alt="출금" width="#"></p>
+</details>
+
+<details>
+<summary><b>거래내역</b></summary>
+
+<details>
+<summary><b>거래내역 조회</b></summary>
+<p align="center"><img src="#" alt="거래내역 조회" width="#"></p>
+</details>
+
+<details>
+<summary><b>거래 내역 필터</b></summary>
+<p align="center"><img src="#" alt="거래 내역 필터" width="#"></p>
+</details>
+
+<details>
+<summary><b>거래 내역 날짜 검색</b></summary>
+<p align="center"><img src="#" alt="거래 내역 날짜 검색" width="#"></p>
+</details>
+</details>
+</details>
+</details>
+
+<!-- 거래소 관리자 페이지 -->
+<details>
+<summary><b>④ 거래소 관리자 페이지</b></summary>
+
+<details>
+<summary><b>대시보드</b></summary>
+
+<details>
+<summary><b>대시보드 페이지</b></summary>
+<p align="center"><img src="#" alt="대시보드 페이지" width="#"></p>
+</details>
+</details>
+
+<details>
+<summary><b>기업 관리</b></summary>
+
+<details>
+<summary><b>기업 관리 페이지</b></summary>
+<p align="center"><img src="#" alt="기업 관리 페이지" width="#"></p>
+</details>
+
+<details>
+<summary><b>기업 등록 승인</b></summary>
+<p align="center"><img src="#" alt="기업 등록 승인" width="#"></p>
+</details>
+
+<details>
+<summary><b>기업 등록 거절</b></summary>
+<p align="center"><img src="#" alt="기업 등록 거절" width="#"></p>
+</details>
+
+<details>
+<summary><b>기업 검색</b></summary>
+<p align="center"><img src="#" alt="기업 검색" width="#"></p>
+</details>
+
+<details>
+<summary><b>기업 상태별 필터</b></summary>
+<p align="center"><img src="#" alt="기업 상태별 필터" width="#"></p>
+</details>
+
+<details>
+<summary><b>기업 상세 조회 사이드</b></summary>
+<p align="center"><img src="#" alt="기업 상세 조회 사이드" width="#"></p>
+</details>
+</details>
+
+<details>
+<summary><b>증권사 관리</b></summary>
+
+<details>
+<summary><b>증권사 관리 페이지</b></summary>
+<p align="center"><img src="#" alt="증권사 관리 페이지" width="#"></p>
+</details>
+
+<details>
+<summary><b>증권사 등록 승인</b></summary>
+<p align="center"><img src="#" alt="증권사 등록 승인" width="#"></p>
+</details>
+
+<details>
+<summary><b>증권사 등록 거절</b></summary>
+<p align="center"><img src="#" alt="증권사 등록 거절" width="#"></p>
+</details>
+
+<details>
+<summary><b>증권사 검색</b></summary>
+<p align="center"><img src="#" alt="증권사 검색" width="#"></p>
+</details>
+
+<details>
+<summary><b>증권사 상태별 필터</b></summary>
+<p align="center"><img src="#" alt="증권사 상태별 필터" width="#"></p>
+</details>
+
+<details>
+<summary><b>증권사 상세 조회 사이드</b></summary>
+<p align="center"><img src="#" alt="증권사 상세 조회 사이드" width="#"></p>
+</details>
+</details>
+
+<details>
+<summary><b>사용자 관리</b></summary>
+
+<details>
+<summary><b>사용자 관리 페이지</b></summary>
+<p align="center"><img src="#" alt="사용자 관리 페이지" width="#"></p>
+</details>
+
+<details>
+<summary><b>사용자 검색</b></summary>
+<p align="center"><img src="#" alt="사용자 검색" width="#"></p>
+</details>
+
+<details>
+<summary><b>사용자 상태별 필터</b></summary>
+<p align="center"><img src="#" alt="사용자 상태별 필터" width="#"></p>
+</details>
+
+<details>
+<summary><b>사용자 상세 조회 모달</b></summary>
+<p align="center"><img src="#" alt="사용자 상세 조회 모달" width="#"></p>
+</details>
+
+<details>
+<summary><b>사용자 계정 정지</b></summary>
+<p align="center"><img src="#" alt="사용자 계정 정지" width="#"></p>
+</details>
+</details>
+
+<details>
+<summary><b>계좌 관리</b></summary>
+
+<details>
+<summary><b>계좌 관리 페이지</b></summary>
+<p align="center"><img src="#" alt="계좌 관리 페이지" width="#"></p>
+</details>
+
+<details>
+<summary><b>계좌 등록 승인</b></summary>
+<p align="center"><img src="#" alt="계좌 등록 승인" width="#"></p>
+</details>
+
+<details>
+<summary><b>계좌 등록 거절</b></summary>
+<p align="center"><img src="#" alt="계좌 등록 거절" width="#"></p>
+</details>
+
+<details>
+<summary><b>계좌 상태별 필터</b></summary>
+<p align="center"><img src="#" alt="계좌 상태별 필터" width="#"></p>
+</details>
+
+<details>
+<summary><b>계좌 검색</b></summary>
+<p align="center"><img src="#" alt="계좌 검색" width="#"></p>
+</details>
+</details>
+
+<details>
+<summary><b>IPO 관리</b></summary>
+
+<details>
+<summary><b>IPO 관리 페이지</b></summary>
+
+<details>
+<summary><b>IPO 요청 승인</b></summary>
+<p align="center"><img src="#" alt="IPO 요청 승인" width="#"></p>
+</details>
+
+<details>
+<summary><b>IPO 요청 거절</b></summary>
+<p align="center"><img src="#" alt="IPO 요청 거절" width="#"></p>
+</details>
+
+<details>
+<summary><b>IPO 상태별 필터</b></summary>
+<p align="center"><img src="#" alt="IPO 상태별 필터" width="#"></p>
+</details>
+
+<details>
+<summary><b>IPO 검색</b></summary>
+<p align="center"><img src="#" alt="IPO 검색" width="#"></p>
+</details>
+</details>
+
+<details>
+<summary><b>공모 요청 목록 페이지</b></summary>
+
+<details>
+<summary><b>공모 요청 승인</b></summary>
+<p align="center"><img src="#" alt="공모 요청 승인" width="#"></p>
+</details>
+
+<details>
+<summary><b>공모 요청 거절</b></summary>
+<p align="center"><img src="#" alt="공모 요청 거절" width="#"></p>
+</details>
+
+<details>
+<summary><b>공모 상태별 필터</b></summary>
+<p align="center"><img src="#" alt="공모 상태별 필터" width="#"></p>
+</details>
+
+<details>
+<summary><b>공모 검색</b></summary>
+<p align="center"><img src="#" alt="공모 검색" width="#"></p>
+</details>
+
+<details>
+<summary><b>공모 배정 심사 승인</b></summary>
+<p align="center"><img src="#" alt="공모 배정 심사 승인" width="#"></p>
+</details>
+
+<details>
+<summary><b>공모 배정 확정</b></summary>
+<p align="center"><img src="#" alt="공모 배정 확정" width="#"></p>
+</details>
+</details>
+</details>
+
+<details>
+<summary><b>공시 승인</b></summary>
+
+<details>
+<summary><b>공시 승인 페이지</b></summary>
+<p align="center"><img src="#" alt="공시 승인 페이지" width="#"></p>
+</details>
+
+<details>
+<summary><b>공시 승인</b></summary>
+<p align="center"><img src="#" alt="공시 승인" width="#"></p>
+</details>
+
+<details>
+<summary><b>공시 거절</b></summary>
+
+<details>
+<summary><b>사유 작성</b></summary>
+<p align="center"><img src="#" alt="공시 거절 사유 작성" width="#"></p>
+</details>
+</details>
+
+<details>
+<summary><b>공시 상태별 필터</b></summary>
+<p align="center"><img src="#" alt="공시 상태별 필터" width="#"></p>
+</details>
+
+<details>
+<summary><b>공시 검색</b></summary>
+<p align="center"><img src="#" alt="공시 검색" width="#"></p>
+</details>
+</details>
+
+<details>
+<summary><b>상장 주식 관리</b></summary>
+
+<details>
+<summary><b>통합관리 페이지</b></summary>
+
+<details>
+<summary><b>주식 상태별 필터</b></summary>
+<p align="center"><img src="#" alt="주식 상태별 필터" width="#"></p>
+</details>
+
+<details>
+<summary><b>주식 검색</b></summary>
+<p align="center"><img src="#" alt="주식 검색" width="#"></p>
+</details>
+</details>
+
+<details>
+<summary><b>폐지 위험 관리 페이지</b></summary>
+
+<details>
+<summary><b>폐지 위험 상태별 필터</b></summary>
+<p align="center"><img src="#" alt="폐지 위험 상태별 필터" width="#"></p>
+</details>
+
+<details>
+<summary><b>폐지 위험 검색</b></summary>
+<p align="center"><img src="#" alt="폐지 위험 검색" width="#"></p>
+</details>
+
+<details>
+<summary><b>폐지 위험 상세 모달</b></summary>
+<p align="center"><img src="#" alt="폐지 위험 상세 모달" width="#"></p>
+</details>
+
+<details>
+<summary><b>폐지 예고 발행</b></summary>
+<p align="center"><img src="#" alt="폐지 예고 발행" width="#"></p>
+</details>
+</details>
+
+<details>
+<summary><b>폐지 진행 상황 관리 페이지</b></summary>
+
+<details>
+<summary><b>폐지 진행 상황 상태별 필터</b></summary>
+<p align="center"><img src="#" alt="폐지 진행 상황 상태별 필터" width="#"></p>
+</details>
+
+<details>
+<summary><b>폐지 진행 검색</b></summary>
+<p align="center"><img src="#" alt="폐지 진행 검색" width="#"></p>
+</details>
+
+<details>
+<summary><b>상장폐지 진행</b></summary>
+<p align="center"><img src="#" alt="상장폐지 진행" width="#"></p>
+</details>
+
+<details>
+<summary><b>상장폐지 환불 진행</b></summary>
+<p align="center"><img src="#" alt="상장폐지 환불 진행" width="#"></p>
+</details>
+</details>
+
+<details>
+<summary><b>폐지된 종목 페이지</b></summary>
+
+<details>
+<summary><b>폐지 사유별 필터</b></summary>
+<p align="center"><img src="#" alt="폐지 사유별 필터" width="#"></p>
+</details>
+
+<details>
+<summary><b>폐지 종목 검색</b></summary>
+<p align="center"><img src="#" alt="폐지 종목 검색" width="#"></p>
+</details>
+
+<details>
+<summary><b>폐지 종목 상세 모달</b></summary>
+<p align="center"><img src="#" alt="폐지 종목 상세 모달" width="#"></p>
+</details>
+</details>
+
+<details>
+<summary><b>기준 관리 페이지</b></summary>
+
+<details>
+<summary><b>기준별 필터</b></summary>
+<p align="center"><img src="#" alt="기준별 필터" width="#"></p>
+</details>
+
+<details>
+<summary><b>기준 생성</b></summary>
+<p align="center"><img src="#" alt="기준 생성" width="#"></p>
+</details>
+
+<details>
+<summary><b>기준 수정</b></summary>
+<p align="center"><img src="#" alt="기준 수정" width="#"></p>
+</details>
+
+<details>
+<summary><b>기준 삭제</b></summary>
+<p align="center"><img src="#" alt="기준 삭제" width="#"></p>
+</details>
+
+<details>
+<summary><b>기준 비활성화</b></summary>
+<p align="center"><img src="#" alt="기준 비활성화" width="#"></p>
+</details>
+
+<details>
+<summary><b>기준 검색</b></summary>
+<p align="center"><img src="#" alt="기준 검색" width="#"></p>
+</details>
+</details>
+</details>
+
+<details>
+<summary><b>거래소 자금 관리</b></summary>
+
+<details>
+<summary><b>입금</b></summary>
+<p align="center"><img src="#" alt="거래소 입금" width="#"></p>
+</details>
+
+<details>
+<summary><b>출금</b></summary>
+<p align="center"><img src="#" alt="거래소 출금" width="#"></p>
+</details>
+
+<details>
+<summary><b>최근 입금 내역</b></summary>
+<p align="center"><img src="#" alt="최근 입금 내역" width="#"></p>
+</details>
+</details>
+</details>
+
+<!-- 일반 유저 페이지 -->
+<details>
+<summary><b>⑤ 일반 유저 페이지</b></summary>
+
+<details>
+<summary><b>로그인 / 회원가입 페이지</b></summary>
+
+<details>
+<summary><b>로그인</b></summary>
+
+<details>
+<summary><b>로그인</b></summary>
+<p align="center"><img src="#" alt="로그인" width="#"></p>
+</details>
+
+<details>
+<summary><b>로그인 캡챠 인증</b></summary>
+<p align="center"><img src="#" alt="로그인 캡챠 인증" width="#"></p>
+</details>
+</details>
+
+<details>
+<summary><b>회원가입</b></summary>
+
+<details>
+<summary><b>증권사 선택</b></summary>
+<p align="center"><img src="#" alt="증권사 선택" width="#"></p>
+</details>
+
+<details>
+<summary><b>OCR 검증</b></summary>
+<p align="center"><img src="#" alt="OCR 검증" width="#"></p>
+</details>
+</details>
+
+<details>
+<summary><b>비밀번호 찾기</b></summary>
+<p align="center"><img src="#" alt="비밀번호 찾기" width="#"></p>
+</details>
+
+<details>
+<summary><b>로그인 배경 플로팅 이미지</b></summary>
+<p align="center"><img src="#" alt="로그인 배경 플로팅 이미지" width="#"></p>
+</details>
+</details>
+
+<details>
+<summary><b>홈 페이지</b></summary>
+
+<details>
+<summary><b>시가총액순</b></summary>
+<p align="center"><img src="#" alt="시가총액순" width="#"></p>
+</details>
+
+<details>
+<summary><b>거래량순</b></summary>
+<p align="center"><img src="#" alt="거래량순" width="#"></p>
+</details>
+
+<details>
+<summary><b>24H 변동성순</b></summary>
+<p align="center"><img src="#" alt="24H 변동성순" width="#"></p>
+</details>
+
+<details>
+<summary><b>주식 즐겨찾기</b></summary>
+<p align="center"><img src="#" alt="주식 즐겨찾기" width="#"></p>
+</details>
+</details>
+
+<details>
+<summary><b>뉴스 페이지</b></summary>
+
+<details>
+<summary><b>전체 뉴스</b></summary>
+<p align="center"><img src="#" alt="전체 뉴스" width="#"></p>
+</details>
+
+<details>
+<summary><b>보유주식 뉴스</b></summary>
+<p align="center"><img src="#" alt="보유주식 뉴스" width="#"></p>
+</details>
+
+<details>
+<summary><b>즐겨찾기 뉴스</b></summary>
+<p align="center"><img src="#" alt="즐겨찾기 뉴스" width="#"></p>
+</details>
+
+<details>
+<summary><b>공시 페이지</b></summary>
+
+<details>
+<summary><b>전체 공시</b></summary>
+<p align="center"><img src="#" alt="전체 공시" width="#"></p>
+</details>
+
+<details>
+<summary><b>보유주식 공시</b></summary>
+<p align="center"><img src="#" alt="보유주식 공시" width="#"></p>
+</details>
+
+<details>
+<summary><b>즐겨찾기 공시</b></summary>
+<p align="center"><img src="#" alt="즐겨찾기 공시" width="#"></p>
+</details>
+</details>
+
+<details>
+<summary><b>뉴스 공유 링크 자동 생성</b></summary>
+<p align="center"><img src="#" alt="뉴스 공유 링크 자동 생성" width="#"></p>
+</details>
+
+<details>
+<summary><b>관련 주식</b></summary>
+<p align="center"><img src="#" alt="관련 주식" width="#"></p>
+</details>
+
+<details>
+<summary><b>인기순</b></summary>
+<p align="center"><img src="#" alt="인기순" width="#"></p>
+</details>
+
+<details>
+<summary><b>뉴스 상세 조회</b></summary>
+<p align="center"><img src="#" alt="뉴스 상세 조회" width="#"></p>
+</details>
+</details>
+
+<details>
+<summary><b>주식 목록 페이지</b></summary>
+
+<details>
+<summary><b>조건별 순위</b></summary>
+<p align="center"><img src="#" alt="조건별 순위" width="#"></p>
+</details>
+
+<details>
+<summary><b>실시간 반영</b></summary>
+<p align="center"><img src="#" alt="실시간 반영" width="#"></p>
+</details>
+</details>
+
+<details>
+<summary><b>공모 목록 페이지</b></summary>
+
+<details>
+<summary><b>공모 청약</b></summary>
+<p align="center"><img src="#" alt="공모 청약" width="#"></p>
+</details>
+
+<details>
+<summary><b>공모 상태 필터</b></summary>
+<p align="center"><img src="#" alt="공모 상태 필터" width="#"></p>
+</details>
+
+<details>
+<summary><b>공모 검색</b></summary>
+<p align="center"><img src="#" alt="공모 검색" width="#"></p>
+</details>
+</details>
+
+<details>
+<summary><b>내 계좌 페이지</b></summary>
+
+<details>
+<summary><b>보유 주식 가치에 따른 실시간 변화</b></summary>
+<p align="center"><img src="#" alt="보유 주식 실시간 변화" width="#"></p>
+</details>
+
+<details>
+<summary><b>보유 주식 라우팅</b></summary>
+<p align="center"><img src="#" alt="보유 주식 라우팅" width="#"></p>
+</details>
+
+<details>
+<summary><b>입금</b></summary>
+<p align="center"><img src="#" alt="입금" width="#"></p>
+</details>
+
+<details>
+<summary><b>출금</b></summary>
+<p align="center"><img src="#" alt="출금" width="#"></p>
+</details>
+
+<details>
+<summary><b>계좌이체</b></summary>
+<p align="center"><img src="#" alt="계좌이체" width="#"></p>
+</details>
+
+<details>
+<summary><b>거래내역 조회</b></summary>
+
+<details>
+<summary><b>거래내역 카테고리별 필터</b></summary>
+<p align="center"><img src="#" alt="거래내역 카테고리별 필터" width="#"></p>
+</details>
+
+<details>
+<summary><b>거래내역 날짜별 조회</b></summary>
+<p align="center"><img src="#" alt="거래내역 날짜별 조회" width="#"></p>
+</details>
+
+<details>
+<summary><b>거래내역 상세 조회 모달</b></summary>
+<p align="center"><img src="#" alt="거래내역 상세 조회 모달" width="#"></p>
+</details>
+</details>
+</details>
+
+<details>
+<summary><b>주식 즐겨찾기 페이지</b></summary>
+
+<details>
+<summary><b>주식 즐겨찾기 해제</b></summary>
+<p align="center"><img src="#" alt="주식 즐겨찾기 해제" width="#"></p>
+</details>
+</details>
+
+<details>
+<summary><b>내 정보 페이지</b></summary>
+<p align="center"><img src="#" alt="내 정보 페이지" width="#"></p>
+</details>
+
+<details>
+<summary><b>내 주식 포트폴리오 페이지</b></summary>
+
+<details>
+<summary><b>실시간 반영 시연</b></summary>
+<p align="center"><img src="#" alt="포트폴리오 실시간 반영" width="#"></p>
+</details>
+</details>
+
+<details>
+<summary><b>내 청약 내역 페이지</b></summary>
+
+<details>
+<summary><b>청약 추가납입</b></summary>
+<p align="center"><img src="#" alt="청약 추가납입" width="#"></p>
+</details>
+
+<details>
+<summary><b>청약 환불</b></summary>
+<p align="center"><img src="#" alt="청약 환불" width="#"></p>
+</details>
+
+<details>
+<summary><b>청약 목록 조회</b></summary>
+<p align="center"><img src="#" alt="청약 목록 조회" width="#"></p>
+</details>
+</details>
+
+<details>
+<summary><b>검색 모달</b></summary>
+
+<details>
+<summary><b>전체</b></summary>
+<p align="center"><img src="#" alt="전체 검색" width="#"></p>
+</details>
+
+<details>
+<summary><b>종목</b></summary>
+<p align="center"><img src="#" alt="종목 검색" width="#"></p>
+</details>
+
+<details>
+<summary><b>뉴스</b></summary>
+<p align="center"><img src="#" alt="뉴스 검색" width="#"></p>
+</details>
+
+<details>
+<summary><b>공시</b></summary>
+<p align="center"><img src="#" alt="공시 검색" width="#"></p>
+</details>
+</details>
+</details>
+</section>
 
   <section id="evidence">
     <h2>9) 단위 테스트 결과서</h2>

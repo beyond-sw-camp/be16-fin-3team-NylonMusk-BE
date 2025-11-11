@@ -20,13 +20,13 @@ spec:
         image: influxdb:2.7
         ports:
         - containerPort: 8086
-        # 리소스 설정 (5개 노드 최적화)
+        # 리소스 설정 (5개 노드 최적화, 대량 쓰기 대응)
         resources:
           requests:
-            cpu: "150m"
+            cpu: "500m"
             memory: "512Mi"
           limits:
-            cpu: "800m"
+            cpu: "2000m"
             memory: "1536Mi"
         env:
         # InfluxDB 캐시 메모리 제한 설정 (OOM 방지)

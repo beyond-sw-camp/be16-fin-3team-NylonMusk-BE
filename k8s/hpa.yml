@@ -92,7 +92,7 @@ spec:
     kind: Deployment
     name: market-data-depl
   minReplicas: 2
-  maxReplicas: 4
+  maxReplicas: 7
   metrics:
   - type: Resource
     resource:
@@ -201,4 +201,3 @@ spec:
       - type: Percent
         value: 100
         periodSeconds: 30
-

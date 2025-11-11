@@ -21,14 +21,6 @@ spec:
           ports:
             - containerPort: 9092  # 내부 브로커 포트(클러스터 내 접근)
             - containerPort: 9093  # KRaft 컨트롤러 포트
-          # 리소스 설정 (중요 인프라, 5개 노드 최적화)
-          resources:
-            requests:
-              cpu: "400m"
-              memory: "768Mi"
-            limits:
-              cpu: "1600m"
-              memory: "1536Mi"
           env:
             # KRaft 단일 브로커 구성
             - name: KAFKA_NODE_ID
@@ -75,18 +67,17 @@ spec:
           volumeMounts:
             - name: kafka-data
               mountPath: /tmp/kraft-combined-logs  # KRaft 로그/데이터 경로
+          # 리소스 설정 (중요 인프라, 실 사용 대비 메모리 여유 확보)
           resources:
             requests:
               cpu: "500m"
-              memory: "1Gi"
+              memory: "1536Mi"
             limits:
               cpu: "2000m"
-              memory: "2Gi"
+              memory: "4Gi"
       volumes:
-        # 데모/내부 테스트면 emptyDir로 충분.
-        # 영속 필요 시 PVC로 교체(아래 예시 참고).
         - name: kafka-data
-          emptyDir: {}
+          emptyDir: {}  # 빠른 성능, 7일 retention으로 충분
 
 ---
 apiVersion: v1

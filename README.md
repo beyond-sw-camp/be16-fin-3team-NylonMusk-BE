@@ -1,28 +1,24 @@
 <body>
 <main class="container">
-  <h1>MKX — 기업을 위한 증권 공급망 거래소</h1>
- <img width="1200" height="710" alt="MKX 리드미 배너" src="https://github.com/user-attachments/assets/5a5f48d4-dae1-4e99-aaf4-15a9c1d54028" />
-  <div class="muted">프로젝트 기간: <strong>2025.09.12</strong> ~ <strong>2025.11.12</strong> · 작성자: 김진호 · 김형진 · 박혜성 · 이우영 · 윤세진</div>
-  <div style="margin-top:10px">
-    <span class="badge">B2B 전용</span>
-    <span class="badge">비상장/상장/유상증자</span>
-    <span class="badge">다크풀(기관)</span>
-    <span class="badge">MFA · 감사로그</span>
-  </div>
-
+  <h1>MKX — 증권사, 기업, 투자자를 하나로 잇는 통합 증권 거래 플랫폼</h1>
+  <h3>🏆 한화시스템 BEYOND SW CAMP 16기 최종프로젝트 1위 수상 작품 🏆</h3>
+  <img width="1200" height="710" alt="MKX 리드미 배너" src="https://github.com/user-attachments/assets/5a5f48d4-dae1-4e99-aaf4-15a9c1d54028" />
   <hr/>
 
   <div class="card">
     <h2>소개</h2>
-    <p><strong>MKX</strong>는 <em>기업을 위한 증권 공급망 관리(SSOM: Securities Supply–Order Management)</em>를 핵심 컨셉으로 하는 B2B 거래소입니다. 
-      기업은 상장(공급 등록) → 발행/유상증자(공급 확장) → 거래/정산 → 공시/주주총회(거버넌스) → 상장폐지/관리까지 <strong>end-to-end</strong>로 처리할 수 있습니다.
-      우리는 일반 리테일 브로커가 아닌, <strong>거래소 그 자체</strong>입니다. <strong>법인 전용</strong> 거래/관리 흐름에 집중합니다.</p>
-    <ul class="list-tight">
-      <li><strong>B2B 전용:</strong> 법인 계정, KYB, 전 과정 MFA/감사.</li>
-      <li><strong>공급망형 주문관리:</strong> 상장·발행·유상증자·락업·거래 규칙을 공급/수요 데이터로 일관 관리.</li>
-      <li><strong>비상장/다크풀:</strong> 기관 간 비상장 블록딜, 다크풀 매칭(공매도 정책 범위 내 시뮬레이션 포함).</li>
-      <li><strong>거버넌스 내장:</strong> 온라인 주주총회(전자위임/의결/의사록), 기업 공지/알림.</li>
-    </ul>
+    <p align="center">
+      MKX는 중소·중견 증권사의 높은 인프라 구축 비용과 운영 부담을 해결하기 위해 설계된,
+    </p>
+    <p align="center">
+      <strong>입점형 B2B 디지털 증권 거래소 플랫폼</strong>입니다.
+    </p>
+    <p align="center">
+      증권사는 MKX에 입점해 주문·체결 인프라를 즉시 사용할 수 있으며,  
+    </p>
+    <p align="center">
+      사용자는 원하는 증권사를 선택해 거래에 참여할 수 있습니다.
+    </p>
   </div>
 
   <h2 id="toc">목차</h2>

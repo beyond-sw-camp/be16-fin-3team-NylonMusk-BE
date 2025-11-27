@@ -28,7 +28,47 @@
 |                                                                        **김진호**                                                                         |                                                    **김형진**                                                    |                                                        **박혜성**                                                         |                                                                       **이우영**                                                                        |                                                                      **윤세진**                                                                      |
 |:------------------------------------------------------------------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------------------------------:|:----------------------------------------------------------------------------------------------------------------------:|:----------------------------------------------------------------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------------------------------------------------------------------:|
 | [<img src="https://github.com/jinnn12.png" height=150 width=150> <br/> @jinnn12 <br/><sub>**Domain & Listing Lead**</sub>](https://github.com/jinnn12) | [<img src="https://github.com/JeaPple.png" height=150 width=150> <br/> @JeaPple <br/><sub>**Trading Engine Lead**</sub>](https://github.com/JeaPple) | [<img src="https://github.com/solidify-d.png" height=150 width=150> <br/> @solidify-d <br/><sub>**Trading Engine Lead**</sub>](https://github.com/solidify-d) |          [<img src="https://github.com/ggj0228.png" height=150 width=150> <br/> @ggj0228 <br/><sub>**Identity & Admin**</sub>](https://github.com/ggj0228)           |      [<img src="https://github.com/AstroJini.png" height=150 width=150> <br/> @AstroJini<br/><sub>**Data & Governance**</sub>](https://github.com/AstroJini)       |
-  <h2 id="toc">목차</h2>
+
+<h2> 분석 및 설계</h2>
+
+<details>
+  <summary><b>📘 요구사항 명세서</b></summary>
+    👉<a href="https://docs.google.com/spreadsheets/d/1KsOnMh4J6d19r1ddL_Do8jKxRJrOoILHzYmdGbvL0C0/edit?gid=0#gid=0" target="_blank">요구사항 명세서 자세히 보기</a>
+</details>
+
+<details>
+  <summary><b>🖥️ 화면 설계서</b></summary>
+
+  <!-- 화면 설계서 이미지/링크 -->
+  <!-- 예: <img src="docs/ui-1.png" width="700"> -->
+
+여기에 화면 설계서를 첨부하세요.
+</details>
+
+<details>
+  <summary><b>🗂 ERD</b></summary>
+
+  <!-- ERD 이미지 -->
+  <!-- 예: <img src="docs/erd.png" width="700"> -->
+
+여기에 ERD를 첨부하세요.
+</details>
+
+<details>
+  <summary><b>📌 WBS</b> (링크)</summary>
+👉<a href="https://docs.google.com/spreadsheets/d/1KsOnMh4J6d19r1ddL_Do8jKxRJrOoILHzYmdGbvL0C0/edit?gid=930058085#gid=930058085">WBS 자세히 보기</a>
+</details>
+
+<details>
+  <summary><b>🔗 API 명세서</b> (링크)</summary>
+
+  <!-- API 명세서 링크 -->
+  <!-- 예: [API 문서 바로가기](https://...) -->
+
+API 명세서 링크를 여기에 넣어주세요.
+</details>
+
+<h2 id="toc">목차</h2>
   <div class="toc">
   <a href="#value">1. 문제정의 & 가치제안</a><br />
   <a href="#scope">2. 범위(Out of Scope 포함)</a><br />

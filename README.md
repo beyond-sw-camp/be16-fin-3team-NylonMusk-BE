@@ -25,10 +25,14 @@
     </ul>
   </div>
 
+---
+<h2>🙋🏻 팀원 소개</h2>
+
 |                                                                        **김진호**                                                                         |                                                    **김형진**                                                    |                                                        **박혜성**                                                         |                                                                       **이우영**                                                                        |                                                                      **윤세진**                                                                      |
 |:------------------------------------------------------------------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------------------------------:|:----------------------------------------------------------------------------------------------------------------------:|:----------------------------------------------------------------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------------------------------------------------------------------:|
 | [<img src="https://github.com/jinnn12.png" height=150 width=150> <br/> @jinnn12 <br/><sub>**Domain & Listing Lead**</sub>](https://github.com/jinnn12) | [<img src="https://github.com/JeaPple.png" height=150 width=150> <br/> @JeaPple <br/><sub>**Trading Engine Lead**</sub>](https://github.com/JeaPple) | [<img src="https://github.com/solidify-d.png" height=150 width=150> <br/> @solidify-d <br/><sub>**Trading Engine Lead**</sub>](https://github.com/solidify-d) |          [<img src="https://github.com/ggj0228.png" height=150 width=150> <br/> @ggj0228 <br/><sub>**Identity & Admin**</sub>](https://github.com/ggj0228)           |      [<img src="https://github.com/AstroJini.png" height=150 width=150> <br/> @AstroJini<br/><sub>**Data & Governance**</sub>](https://github.com/AstroJini)       |
 
+---
 <h2> 분석 및 설계</h2>
 
 <details>
@@ -67,6 +71,82 @@
 
 API 명세서 링크를 여기에 넣어주세요.
 </details>
+
+---
+
+<section id="techstack">
+  <h2>📚 기술 스택</h2>
+  <div class="card">
+    <div align="center"><h3>Backend</h3></div>
+    <div align="center">
+      <!-- Backend -->
+      <img src="https://img.shields.io/badge/Java%2017-007396?style=for-the-badge&logo=OpenJDK&logoColor=white">
+      <img src="https://img.shields.io/badge/Spring%20Boot%20v3-6DB33F?style=for-the-badge&logo=springboot&logoColor=white">
+      <img src="https://img.shields.io/badge/Spring%20Data%20JPA-6DB33F?style=for-the-badge&logo=Spring&logoColor=white">
+      <img src="https://img.shields.io/badge/Hibernate-59666C?style=for-the-badge&logo=Hibernate&logoColor=white">
+      <img src="https://img.shields.io/badge/STOMP-000000?style=for-the-badge">
+      <img src="https://img.shields.io/badge/MariaDB-003545?style=for-the-badge&logo=MariaDB&logoColor=white">
+      <img src="https://img.shields.io/badge/SSE%20(Server--Sent%20Events)-000000?style=for-the-badge">
+      <img src="https://img.shields.io/badge/JWT-000000?style=for-the-badge&logo=JSON%20web%20tokens&logoColor=white">
+      <img src="https://img.shields.io/badge/Lua%20Script-2C2D72?style=for-the-badge&logo=lua&logoColor=white">
+      <img src="https://img.shields.io/badge/Kafka-231F20?style=for-the-badge&logo=apachekafka&logoColor=white">
+      <img src="https://img.shields.io/badge/Kafka%20Debezium-E6522C?style=for-the-badge&logo=apachekafka&logoColor=white">
+      <img src="https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white">
+      <img src="https://img.shields.io/badge/Redis%20Sharding-DC382D?style=for-the-badge&logo=redis&logoColor=white">
+      <img src="https://img.shields.io/badge/Redis%20Clustering-DC382D?style=for-the-badge&logo=redis&logoColor=white">
+      <img src="https://img.shields.io/badge/InfluxDB-22ADF6?style=for-the-badge&logo=influxdb&logoColor=white">
+      <br>
+    <div align="center"><h3>Frontend</h3></div>
+      <!-- Frontend -->
+      <img src="https://img.shields.io/badge/vuejs-%2335495e.svg?style=for-the-badge&logo=vuedotjs&logoColor=%234FC08D">
+      <img src="https://img.shields.io/badge/Vuetify-1867C0?style=for-the-badge&logo=vuetify&logoColor=AEDDFF">
+      <img src="https://img.shields.io/badge/chart.js-F5788D.svg?style=for-the-badge&logo=chart.js&logoColor=white">
+      <img src="https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black">
+      <img src="https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white">
+      <br>
+    <div align="center"><h3>Infra & Cloud</h3></div>
+      <!-- AWS & Infra -->
+      <img src="https://img.shields.io/badge/Amazon%20S3-FF9900?style=for-the-badge&logo=amazons3&logoColor=white">
+      <img src="https://img.shields.io/badge/CloudFront-232F3E?style=for-the-badge&logo=amazoncloudfront&logoColor=white">
+      <img src="https://img.shields.io/badge/kubernetes-%23326ce5.svg?style=for-the-badge&logo=kubernetes&logoColor=white">
+      <img src="https://img.shields.io/badge/elasticsearch-%230377CC.svg?style=for-the-badge&logo=elasticsearch&logoColor=white">
+      <img src="https://img.shields.io/badge/Elastic%20Kubernetes%20Service-FF9900?style=for-the-badge&logo=amazonEKS&logoColor=white">
+      <img src="https://img.shields.io/badge/Elastic%20Container%20Registry-FF9900?style=for-the-badge&logo=amazonecr&logoColor=white">
+      <img src="https://img.shields.io/badge/Elastic%20Cache-FF4F8B?style=for-the-badge&logo=amazonelasticache&logoColor=white">
+      <img src="https://img.shields.io/badge/RDS-527FFF?style=for-the-badge&logo=amazonrds&logoColor=white">
+      <img src="https://img.shields.io/badge/Route%2053-8C4FFF?style=for-the-badge&logo=amazonroute53&logoColor=white">
+      <img src="https://img.shields.io/badge/EC2-FF9900?style=for-the-badge&logo=amazonec2&logoColor=white">
+      <img src="https://img.shields.io/badge/Certificate%20Manager-569A31?style=for-the-badge&logo=amazonaws&logoColor=white">
+      <img src="https://img.shields.io/badge/VPC-0073BB?style=for-the-badge&logo=amazonvpc&logoColor=white">
+      <img src="https://img.shields.io/badge/IAM-232F3E?style=for-the-badge&logo=awsiam&logoColor=white">
+      <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white">
+      <img src="https://img.shields.io/badge/Docker%20Compose-1D63ED?style=for-the-badge&logo=docker&logoColor=white">
+      <img src="https://img.shields.io/badge/GitHub%20Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white">
+      <img src="https://img.shields.io/badge/Nginx-009639?style=for-the-badge&logo=nginx&logoColor=white">
+      <br>
+    <div align="center"><h3>External API & Integration</h3></div>
+      <img src="https://img.shields.io/badge/TradingView%20Lightweight%20Charts-000000?style=for-the-badge">
+      <img src="https://img.shields.io/badge/OCR-000000?style=for-the-badge">
+      <img src="https://img.shields.io/badge/OpenDART-0054A6?style=for-the-badge">
+      <img src="https://img.shields.io/badge/gpt--4o--mini-412991?style=for-the-badge">
+      <img src="https://img.shields.io/badge/CAPTCHA-000000?style=for-the-badge">
+      <br>
+    <div align="center"><h3>Test & Docs</h3></div>
+      <img src="https://img.shields.io/badge/Apache%20JMeter-D22128?style=for-the-badge&logo=apachejmeter&logoColor=white">
+      <img src="https://img.shields.io/badge/Postman-FF6C37?style=for-the-badge&logo=postman&logoColor=white">
+      <br>
+    <div align="center"><h3>Tools & Collaboration</h3></div>
+      <img src="https://img.shields.io/badge/Git-F05032?style=for-the-badge&logo=git&logoColor=white">
+      <img src="https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white">
+      <img src="https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white">
+      <img src="https://img.shields.io/badge/Notion-000000?style=for-the-badge&logo=notion&logoColor=white">
+      <img src="https://img.shields.io/badge/Figma-F24E1E?style=for-the-badge&logo=figma&logoColor=white">
+      <br>
+    </div>
+  </div>
+</section>
+
+---
 
 <h2 id="toc">목차</h2>
   <div class="toc">
@@ -1190,50 +1270,7 @@ API 명세서 링크를 여기에 넣어주세요.
 
   <hr/>
 
-<section id="techstack">
-  <h2>16) 기술 스택</h2>
-  <div class="card">
-    <div align="center"><h3>📚 STACKS</h3></div>
-    <div align="center">
-      <!-- Language & Framework -->
-      <img src="https://img.shields.io/badge/Java-007396?style=for-the-badge&logo=java&logoColor=white">
-      <img src="https://img.shields.io/badge/Spring%20Boot%20v3-6DB33F?style=for-the-badge&logo=springboot&logoColor=white">
-      <img src="https://img.shields.io/badge/Spring%20JPA-59666C?style=for-the-badge&logo=spring&logoColor=white">
-      <img src="https://img.shields.io/badge/Lua%20Script-2C2D72?style=for-the-badge&logo=lua&logoColor=white">
-      <img src="https://img.shields.io/badge/Kafka-231F20?style=for-the-badge&logo=apachekafka&logoColor=white">
-      <img src="https://img.shields.io/badge/Kafka%20Debezium-E6522C?style=for-the-badge&logo=apachekafka&logoColor=white">
-      <img src="https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white">
-      <img src="https://img.shields.io/badge/Redis%20Sharding-DC382D?style=for-the-badge&logo=redis&logoColor=white">
-      <img src="https://img.shields.io/badge/Redis%20Clustering-DC382D?style=for-the-badge&logo=redis&logoColor=white">
-      <br>
-      <!-- AWS & Infra -->
-      <img src="https://img.shields.io/badge/AWS%20S3-569A31?style=for-the-badge&logo=amazons3&logoColor=white">
-      <img src="https://img.shields.io/badge/CloudFront-232F3E?style=for-the-badge&logo=amazoncloudfront&logoColor=white">
-      <img src="https://img.shields.io/badge/Elastic%20Kubernetes%20Service-FF9900?style=for-the-badge&logo=amazonEKS&logoColor=white">
-      <img src="https://img.shields.io/badge/Elastic%20Container%20Registry-FF9900?style=for-the-badge&logo=amazonecr&logoColor=white">
-      <img src="https://img.shields.io/badge/Elastic%20Cache-FF4F8B?style=for-the-badge&logo=amazonelasticache&logoColor=white">
-      <img src="https://img.shields.io/badge/RDS-527FFF?style=for-the-badge&logo=amazonrds&logoColor=white">
-      <img src="https://img.shields.io/badge/Route%2053-8C4FFF?style=for-the-badge&logo=amazonroute53&logoColor=white">
-      <img src="https://img.shields.io/badge/EC2-FF9900?style=for-the-badge&logo=amazonec2&logoColor=white">
-      <img src="https://img.shields.io/badge/Certificate%20Manager-569A31?style=for-the-badge&logo=amazonaws&logoColor=white">
-      <img src="https://img.shields.io/badge/VPC-0073BB?style=for-the-badge&logo=amazonvpc&logoColor=white">
-      <img src="https://img.shields.io/badge/IAM-232F3E?style=for-the-badge&logo=awsiam&logoColor=white">
-      <br>
-      <!-- DevOps -->
-      <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white">
-      <img src="https://img.shields.io/badge/Docker%20Compose-1D63ED?style=for-the-badge&logo=docker&logoColor=white">
-      <img src="https://img.shields.io/badge/GitHub%20Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white">
-      <img src="https://img.shields.io/badge/Nginx-009639?style=for-the-badge&logo=nginx&logoColor=white">
-    </div>
-    <hr/>
-    <h3>Backend</h3>
-    <p>Spring Boot v3 · Spring JPA · Kafka · Kafka Debezium · Lua Script · Redis (Sharding/Clustering) · MariaDB</p>
-    <h3>Frontend</h3>
-    <p>Vue.js / React · Vuetify · Chart.js</p>
-    <h3>Infra & DevOps</h3>
-    <p>AWS EC2 · ECR · EKS · S3 · CloudFront · RDS · Elastic Cache · Route53 · VPC · IAM · Certificate Manager · Docker · Docker Compose · Nginx · GitHub Actions</p>
-  </div>
-</section>
+
 
   <section id="architecture">
     <h2>17) 시스템 아키텍처</h2>

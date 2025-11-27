@@ -1185,7 +1185,7 @@
     <h2>13) ERD</h2>
     <div class="card">
       <p><a href="https://www.erdcloud.com/d/T6DQu8zAzzw2Pj6FS" target="_blank" rel="noopener">ERD URL</a></p>
-      <img width="5660" height="4002" alt="주식 (2)" src="https://github.com/user-attachments/assets/08ddddc7-1481-423e-a55c-795ea492f676" />
+      <img width="14150" height="7982" alt="ERD" src="https://github.com/user-attachments/assets/1b34329d-2f3a-49e2-9416-97c5c0a11953" />
     </div>
   </section>
 

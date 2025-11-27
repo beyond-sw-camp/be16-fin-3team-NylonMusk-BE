@@ -1,28 +1,25 @@
 <body>
 <main class="container">
-  <h1>MKX — 기업을 위한 증권 공급망 거래소</h1>
- <img width="1200" height="710" alt="MKX 리드미 배너" src="https://github.com/user-attachments/assets/5a5f48d4-dae1-4e99-aaf4-15a9c1d54028" />
-  <div class="muted">프로젝트 기간: <strong>2025.09.12</strong> ~ <strong>2025.11.12</strong> · 작성자: 김진호 · 김형진 · 박혜성 · 이우영 · 윤세진</div>
-  <div style="margin-top:10px">
-    <span class="badge">B2B 전용</span>
-    <span class="badge">비상장/상장/유상증자</span>
-    <span class="badge">다크풀(기관)</span>
-    <span class="badge">MFA · 감사로그</span>
-  </div>
+  <h1>MKX — 증권사, 기업, 투자자를 하나로 잇는 통합 증권 거래 플랫폼</h1>
+  <h3>🏆 한화시스템 BEYOND SW CAMP 16기 최종프로젝트 1위 수상 작품 🏆</h3>
+  <img width="1920" height="1080" alt="MKX 리드미 배너" src="https://github.com/user-attachments/assets/ef7b248f-7934-47f8-b402-eef19aaab2a8" />
 
   <hr/>
 
   <div class="card">
     <h2>소개</h2>
-    <p><strong>MKX</strong>는 <em>기업을 위한 증권 공급망 관리(SSOM: Securities Supply–Order Management)</em>를 핵심 컨셉으로 하는 B2B 거래소입니다. 
-      기업은 상장(공급 등록) → 발행/유상증자(공급 확장) → 거래/정산 → 공시/주주총회(거버넌스) → 상장폐지/관리까지 <strong>end-to-end</strong>로 처리할 수 있습니다.
-      우리는 일반 리테일 브로커가 아닌, <strong>거래소 그 자체</strong>입니다. <strong>법인 전용</strong> 거래/관리 흐름에 집중합니다.</p>
-    <ul class="list-tight">
-      <li><strong>B2B 전용:</strong> 법인 계정, KYB, 전 과정 MFA/감사.</li>
-      <li><strong>공급망형 주문관리:</strong> 상장·발행·유상증자·락업·거래 규칙을 공급/수요 데이터로 일관 관리.</li>
-      <li><strong>비상장/다크풀:</strong> 기관 간 비상장 블록딜, 다크풀 매칭(공매도 정책 범위 내 시뮬레이션 포함).</li>
-      <li><strong>거버넌스 내장:</strong> 온라인 주주총회(전자위임/의결/의사록), 기업 공지/알림.</li>
-    </ul>
+    <p align="center">
+      MKX는 중소·중견 증권사의 높은 인프라 구축 비용과 운영 부담을 해결하기 위해 설계된,
+    </p>
+    <p align="center">
+      <strong>입점형 B2B 디지털 증권 거래소 플랫폼</strong>입니다.
+    </p>
+    <p align="center">
+      증권사는 MKX에 입점해 주문·체결 인프라를 즉시 사용할 수 있으며,  
+    </p>
+    <p align="center">
+      사용자는 원하는 증권사를 선택해 거래에 참여할 수 있습니다.
+    </p>
   </div>
 
   <h2 id="toc">목차</h2>
@@ -51,23 +48,92 @@
 
 
 
-  <section id="value">
-        <h2>1) 문제정의 & 가치제안</h2>
-  <p>
-    기존 시장에서는 발행, 유상증자, 주주총회, 상장폐지와 같은 기업 중심의 프로세스가 실제 거래 시스템과 단절되어 단편적으로 운영됩니다. 이러한 구조는 정보의 비대칭성과 절차적 비효율을 초래하며, 투자자와 기업 모두에게 불투명한 경험을 제공합니다.
-  </p>
+<section id="value">
+  <h2>1) 문제정의 & 가치제안</h2>
+  <details>
+    <summary><b>① 문제정의</b></summary>
+    <p>
+      한국 증권 산업은 겉으로 보기에는 경쟁이 활발한 것처럼 보이지만, 실제 구조를 들여다보면 
+      <strong>기술 인프라를 갖춘 소수 대형 증권사 중심의 과점화</strong>가 심화된 시장이다.  
+      현재 60개 증권사가 존재하지만, 상위 10개사가 전체 리테일 거래의 70~80%를 차지한다는 점은 이러한 왜곡된 구조를 잘 보여준다.  
+      이는 단순한 브랜드 인지도 때문이 아니라, 각사가 보유한 <strong>주문·체결·정산 기술력의 격차</strong>에서 기인한 구조적 문제이다.
+    </p>
+    <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/4f4eca84-552e-425e-aeb2-26bb4707b412" />
+    <p>
+      특히 많은 중소형 증권사는 1990~2000년대 구축된 레거시 시스템을 여전히 사용하고 있으며, 
+      시스템 교체 시 최소 수백억 원의 비용이 발생해 <strong>전면 교체 자체가 사실상 불가능한 상태</strong>로 남아 있다.  
+      금융 IT 교체 주기가 20년 이상 지연되는 대표적인 사례가 바로 이 시장이며, 이로 인해 
+      중소형사는 ‘유지보수 중심의 운영 구조’에 갇혀 혁신을 시도하기 어려운 현실에 놓여 있다.
+    </p>
+    <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/f3b37ee9-0b1f-4803-8deb-429e642d2b88" />
+    <p>
+      금융당국은 이러한 문제를 완화하기 위해 2023년 자본금 15억 원만으로도 설립 가능한 
+      <strong>중개전문증권사 규제 완화</strong> 정책을 발표했다.  
+      그러나 이는 겉으로만 완화된 조치이다.  
+      실제로는 전산 구축비가 여전히 수십~수백억 원에 달해 <strong>신규 진입은 거의 불가능한 환경</strong>이라는 점에서 
+      핀테크 기업들이 사업을 포기하는 사례도 다수 발생하고 있다.
+    </p>
+    <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/632d0260-0fe5-42ed-a608-1898023823f8" />
+    <p>
+      또 하나의 핵심 문제는 <strong>비표준화된 시스템 구조</strong>이다.  
+      각 증권사는 주문 시스템, 계좌 시스템, 공모·배정 시스템, 리스크 관리, 공시·심사 시스템 등을 제각각 구축해 운영하고 있으며,  
+      이로 인해 데이터 정합성이 자주 깨지고, 필수적인 <strong>투명성·추적성·감사 가능성</strong>이 기술 구조 상 충분히 확보되지 않는다.  
+      하나의 매매가 체결되기까지 여러 시스템을 거치는 과정에서 데이터가 분절되고 흐름이 끊기는 것이다.
+    </p>
+    <p>
+      요약하면 한국 증권 시장에는 다음과 같은 구조적 한계가 존재한다:
+      <ul>
+        <li>① 레거시 시스템 고착 → 중소형사의 기술 경쟁력 확보 불가</li>
+        <li>② 전산 구축 비용 과다 → 신규 중개사 실질적 진입 불가</li>
+        <li>③ 주문·정산·리스크·공시 시스템이 분절 → 데이터 단절 발생</li>
+        <li>④ 기업·증권사·투자자가 사용하는 데이터 기준이 제각각</li>
+      </ul>
+      이러한 문제는 단순한 UI 불편을 넘어,  
+      <strong>시장 경쟁의 공정성을 저해하고 기술 격차로 인한 불균형 구조를 더욱 강화하는 핵심 요인</strong>으로 작동하고 있다.
+    </p>
+  </details>
 
-  <p>
-    MKX는 이와 달리, <strong>발행·공급에서 거래·정산, 나아가 거버넌스</strong>에 이르기까지 전 과정을 단일한 <strong>주문·공급망 데이터 모델</strong> 위에서 통합합니다. 이를 통해 각각 분리되어 있던 프로세스를 하나의 흐름으로 연결하고, 기업과 투자자 간의 정보 단절을 해소합니다.
-  </p>
-
-  <p>
-    이러한 통합 모델은 거래 속도를 향상시키고, 절차 전반의 투명성을 강화하며, 데이터 기반의 감사 가능성을 본질적으로 내재화합니다. 기업은 복잡한 절차를 간소화할 수 있으며, 투자자는 명확한 기준과 기록을 기반으로 신뢰할 수 있는 참여가 가능합니다.
-  </p>
-
-  <p>
-    결과적으로 MKX는 단순한 거래 플랫폼을 넘어, 기업의 자본 활동과 투자자의 의사결정이 실시간으로 유기적으로 맞물리는 새로운 생태계를 제공합니다. 이는 단순한 기술적 개선을 넘어, <strong>시장 운영 방식 자체를 혁신적으로 재편하는 핵심 동력</strong>입니다.
-  </p>
+  <details>
+    <summary><b>② 가치제안</b></summary>
+    <p>
+      MKX는 이러한 구조적 문제를 해결하기 위해 설계된  
+      <strong>B2B 입점형 디지털 증권 거래 플랫폼</strong>이다.  
+      기존 증권사들이 각기 따로 구축하던 주문·체결·정산·공모·배정·리스크 모듈을 하나의 기술 스택으로 통합하고,  
+      이를 <strong>SaaS 형태로 제공</strong>함으로써 기술 격차 문제를 근본적으로 해소한다.
+    </p>
+    <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/aab11c01-0042-4a59-83f8-71e0bdefbc80" />
+    <p>
+      증권사는 MKX에 입점하는 즉시,  
+      자체 인프라 구축 없이도 <strong>거래소 수준의 주문 서버·매칭엔진·정산·리스크 관리 인프라</strong>에 연결된다.  
+      이로써 기존 수백억 원 규모의 초기 구축 비용 없이도  
+      <strong>실시간 주문·차트·리스크 모니터링·공모·배정</strong> 등 핵심 증권 기능을 즉시 사용할 수 있다.
+    </p>
+    <p>
+      투자자는 가입 시 자신이 선택한 증권사 계정을 통해 MKX 인프라를 사용하게 되며,  
+      모든 증권사는 동일한 기술 표준을 기반으로 운영된다.  
+      이는 자연스럽게 다음 두 가지 효과를 만들어낸다:
+      <ul>
+        <li><strong>① 다수 증권사의 입점 → 투자자의 선택권 확대 및 유입 증가</strong></li>
+        <li><strong>② 전산 부담 완화 → 중소형사 및 신규 증권사의 시장 진입 가속화</strong></li>
+      </ul>
+    </p>
+    <p>
+      MKX의 가장 큰 차별성은  
+      주문·체결·정산·공모·위험감시로 이어지는 <strong>증권 업무 전체 공급망(Full Supply Chain)</strong>을  
+      단일 데이터 모델로 설계했다는 점이다.  
+      데이터가 흐름 단위로 연결되어 있어 어느 단계에서도 단절이 발생하지 않으며,  
+      이는 기존 전통 증권사조차 해결하지 못한 구조적 문제를 해결하는 핵심 기술적 진전이다.
+    </p>
+    <p>
+      결국 MKX는  
+      <strong>중소형 증권사의 진입 장벽을 실질적으로 해소하는 인프라</strong>이자,  
+      <strong>기업·증권사·투자자를 하나의 생태계로 연결하는 차세대 디지털 시장 플랫폼</strong>이다.  
+      단순한 거래 시스템을 넘어서,  
+      누구나 시장에 진입하고, 빠르게 운영하며, 안정적으로 성장할 수 있는  
+      <strong>증권업의 새로운 표준(AWS-like Infrastructure for Securities)</strong>을 제안한다.
+    </p>
+    <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/3ea1ab6c-9c7e-44d2-bce7-1a3b44987287" />
+  </details>
 </section>
 
   <section id="scope">
@@ -1119,7 +1185,7 @@
     <h2>13) ERD</h2>
     <div class="card">
       <p><a href="https://www.erdcloud.com/d/T6DQu8zAzzw2Pj6FS" target="_blank" rel="noopener">ERD URL</a></p>
-      <img width="5660" height="4002" alt="주식 (2)" src="https://github.com/user-attachments/assets/08ddddc7-1481-423e-a55c-795ea492f676" />
+      <img width="14150" height="7982" alt="ERD" src="https://github.com/user-attachments/assets/1b34329d-2f3a-49e2-9416-97c5c0a11953" />
     </div>
   </section>
 

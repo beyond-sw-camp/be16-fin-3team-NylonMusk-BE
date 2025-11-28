@@ -260,6 +260,8 @@
     <h2>8. UI/UX 단위 테스트 결과서</h2>
   </section>
 
+  <hr/>
+
   <h2 id="toc-legacy">전 버전</h2>
   <div class="toc">  
   <a href="#value">1. 문제정의 & 가치제안</a><br />

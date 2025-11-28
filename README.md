@@ -1260,9 +1260,7 @@
 
   <section id="architecture">
     <h2>17) 시스템 아키텍처</h2>
-    <div class="card">
-      <p align="center"><img src="https://github.com/user-attachments/assets/b303dbc7-93a0-43cf-8143-24cf18d62ae9" alt="시스템 아키텍처 다이어그램" width="800"></p>
-    </div>
+<img width="1920" height="1080" alt="MKX_architecture" src="https://github.com/user-attachments/assets/fd1394a3-d4ee-4571-9d0b-3b2dc09901d5" />
   </section>
 
   <hr/>

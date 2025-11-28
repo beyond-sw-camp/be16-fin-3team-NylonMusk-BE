@@ -24,6 +24,247 @@
 
   <h2 id="toc">목차</h2>
   <div class="toc">
+  <a href="#team">1. 팀원</a><br />
+  <a href="#project-plan">2. 프로젝트 기획서</a><br />
+  <a href="#analysis-design">3. 분석 및 설계</a><br />
+  <a href="#techstack">4. 기술 스택</a><br />
+  <a href="#architecture">5. 시스템 아키텍처</a><br />
+  <a href="#tech-summary">6. 기술 요약</a><br />
+  <a href="#features">7. 주요 기능</a><br />
+  <a href="#ui-ux-test">8. UI/UX 단위 테스트 결과서</a><br />
+  </div>
+
+  <section id="team">
+    <h2>1. 팀원 소개</h2>
+  </section>
+
+  <section id="project-plan">
+    <h2>2. 프로젝트 기획서</h2>
+    
+  <h3>1) 문제정의 & 가치제안</h3>
+  <details>
+    <summary><b>① 문제정의</b></summary>
+    <p>
+      한국 증권 산업은 겉으로 보기에는 경쟁이 활발한 것처럼 보이지만, 실제 구조를 들여다보면 
+      <strong>기술 인프라를 갖춘 소수 대형 증권사 중심의 과점화</strong>가 심화된 시장이다.  
+      현재 60개 증권사가 존재하지만, 상위 10개사가 전체 리테일 거래의 70~80%를 차지한다는 점은 이러한 왜곡된 구조를 잘 보여준다.  
+      이는 단순한 브랜드 인지도 때문이 아니라, 각사가 보유한 <strong>주문·체결·정산 기술력의 격차</strong>에서 기인한 구조적 문제이다.
+    </p>
+    <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/4f4eca84-552e-425e-aeb2-26bb4707b412" />
+    <p>
+      특히 많은 중소형 증권사는 1990~2000년대 구축된 레거시 시스템을 여전히 사용하고 있으며, 
+      시스템 교체 시 최소 수백억 원의 비용이 발생해 <strong>전면 교체 자체가 사실상 불가능한 상태</strong>로 남아 있다.  
+      금융 IT 교체 주기가 20년 이상 지연되는 대표적인 사례가 바로 이 시장이며, 이로 인해 
+      중소형사는 '유지보수 중심의 운영 구조'에 갇혀 혁신을 시도하기 어려운 현실에 놓여 있다.
+    </p>
+    <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/f3b37ee9-0b1f-4803-8deb-429e642d2b88" />
+    <p>
+      금융당국은 이러한 문제를 완화하기 위해 2023년 자본금 15억 원만으로도 설립 가능한 
+      <strong>중개전문증권사 규제 완화</strong> 정책을 발표했다.  
+      그러나 이는 겉으로만 완화된 조치이다.  
+      실제로는 전산 구축비가 여전히 수십~수백억 원에 달해 <strong>신규 진입은 거의 불가능한 환경</strong>이라는 점에서 
+      핀테크 기업들이 사업을 포기하는 사례도 다수 발생하고 있다.
+    </p>
+    <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/632d0260-0fe5-42ed-a608-1898023823f8" />
+    <p>
+      또 하나의 핵심 문제는 <strong>비표준화된 시스템 구조</strong>이다.  
+      각 증권사는 주문 시스템, 계좌 시스템, 공모·배정 시스템, 리스크 관리, 공시·심사 시스템 등을 제각각 구축해 운영하고 있으며,  
+      이로 인해 데이터 정합성이 자주 깨지고, 필수적인 <strong>투명성·추적성·감사 가능성</strong>이 기술 구조 상 충분히 확보되지 않는다.  
+      하나의 매매가 체결되기까지 여러 시스템을 거치는 과정에서 데이터가 분절되고 흐름이 끊기는 것이다.
+    </p>
+    <p>
+  요약하면 한국 증권 시장에는 다음과 같은 구조적 한계가 존재한다:
+</p>
+<ul>
+  <li>① 레거시 시스템 고착 → 중소형사의 기술 경쟁력 확보 불가</li>
+  <li>② 전산 구축 비용 과다 → 신규 중개사 실질적 진입 불가</li>
+  <li>③ 주문·정산·리스크·공시 시스템이 분절 → 데이터 단절 발생</li>
+  <li>④ 기업·증권사·투자자가 사용하는 데이터 기준이 제각각</li>
+</ul>
+<p>
+  이러한 문제는 단순한 UI 불편을 넘어,  
+  <strong>시장 경쟁의 공정성을 저해하고 기술 격차로 인한 불균형 구조를 더욱 강화하는 핵심 요인</strong>으로 작동하고 있다.
+</p>
+
+</details>
+
+<details>
+  <summary><b>② 가치제안</b></summary>
+  <p>
+    MKX는 이러한 구조적 문제를 해결하기 위해 설계된  
+    <strong>B2B 입점형 디지털 증권 거래 플랫폼</strong>이다.  
+    기존 증권사들이 각기 따로 구축하던 주문·체결·정산·공모·배정·리스크 모듈을 하나의 기술 스택으로 통합하고,  
+    이를 <strong>SaaS 형태로 제공</strong>함으로써 기술 격차 문제를 근본적으로 해소한다.
+  </p>
+  <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/aab11c01-0042-4a59-83f8-71e0bdefbc80" />
+  <p>
+    증권사는 MKX에 입점하는 즉시,  
+    자체 인프라 구축 없이도 <strong>거래소 수준의 주문 서버·매칭엔진·정산·리스크 관리 인프라</strong>에 연결된다.  
+    이로써 기존 수백억 원 규모의 초기 구축 비용 없이도  
+    <strong>실시간 주문·차트·리스크 모니터링·공모·배정</strong> 등 핵심 증권 기능을 즉시 사용할 수 있다.
+  </p>
+<p>
+투자자는 가입 시 자신이 선택한 증권사 계정을 통해 MKX 인프라를 사용하게 되며,  
+모든 증권사는 동일한 기술 표준을 기반으로 운영된다.  
+이는 자연스럽게 다음 두 가지 효과를 만들어낸다:
+</p>
+<ul>
+<li><strong>① 다수 증권사의 입점 → 투자자의 선택권 확대 및 유입 증가</strong></li>
+<li><strong>② 전산 부담 완화 → 중소형사 및 신규 증권사의 시장 진입 가속화</strong></li>
+</ul>
+
+<p>
+    MKX의 가장 큰 차별성은
+    주문·체결·정산·공모·위험감시로 이어지는 <strong>증권 업무 전체 공급망(Full Supply Chain)</strong>을
+    단일 데이터 모델로 설계했다는 점이다.
+    데이터가 흐름 단위로 연결되어 있어 어느 단계에서도 단절이 발생하지 않으며,
+    이는 기존 전통 증권사조차 해결하지 못한 구조적 문제를 해결하는 핵심 기술적 진전이다.
+  </p>
+  <p>
+    결국 MKX는
+    <strong>중소형 증권사의 진입 장벽을 실질적으로 해소하는 인프라</strong>이자,
+    <strong>기업·증권사·투자자를 하나의 생태계로 연결하는 차세대 디지털 시장 플랫폼</strong>이다.
+    단순한 거래 시스템을 넘어서,
+    누구나 시장에 진입하고, 빠르게 운영하며, 안정적으로 성장할 수 있는
+    <strong>증권업의 새로운 표준(AWS-like Infrastructure for Securities)</strong>을 제안한다.
+  </p>
+  <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/3ea1ab6c-9c7e-44d2-bce7-1a3b44987287" />
+
+</details>
+
+<h3>2) 범위(Out of Scope 포함)</h3>
+  <div id="scope">
+  <div class="grid">
+    <div class="col6">
+      <h3>In Scope</h3>
+      <ul>
+        <li>법인 회원가입·로그인(KYB, MFA, CI 중복 방지)</li>
+        <li>상장 요청·심사(재무제표 PDF·필수값 입력/검증)</li>
+        <li>발행/유상증자(신주인수권, 공모/3자배정)</li>
+        <li>비상장/기관간 블록딜, 다크풀 매칭</li>
+        <li>주주총회(전자위임/의결/정족수·가중치 판정·의사록)</li>
+        <li>상장폐지/관리종목·거래정지 로직</li>
+        <li>감사 로그, 관리자 RBAC, 공지/알림</li>
+      </ul>
+    </div>
+    <div class="col6">
+      <h3>Out of Scope</h3>
+      <ul>
+        <li>개인(B2C) 위주의 리테일 브로커 기능 전반</li>
+        <li>개인 대상 투자교육/커뮤니티 추천 알고리즘</li>
+        <li>암호자산 거래 기능</li>
+      </ul>
+    </div>
+  </div>
+  </div>
+
+<h3>3) 핵심 기능 요약</h3>
+  <div id="features">
+  <table>
+    <thead><tr><th>영역</th><th>주요 기능</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>관리자</strong></td>
+        <td>RBAC(SUPER_ADMIN/ADMIN), MFA 상시, 계정 생성/비활성/권한변경, 전행위 감사로그</td>
+      </tr>
+      <tr>
+        <td><strong>상장/발행</strong></td>
+        <td>상장요청(필수값/재무제표 검증), 발행량/락업/거래규칙 관리, 상폐 심사/고지</td>
+      </tr>
+      <tr>
+        <td><strong>거래</strong></td>
+        <td>B2B 지정가/시장가/조건주문, 대기/부분체결, 기관간 블록딜/다크풀, 결제상태 반영</td>
+      </tr>
+      <tr>
+        <td><strong>거버넌스</strong></td>
+        <td>온라인 주주총회(전자위임·가중치·정족수·의사록), 기업 공지/실시간 알림</td>
+      </tr>
+      <tr>
+        <td><strong>데이터</strong></td>
+        <td>차트/보조지표, 기업 개요·재무, MCP 기반 기술적 분석</td>
+      </tr>
+      <tr>
+        <td><strong>시뮬레이션</strong></td>
+        <td>가상거래 봇(횡보/상승/하락/급등락), 시나리오 스케줄·파라미터 제어</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="callout"><strong>전체 요구사항 목록</strong>은 아래 "요구사항 명세" 섹션의 문서/이미지로 연결합니다.</div>
+  </div>
+
+<h3>4) 공급망형 주문관리(SSOM) 흐름</h3>
+  <div id="order-supply">
+  <ol>
+    <li><strong>공급 등록:</strong> 상장요청 → 심사(재무제표/지표/규정) → 상장 승인 → 종목 생성</li>
+    <li><strong>공급 확장:</strong> 유상증자/발행량 변경 → 공시/신주인수권 → 주문규칙(시초가/단위/밴드)</li>
+    <li><strong>수요 매칭:</strong> 기관 매수/매도, 블록딜/다크풀 라우팅, 조건주문</li>
+    <li><strong>정산/잔고:</strong> 체결·수수료·가용현금/재고 반영, 결제상태 추적</li>
+    <li><strong>거버넌스:</strong> 공지/주총/의사록/감사로그 및 상장폐지 프로세스</li>
+  </ol>
+  </div>
+
+<h3>5) 거버넌스(주총/공지)</h3>
+  <div id="governance">
+  <ul>
+    <li>사전승인(안건/일시/스냅샷/마감), 참석 자격 매핑, 본인확인 및 1회용 초대토큰</li>
+    <li>안건별 찬반/기권, 보유주식 가중치 집계, 정족수/가결 요건 자동판정</li>
+    <li>의사록 전자서명, 결과 공시, 감사로그/CSV·PDF 내보내기</li>
+    <li>기업 공지 등록 시 보유자 대상 실시간 알림</li>
+  </ul>
+  </div>
+
+  <h3>6) 보안·컴플라이언스</h3>
+  <div id="security">
+  <ul>
+    <li><strong>MFA 상시</strong>(패스키 우선, 미지원 시 OTP), 민감행위 전 추가 재인증</li>
+    <li>세션 정책(비활성 타임아웃/절대만료/동시세션 제한/RT 로테이션)</li>
+    <li><strong>감사 로그</strong>(행위자/대상/전후값/사유/시각), 관리자 고권한 작업 이중확인</li>
+    <li>계좌 실명·중복가입 방지(CI/DI), 주민등록번호 원문 미저장</li>
+  </ul>
+  </div>
+
+  <h3>7) 발표 시나리오(데모 동선)</h3>
+  <div id="demo">
+  <ol>
+    <li><strong>기업 A 상장요청</strong> (필수값·재무제표 업로드) → <em>관리자 심사 승인</em></li>
+    <li><strong>기관 블록딜</strong> (비상장→상장 직전 프리IPO 시나리오 or 상장 후 다크풀 라우팅)</li>
+    <li><strong>유상증자 실행</strong> (조건 공시→신주인수권 처리→공급량 반영→거래 규칙 업데이트)</li>
+    <li><strong>온라인 주총</strong> (전자위임/가중치·정족수 충족→의사록/공시 출력)</li>
+    <li><strong>관리종목/상폐</strong> (조건 충족→거래정지→상폐 고지 7일→상폐 확정)</li>
+  </ol>
+  </div>
+
+</section>
+
+  <section id="analysis-design">
+    <h2>3. 분석 및 설계</h2>
+  </section>
+
+  <section id="techstack">
+    <h2>4. 기술 스택</h2>
+  </section>
+
+  <section id="architecture">
+    <h2>5. 시스템 아키텍처</h2>
+<img width="1920" height="1080" alt="MKX_architecture" src="https://github.com/user-attachments/assets/fd1394a3-d4ee-4571-9d0b-3b2dc09901d5" />
+  </section>
+
+  <section id="tech-summary">
+    <h2>6. 기술 요약</h2>
+  </section>
+
+  <section id="features">
+    <h2>7. 주요 기능</h2>
+  </section>
+
+  <section id="ui-ux-test">
+    <h2>8. UI/UX 단위 테스트 결과서</h2>
+  </section>
+
+  <hr/>
+
+  <h2 id="toc-legacy">전 버전</h2>
+  <div class="toc">  
   <a href="#value">1. 문제정의 & 가치제안</a><br />
   <a href="#scope">2. 범위(Out of Scope 포함)</a><br />
   <a href="#features">3. 핵심 기능 요약</a><br />
@@ -45,199 +286,6 @@
   </div>
 
   <hr/>
-
-
-
-<section id="value">
-  <h2>1) 문제정의 & 가치제안</h2>
-  <details>
-    <summary><b>① 문제정의</b></summary>
-    <p>
-      한국 증권 산업은 겉으로 보기에는 경쟁이 활발한 것처럼 보이지만, 실제 구조를 들여다보면 
-      <strong>기술 인프라를 갖춘 소수 대형 증권사 중심의 과점화</strong>가 심화된 시장이다.  
-      현재 60개 증권사가 존재하지만, 상위 10개사가 전체 리테일 거래의 70~80%를 차지한다는 점은 이러한 왜곡된 구조를 잘 보여준다.  
-      이는 단순한 브랜드 인지도 때문이 아니라, 각사가 보유한 <strong>주문·체결·정산 기술력의 격차</strong>에서 기인한 구조적 문제이다.
-    </p>
-    <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/4f4eca84-552e-425e-aeb2-26bb4707b412" />
-    <p>
-      특히 많은 중소형 증권사는 1990~2000년대 구축된 레거시 시스템을 여전히 사용하고 있으며, 
-      시스템 교체 시 최소 수백억 원의 비용이 발생해 <strong>전면 교체 자체가 사실상 불가능한 상태</strong>로 남아 있다.  
-      금융 IT 교체 주기가 20년 이상 지연되는 대표적인 사례가 바로 이 시장이며, 이로 인해 
-      중소형사는 ‘유지보수 중심의 운영 구조’에 갇혀 혁신을 시도하기 어려운 현실에 놓여 있다.
-    </p>
-    <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/f3b37ee9-0b1f-4803-8deb-429e642d2b88" />
-    <p>
-      금융당국은 이러한 문제를 완화하기 위해 2023년 자본금 15억 원만으로도 설립 가능한 
-      <strong>중개전문증권사 규제 완화</strong> 정책을 발표했다.  
-      그러나 이는 겉으로만 완화된 조치이다.  
-      실제로는 전산 구축비가 여전히 수십~수백억 원에 달해 <strong>신규 진입은 거의 불가능한 환경</strong>이라는 점에서 
-      핀테크 기업들이 사업을 포기하는 사례도 다수 발생하고 있다.
-    </p>
-    <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/632d0260-0fe5-42ed-a608-1898023823f8" />
-    <p>
-      또 하나의 핵심 문제는 <strong>비표준화된 시스템 구조</strong>이다.  
-      각 증권사는 주문 시스템, 계좌 시스템, 공모·배정 시스템, 리스크 관리, 공시·심사 시스템 등을 제각각 구축해 운영하고 있으며,  
-      이로 인해 데이터 정합성이 자주 깨지고, 필수적인 <strong>투명성·추적성·감사 가능성</strong>이 기술 구조 상 충분히 확보되지 않는다.  
-      하나의 매매가 체결되기까지 여러 시스템을 거치는 과정에서 데이터가 분절되고 흐름이 끊기는 것이다.
-    </p>
-    <p>
-      요약하면 한국 증권 시장에는 다음과 같은 구조적 한계가 존재한다:
-      <ul>
-        <li>① 레거시 시스템 고착 → 중소형사의 기술 경쟁력 확보 불가</li>
-        <li>② 전산 구축 비용 과다 → 신규 중개사 실질적 진입 불가</li>
-        <li>③ 주문·정산·리스크·공시 시스템이 분절 → 데이터 단절 발생</li>
-        <li>④ 기업·증권사·투자자가 사용하는 데이터 기준이 제각각</li>
-      </ul>
-      이러한 문제는 단순한 UI 불편을 넘어,  
-      <strong>시장 경쟁의 공정성을 저해하고 기술 격차로 인한 불균형 구조를 더욱 강화하는 핵심 요인</strong>으로 작동하고 있다.
-    </p>
-  </details>
-
-  <details>
-    <summary><b>② 가치제안</b></summary>
-    <p>
-      MKX는 이러한 구조적 문제를 해결하기 위해 설계된  
-      <strong>B2B 입점형 디지털 증권 거래 플랫폼</strong>이다.  
-      기존 증권사들이 각기 따로 구축하던 주문·체결·정산·공모·배정·리스크 모듈을 하나의 기술 스택으로 통합하고,  
-      이를 <strong>SaaS 형태로 제공</strong>함으로써 기술 격차 문제를 근본적으로 해소한다.
-    </p>
-    <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/aab11c01-0042-4a59-83f8-71e0bdefbc80" />
-    <p>
-      증권사는 MKX에 입점하는 즉시,  
-      자체 인프라 구축 없이도 <strong>거래소 수준의 주문 서버·매칭엔진·정산·리스크 관리 인프라</strong>에 연결된다.  
-      이로써 기존 수백억 원 규모의 초기 구축 비용 없이도  
-      <strong>실시간 주문·차트·리스크 모니터링·공모·배정</strong> 등 핵심 증권 기능을 즉시 사용할 수 있다.
-    </p>
-    <p>
-      투자자는 가입 시 자신이 선택한 증권사 계정을 통해 MKX 인프라를 사용하게 되며,  
-      모든 증권사는 동일한 기술 표준을 기반으로 운영된다.  
-      이는 자연스럽게 다음 두 가지 효과를 만들어낸다:
-      <ul>
-        <li><strong>① 다수 증권사의 입점 → 투자자의 선택권 확대 및 유입 증가</strong></li>
-        <li><strong>② 전산 부담 완화 → 중소형사 및 신규 증권사의 시장 진입 가속화</strong></li>
-      </ul>
-    </p>
-    <p>
-      MKX의 가장 큰 차별성은  
-      주문·체결·정산·공모·위험감시로 이어지는 <strong>증권 업무 전체 공급망(Full Supply Chain)</strong>을  
-      단일 데이터 모델로 설계했다는 점이다.  
-      데이터가 흐름 단위로 연결되어 있어 어느 단계에서도 단절이 발생하지 않으며,  
-      이는 기존 전통 증권사조차 해결하지 못한 구조적 문제를 해결하는 핵심 기술적 진전이다.
-    </p>
-    <p>
-      결국 MKX는  
-      <strong>중소형 증권사의 진입 장벽을 실질적으로 해소하는 인프라</strong>이자,  
-      <strong>기업·증권사·투자자를 하나의 생태계로 연결하는 차세대 디지털 시장 플랫폼</strong>이다.  
-      단순한 거래 시스템을 넘어서,  
-      누구나 시장에 진입하고, 빠르게 운영하며, 안정적으로 성장할 수 있는  
-      <strong>증권업의 새로운 표준(AWS-like Infrastructure for Securities)</strong>을 제안한다.
-    </p>
-    <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/3ea1ab6c-9c7e-44d2-bce7-1a3b44987287" />
-  </details>
-</section>
-
-  <section id="scope">
-    <h2>2) 범위(Out of Scope 포함)</h2>
-    <div class="grid">
-      <div class="col6">
-        <h3>In Scope</h3>
-        <ul>
-          <li>법인 회원가입·로그인(KYB, MFA, CI 중복 방지)</li>
-          <li>상장 요청·심사(재무제표 PDF·필수값 입력/검증)</li>
-          <li>발행/유상증자(신주인수권, 공모/3자배정)</li>
-          <li>비상장/기관간 블록딜, 다크풀 매칭</li>
-          <li>주주총회(전자위임/의결/정족수·가중치 판정·의사록)</li>
-          <li>상장폐지/관리종목·거래정지 로직</li>
-          <li>감사 로그, 관리자 RBAC, 공지/알림</li>
-        </ul>
-      </div>
-      <div class="col6">
-        <h3>Out of Scope</h3>
-        <ul>
-          <li>개인(B2C) 위주의 리테일 브로커 기능 전반</li>
-          <li>개인 대상 투자교육/커뮤니티 추천 알고리즘</li>
-          <li>암호자산 거래 기능</li>
-        </ul>
-      </div>
-    </div>
-  </section>
-
-  <section id="features">
-    <h2>3) 핵심 기능 요약</h2>
-    <table>
-      <thead><tr><th>영역</th><th>주요 기능</th></tr></thead>
-      <tbody>
-        <tr>
-          <td><strong>관리자</strong></td>
-          <td>RBAC(SUPER_ADMIN/ADMIN), MFA 상시, 계정 생성/비활성/권한변경, 전행위 감사로그</td>
-        </tr>
-        <tr>
-          <td><strong>상장/발행</strong></td>
-          <td>상장요청(필수값/재무제표 검증), 발행량/락업/거래규칙 관리, 상폐 심사/고지</td>
-        </tr>
-        <tr>
-          <td><strong>거래</strong></td>
-          <td>B2B 지정가/시장가/조건주문, 대기/부분체결, 기관간 블록딜/다크풀, 결제상태 반영</td>
-        </tr>
-        <tr>
-          <td><strong>거버넌스</strong></td>
-          <td>온라인 주주총회(전자위임·가중치·정족수·의사록), 기업 공지/실시간 알림</td>
-        </tr>
-        <tr>
-          <td><strong>데이터</strong></td>
-          <td>차트/보조지표, 기업 개요·재무, MCP 기반 기술적 분석</td>
-        </tr>
-        <tr>
-          <td><strong>시뮬레이션</strong></td>
-          <td>가상거래 봇(횡보/상승/하락/급등락), 시나리오 스케줄·파라미터 제어</td>
-        </tr>
-      </tbody>
-    </table>
-    <div class="callout"><strong>전체 요구사항 목록</strong>은 아래 “요구사항 명세” 섹션의 문서/이미지로 연결합니다.</div>
-  </section>
-
-  <section id="order-supply">
-    <h2>4) 공급망형 주문관리(SSOM) 흐름</h2>
-    <ol>
-      <li><strong>공급 등록:</strong> 상장요청 → 심사(재무제표/지표/규정) → 상장 승인 → 종목 생성</li>
-      <li><strong>공급 확장:</strong> 유상증자/발행량 변경 → 공시/신주인수권 → 주문규칙(시초가/단위/밴드)</li>
-      <li><strong>수요 매칭:</strong> 기관 매수/매도, 블록딜/다크풀 라우팅, 조건주문</li>
-      <li><strong>정산/잔고:</strong> 체결·수수료·가용현금/재고 반영, 결제상태 추적</li>
-      <li><strong>거버넌스:</strong> 공지/주총/의사록/감사로그 및 상장폐지 프로세스</li>
-    </ol>
-  </section>
-
-  <section id="governance">
-    <h2>5) 거버넌스(주총/공지)</h2>
-    <ul>
-      <li>사전승인(안건/일시/스냅샷/마감), 참석 자격 매핑, 본인확인 및 1회용 초대토큰</li>
-      <li>안건별 찬반/기권, 보유주식 가중치 집계, 정족수/가결 요건 자동판정</li>
-      <li>의사록 전자서명, 결과 공시, 감사로그/CSV·PDF 내보내기</li>
-      <li>기업 공지 등록 시 보유자 대상 실시간 알림</li>
-    </ul>
-  </section>
-
-  <section id="security">
-    <h2>6) 보안·컴플라이언스</h2>
-    <ul>
-      <li><strong>MFA 상시</strong>(패스키 우선, 미지원 시 OTP), 민감행위 전 추가 재인증</li>
-      <li>세션 정책(비활성 타임아웃/절대만료/동시세션 제한/RT 로테이션)</li>
-      <li><strong>감사 로그</strong>(행위자/대상/전후값/사유/시각), 관리자 고권한 작업 이중확인</li>
-      <li>계좌 실명·중복가입 방지(CI/DI), 주민등록번호 원문 미저장</li>
-    </ul>
-  </section>
-
-  <section id="demo">
-    <h2>7) 발표 시나리오(데모 동선)</h2>
-    <ol>
-      <li><strong>기업 A 상장요청</strong> (필수값·재무제표 업로드) → <em>관리자 심사 승인</em></li>
-      <li><strong>기관 블록딜</strong> (비상장→상장 직전 프리IPO 시나리오 or 상장 후 다크풀 라우팅)</li>
-      <li><strong>유상증자 실행</strong> (조건 공시→신주인수권 처리→공급량 반영→거래 규칙 업데이트)</li>
-      <li><strong>온라인 주총</strong> (전자위임/가중치·정족수 충족→의사록/공시 출력)</li>
-      <li><strong>관리종목/상폐</strong> (조건 충족→거래정지→상폐 고지 7일→상폐 확정)</li>
-    </ol>
-  </section>
-
 
 <section id="demo-video">
   <h2>8) 기능 시연 영상</h2>
@@ -617,7 +665,6 @@
 <p align="center"><img src="https://github.com/user-attachments/assets/eb805ef9-cff5-43b0-ad97-eca9a5430861" alt="사용자 관리 페이지" width="#"></p>
 </details>
 
-
 <details>
 <summary><b>사용자 상세 조회 모달</b></summary>
 <p align="center"><img src="#" alt="사용자 상세 조회 모달" width="#"></p>
@@ -646,7 +693,6 @@
 <summary><b>증권사 계좌 관리 페이지</b></summary>
 <p align="center"><img src="https://github.com/user-attachments/assets/494b208f-6895-4a66-ac59-0473a1b189df" alt="계좌 관리 페이지" width="#"></p>
 </details>
-
 
 <details>
 <summary><b>계좌 등록 승인</b></summary>
@@ -738,7 +784,6 @@
 <summary><b>공시 승인 페이지</b></summary>
 <p align="center"><img src="https://github.com/user-attachments/assets/818a7b5b-ad5e-4d0e-9d91-e9faee838e1a" alt="공시 승인 페이지" width="#"></p>
 </details>
-
 
 <details>
 <summary><b>공시 거절</b></summary>
@@ -1054,7 +1099,6 @@
 <summary><b>출금</b></summary>
 <p align="center"><img src="https://github.com/user-attachments/assets/72dec4f5-e74a-4b26-91f1-f62818773ad4" alt="출금" width="#"></p>
 </details>
-
 
 <details>
 <summary><b>계좌이체</b></summary>

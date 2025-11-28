@@ -24,32 +24,24 @@
 
   <h2 id="toc">목차</h2>
   <div class="toc">
-  <a href="#value">1. 문제정의 & 가치제안</a><br />
-  <a href="#scope">2. 범위(Out of Scope 포함)</a><br />
-  <a href="#features">3. 핵심 기능 요약</a><br />
-  <a href="#order-supply">4. 공급망형 주문관리(SSOM) 흐름</a><br />
-  <a href="#governance">5. 거버넌스(주총/공지)</a><br />
-  <a href="#security">6. 보안·컴플라이언스</a><br />
-  <a href="#demo">7. 발표 시나리오(데모 동선)</a><br />
-  <a href="#demo-video">8. 기능 시연 영상</a><br />
-  <a href="#evidence">9. 단위 테스트 결과서</a><br />
-  <a href="#reqspec">10. 요구사항 명세(이미지·URL)</a><br />
-  <a href="#wbs">11. WBS(이미지·URL)</a><br />
-  <a href="#figma">12. 화면설계도(이미지·URL)</a><br />
-  <a href="#erd">13. ERD(이미지·URL)</a><br />
-  <a href="#team">14. 팀 소개</a><br />
-  <a href="#timeline">15. 일정</a><br />
-  <a href="#techstack">16. 기술 스택</a><br />
-  <a href="#architecture">17. 시스템 아키텍처</a><br />
-  <a href="#api">18. API 명세서</a><br />
+  <a href="#team">1. 팀원</a><br />
+  <a href="#project-plan">2. 프로젝트 기획서</a><br />
+  <a href="#analysis-design">3. 분석 및 설계</a><br />
+  <a href="#techstack">4. 기술 스택</a><br />
+  <a href="#architecture">5. 시스템 아키텍처</a><br />
+  <a href="#tech-summary">6. 기술 요약</a><br />
+  <a href="#features">7. 주요 기능</a><br />
+  <a href="#ui-ux-test">8. UI/UX 단위 테스트 결과서</a><br />
   </div>
 
-  <hr/>
+  <section id="team">
+    <h2>1. 팀원 소개</h2>
+  </section>
 
-
-
-<section id="value">
-  <h2>1) 문제정의 & 가치제안</h2>
+  <section id="project-plan">
+    <h2>2. 프로젝트 기획서</h2>
+    
+    <h3>1) 문제정의 & 가치제안</h3>
   <details>
     <summary><b>① 문제정의</b></summary>
     <p>
@@ -63,7 +55,7 @@
       특히 많은 중소형 증권사는 1990~2000년대 구축된 레거시 시스템을 여전히 사용하고 있으며, 
       시스템 교체 시 최소 수백억 원의 비용이 발생해 <strong>전면 교체 자체가 사실상 불가능한 상태</strong>로 남아 있다.  
       금융 IT 교체 주기가 20년 이상 지연되는 대표적인 사례가 바로 이 시장이며, 이로 인해 
-      중소형사는 ‘유지보수 중심의 운영 구조’에 갇혀 혁신을 시도하기 어려운 현실에 놓여 있다.
+      중소형사는 '유지보수 중심의 운영 구조'에 갇혀 혁신을 시도하기 어려운 현실에 놓여 있다.
     </p>
     <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/f3b37ee9-0b1f-4803-8deb-429e642d2b88" />
     <p>
@@ -134,10 +126,9 @@
     </p>
     <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/3ea1ab6c-9c7e-44d2-bce7-1a3b44987287" />
   </details>
-</section>
-
-  <section id="scope">
-    <h2>2) 범위(Out of Scope 포함)</h2>
+  
+    <h3>2) 범위(Out of Scope 포함)</h3>
+    <div id="scope">
     <div class="grid">
       <div class="col6">
         <h3>In Scope</h3>
@@ -160,10 +151,10 @@
         </ul>
       </div>
     </div>
-  </section>
+    </div>
 
-  <section id="features">
-    <h2>3) 핵심 기능 요약</h2>
+    <h3>3) 핵심 기능 요약</h3>
+    <div id="features">
     <table>
       <thead><tr><th>영역</th><th>주요 기능</th></tr></thead>
       <tbody>
@@ -193,11 +184,11 @@
         </tr>
       </tbody>
     </table>
-    <div class="callout"><strong>전체 요구사항 목록</strong>은 아래 “요구사항 명세” 섹션의 문서/이미지로 연결합니다.</div>
-  </section>
+    <div class="callout"><strong>전체 요구사항 목록</strong>은 아래 "요구사항 명세" 섹션의 문서/이미지로 연결합니다.</div>
+    </div>
 
-  <section id="order-supply">
-    <h2>4) 공급망형 주문관리(SSOM) 흐름</h2>
+    <h3>4) 공급망형 주문관리(SSOM) 흐름</h3>
+    <div id="order-supply">
     <ol>
       <li><strong>공급 등록:</strong> 상장요청 → 심사(재무제표/지표/규정) → 상장 승인 → 종목 생성</li>
       <li><strong>공급 확장:</strong> 유상증자/발행량 변경 → 공시/신주인수권 → 주문규칙(시초가/단위/밴드)</li>
@@ -205,30 +196,30 @@
       <li><strong>정산/잔고:</strong> 체결·수수료·가용현금/재고 반영, 결제상태 추적</li>
       <li><strong>거버넌스:</strong> 공지/주총/의사록/감사로그 및 상장폐지 프로세스</li>
     </ol>
-  </section>
+    </div>
 
-  <section id="governance">
-    <h2>5) 거버넌스(주총/공지)</h2>
+    <h3>5) 거버넌스(주총/공지)</h3>
+    <div id="governance">
     <ul>
       <li>사전승인(안건/일시/스냅샷/마감), 참석 자격 매핑, 본인확인 및 1회용 초대토큰</li>
       <li>안건별 찬반/기권, 보유주식 가중치 집계, 정족수/가결 요건 자동판정</li>
       <li>의사록 전자서명, 결과 공시, 감사로그/CSV·PDF 내보내기</li>
       <li>기업 공지 등록 시 보유자 대상 실시간 알림</li>
     </ul>
-  </section>
+    </div>
 
-  <section id="security">
-    <h2>6) 보안·컴플라이언스</h2>
+    <h3>6) 보안·컴플라이언스</h3>
+    <div id="security">
     <ul>
       <li><strong>MFA 상시</strong>(패스키 우선, 미지원 시 OTP), 민감행위 전 추가 재인증</li>
       <li>세션 정책(비활성 타임아웃/절대만료/동시세션 제한/RT 로테이션)</li>
       <li><strong>감사 로그</strong>(행위자/대상/전후값/사유/시각), 관리자 고권한 작업 이중확인</li>
       <li>계좌 실명·중복가입 방지(CI/DI), 주민등록번호 원문 미저장</li>
     </ul>
-  </section>
+    </div>
 
-  <section id="demo">
-    <h2>7) 발표 시나리오(데모 동선)</h2>
+    <h3>7) 발표 시나리오(데모 동선)</h3>
+    <div id="demo">
     <ol>
       <li><strong>기업 A 상장요청</strong> (필수값·재무제표 업로드) → <em>관리자 심사 승인</em></li>
       <li><strong>기관 블록딜</strong> (비상장→상장 직전 프리IPO 시나리오 or 상장 후 다크풀 라우팅)</li>
@@ -236,7 +227,65 @@
       <li><strong>온라인 주총</strong> (전자위임/가중치·정족수 충족→의사록/공시 출력)</li>
       <li><strong>관리종목/상폐</strong> (조건 충족→거래정지→상폐 고지 7일→상폐 확정)</li>
     </ol>
+    </div>
+  
   </section>
+
+  <section id="analysis-design">
+    <h2>3. 분석 및 설계</h2>
+  </section>
+
+  <section id="techstack">
+    <h2>4. 기술 스택</h2>
+  </section>
+
+  <section id="architecture">
+    <h2>5. 시스템 아키텍처</h2>
+  </section>
+
+  <section id="tech-summary">
+    <h2>6. 기술 요약</h2>
+  </section>
+
+  <section id="features">
+    <h2>7. 주요 기능</h2>
+  </section>
+
+  <section id="ui-ux-test">
+    <h2>8. UI/UX 단위 테스트 결과서</h2>
+  </section>
+
+
+
+
+
+
+
+
+
+  <h2 id="toc-legacy">전 버전</h2>
+  <div class="toc">  
+  <a href="#value">1. 문제정의 & 가치제안</a><br />
+  <a href="#scope">2. 범위(Out of Scope 포함)</a><br />
+  <a href="#features">3. 핵심 기능 요약</a><br />
+  <a href="#order-supply">4. 공급망형 주문관리(SSOM) 흐름</a><br />
+  <a href="#governance">5. 거버넌스(주총/공지)</a><br />
+  <a href="#security">6. 보안·컴플라이언스</a><br />
+  <a href="#demo">7. 발표 시나리오(데모 동선)</a><br />
+  <a href="#demo-video">8. 기능 시연 영상</a><br />
+  <a href="#evidence">9. 단위 테스트 결과서</a><br />
+  <a href="#reqspec">10. 요구사항 명세(이미지·URL)</a><br />
+  <a href="#wbs">11. WBS(이미지·URL)</a><br />
+  <a href="#figma">12. 화면설계도(이미지·URL)</a><br />
+  <a href="#erd">13. ERD(이미지·URL)</a><br />
+  <a href="#team">14. 팀 소개</a><br />
+  <a href="#timeline">15. 일정</a><br />
+  <a href="#techstack">16. 기술 스택</a><br />
+  <a href="#architecture">17. 시스템 아키텍처</a><br />
+  <a href="#api">18. API 명세서</a><br />
+  </div>
+
+  <hr/>
 
 
 <section id="demo-video">

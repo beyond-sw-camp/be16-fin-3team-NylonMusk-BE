@@ -246,6 +246,7 @@
 
   <section id="architecture">
     <h2>5. 시스템 아키텍처</h2>
+<img width="1920" height="1080" alt="MKX_architecture" src="https://github.com/user-attachments/assets/fd1394a3-d4ee-4571-9d0b-3b2dc09901d5" />
   </section>
 
   <section id="tech-summary">

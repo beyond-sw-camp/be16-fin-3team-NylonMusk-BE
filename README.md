@@ -355,6 +355,28 @@
 
 <section id="tech-summary">
   <h2>6. 기술 요약</h2>
+<table>
+  <thead>
+    <tr>
+      <th>사용기술</th>
+      <th>설명</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><b>Kafka 기반 주문·체결 이벤트 파이프라인</b></td>
+      <td>주식의 주문·체결·정산 전 구간을 Kafka 중심의 비동기 이벤트 스트림 구조로 설계하여 서비스 간 강한 결합을 제거했습니다. 각 서비스는 Producer/Consumer 모델로 동작하며, 토픽·파티션·컨슈머 그룹을 활용해 고가용성과 순서 보장을 동시에 달성했습니다. 또한 AckMode와 재시도 정책을 직접 제어해 정확한 처리·오프셋 관리를 구현하고, DLT 기반으로 장애 이벤트를 자동 격리해 안정적인 운영을 확보했습니다.
+      </td>
+    </tr>
+    <tr>
+      <td><b>Debezium 기반 CDC 주문 파이프라인</b></td>
+      <td>카프카는 비동기 메시징 특성상 애플리케이션 단에서 트랜잭션 일관성을 보장하기 어렵다는 한계가 있습니다. 기존 Outbox 스케줄러 폴링 방식은 지연, 중복 처리, 서버 부하 증가 문제를 야기해 고빈도 주문 환경에 적합하지 않았습니다. 이를 해결하기 위해 MKX는 MariaDB binlog를 직접 읽어 Kafka로 전달하는 CDC(Change Data Capture) 아키텍처를 도입했습니다. Debezium + Kafka Connect 기반 구조를 통해 데이터 기록 즉시 이벤트가 발행되며, 낮은 지연, 높은 처리량, 메시지 누락 방지를 보장합니다.</td>
+    </tr>
+      
+  </tbody>
+</table>
+
+  
 </section>
 
 <section id="features">

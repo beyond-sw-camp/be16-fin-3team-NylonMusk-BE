@@ -1,28 +1,25 @@
 <body>
 <main class="container">
-  <h1>MKX — 기업을 위한 증권 공급망 거래소</h1>
- <img width="1200" height="710" alt="MKX 리드미 배너" src="https://github.com/user-attachments/assets/5a5f48d4-dae1-4e99-aaf4-15a9c1d54028" />
-  <div class="muted">프로젝트 기간: <strong>2025.09.12</strong> ~ <strong>2025.11.12</strong> · 작성자: 김진호 · 김형진 · 박혜성 · 이우영 · 윤세진</div>
-  <div style="margin-top:10px">
-    <span class="badge">B2B 전용</span>
-    <span class="badge">비상장/상장/유상증자</span>
-    <span class="badge">다크풀(기관)</span>
-    <span class="badge">MFA · 감사로그</span>
-  </div>
+  <h1>MKX — 증권사, 기업, 투자자를 하나로 잇는 통합 증권 거래 플랫폼</h1>
+  <h3>🏆 한화시스템 BEYOND SW CAMP 16기 최종프로젝트 1위 수상 작품 🏆</h3>
+  <img width="1920" height="1080" alt="MKX 리드미 배너" src="https://github.com/user-attachments/assets/ef7b248f-7934-47f8-b402-eef19aaab2a8" />
 
   <hr/>
 
   <div class="card">
     <h2>소개</h2>
-    <p><strong>MKX</strong>는 <em>기업을 위한 증권 공급망 관리(SSOM: Securities Supply–Order Management)</em>를 핵심 컨셉으로 하는 B2B 거래소입니다. 
-      기업은 상장(공급 등록) → 발행/유상증자(공급 확장) → 거래/정산 → 공시/주주총회(거버넌스) → 상장폐지/관리까지 <strong>end-to-end</strong>로 처리할 수 있습니다.
-      우리는 일반 리테일 브로커가 아닌, <strong>거래소 그 자체</strong>입니다. <strong>법인 전용</strong> 거래/관리 흐름에 집중합니다.</p>
-    <ul class="list-tight">
-      <li><strong>B2B 전용:</strong> 법인 계정, KYB, 전 과정 MFA/감사.</li>
-      <li><strong>공급망형 주문관리:</strong> 상장·발행·유상증자·락업·거래 규칙을 공급/수요 데이터로 일관 관리.</li>
-      <li><strong>비상장/다크풀:</strong> 기관 간 비상장 블록딜, 다크풀 매칭(공매도 정책 범위 내 시뮬레이션 포함).</li>
-      <li><strong>거버넌스 내장:</strong> 온라인 주주총회(전자위임/의결/의사록), 기업 공지/알림.</li>
-    </ul>
+    <p align="center">
+      MKX는 중소·중견 증권사의 높은 인프라 구축 비용과 운영 부담을 해결하기 위해 설계된,
+    </p>
+    <p align="center">
+      <strong>입점형 B2B 디지털 증권 거래소 플랫폼</strong>입니다.
+    </p>
+    <p align="center">
+      증권사는 MKX에 입점해 주문·체결 인프라를 즉시 사용할 수 있으며,  
+    </p>
+    <p align="center">
+      사용자는 원하는 증권사를 선택해 거래에 참여할 수 있습니다.
+    </p>
   </div>
 
 ---
@@ -150,6 +147,280 @@ API 명세서 링크를 여기에 넣어주세요.
 
 <h2 id="toc">목차</h2>
   <div class="toc">
+  <a href="#team">1. 팀원</a><br />
+  <a href="#project-plan">2. 프로젝트 기획서</a><br />
+  <a href="#analysis-design">3. 분석 및 설계</a><br />
+  <a href="#techstack">4. 기술 스택</a><br />
+  <a href="#architecture">5. 시스템 아키텍처</a><br />
+  <a href="#tech-summary">6. 기술 요약</a><br />
+  <a href="#features">7. 주요 기능</a><br />
+  <a href="#ui-ux-test">8. UI/UX 단위 테스트 결과서</a><br />
+  </div>
+
+  <section id="team">
+    <h2>1. 팀원 소개</h2>
+  </section>
+
+  <section id="project-plan">
+    <h2>2. 프로젝트 기획서</h2>
+    
+  <h3>1) 문제정의 & 가치제안</h3>
+  <details>
+    <summary><b>① 문제정의</b></summary>
+    <p>
+      한국 증권 산업은 겉으로 보기에는 경쟁이 활발한 것처럼 보이지만, 실제 구조를 들여다보면 
+      <strong>기술 인프라를 갖춘 소수 대형 증권사 중심의 과점화</strong>가 심화된 시장이다.  
+      현재 60개 증권사가 존재하지만, 상위 10개사가 전체 리테일 거래의 70~80%를 차지한다는 점은 이러한 왜곡된 구조를 잘 보여준다.  
+      이는 단순한 브랜드 인지도 때문이 아니라, 각사가 보유한 <strong>주문·체결·정산 기술력의 격차</strong>에서 기인한 구조적 문제이다.
+    </p>
+    <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/4f4eca84-552e-425e-aeb2-26bb4707b412" />
+    <p>
+      특히 많은 중소형 증권사는 1990~2000년대 구축된 레거시 시스템을 여전히 사용하고 있으며, 
+      시스템 교체 시 최소 수백억 원의 비용이 발생해 <strong>전면 교체 자체가 사실상 불가능한 상태</strong>로 남아 있다.  
+      금융 IT 교체 주기가 20년 이상 지연되는 대표적인 사례가 바로 이 시장이며, 이로 인해 
+      중소형사는 '유지보수 중심의 운영 구조'에 갇혀 혁신을 시도하기 어려운 현실에 놓여 있다.
+    </p>
+    <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/f3b37ee9-0b1f-4803-8deb-429e642d2b88" />
+    <p>
+      금융당국은 이러한 문제를 완화하기 위해 2023년 자본금 15억 원만으로도 설립 가능한 
+      <strong>중개전문증권사 규제 완화</strong> 정책을 발표했다.  
+      그러나 이는 겉으로만 완화된 조치이다.  
+      실제로는 전산 구축비가 여전히 수십~수백억 원에 달해 <strong>신규 진입은 거의 불가능한 환경</strong>이라는 점에서 
+      핀테크 기업들이 사업을 포기하는 사례도 다수 발생하고 있다.
+    </p>
+    <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/632d0260-0fe5-42ed-a608-1898023823f8" />
+    <p>
+      또 하나의 핵심 문제는 <strong>비표준화된 시스템 구조</strong>이다.  
+      각 증권사는 주문 시스템, 계좌 시스템, 공모·배정 시스템, 리스크 관리, 공시·심사 시스템 등을 제각각 구축해 운영하고 있으며,  
+      이로 인해 데이터 정합성이 자주 깨지고, 필수적인 <strong>투명성·추적성·감사 가능성</strong>이 기술 구조 상 충분히 확보되지 않는다.  
+      하나의 매매가 체결되기까지 여러 시스템을 거치는 과정에서 데이터가 분절되고 흐름이 끊기는 것이다.
+    </p>
+    <p>
+  요약하면 한국 증권 시장에는 다음과 같은 구조적 한계가 존재한다:
+</p>
+<ul>
+  <li>① 레거시 시스템 고착 → 중소형사의 기술 경쟁력 확보 불가</li>
+  <li>② 전산 구축 비용 과다 → 신규 중개사 실질적 진입 불가</li>
+  <li>③ 주문·정산·리스크·공시 시스템이 분절 → 데이터 단절 발생</li>
+  <li>④ 기업·증권사·투자자가 사용하는 데이터 기준이 제각각</li>
+</ul>
+<p>
+  이러한 문제는 단순한 UI 불편을 넘어,  
+  <strong>시장 경쟁의 공정성을 저해하고 기술 격차로 인한 불균형 구조를 더욱 강화하는 핵심 요인</strong>으로 작동하고 있다.
+</p>
+
+</details>
+
+<details>
+  <summary><b>② 가치제안</b></summary>
+  <p>
+    MKX는 이러한 구조적 문제를 해결하기 위해 설계된  
+    <strong>B2B 입점형 디지털 증권 거래 플랫폼</strong>이다.  
+    기존 증권사들이 각기 따로 구축하던 주문·체결·정산·공모·배정·리스크 모듈을 하나의 기술 스택으로 통합하고,  
+    이를 <strong>SaaS 형태로 제공</strong>함으로써 기술 격차 문제를 근본적으로 해소한다.
+  </p>
+  <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/aab11c01-0042-4a59-83f8-71e0bdefbc80" />
+  <p>
+    증권사는 MKX에 입점하는 즉시,  
+    자체 인프라 구축 없이도 <strong>거래소 수준의 주문 서버·매칭엔진·정산·리스크 관리 인프라</strong>에 연결된다.  
+    이로써 기존 수백억 원 규모의 초기 구축 비용 없이도  
+    <strong>실시간 주문·차트·리스크 모니터링·공모·배정</strong> 등 핵심 증권 기능을 즉시 사용할 수 있다.
+  </p>
+<p>
+투자자는 가입 시 자신이 선택한 증권사 계정을 통해 MKX 인프라를 사용하게 되며,  
+모든 증권사는 동일한 기술 표준을 기반으로 운영된다.  
+이는 자연스럽게 다음 두 가지 효과를 만들어낸다:
+</p>
+<ul>
+<li><strong>① 다수 증권사의 입점 → 투자자의 선택권 확대 및 유입 증가</strong></li>
+<li><strong>② 전산 부담 완화 → 중소형사 및 신규 증권사의 시장 진입 가속화</strong></li>
+</ul>
+
+<p>
+    MKX의 가장 큰 차별성은
+    주문·체결·정산·공모·위험감시로 이어지는 <strong>증권 업무 전체 공급망(Full Supply Chain)</strong>을
+    단일 데이터 모델로 설계했다는 점이다.
+    데이터가 흐름 단위로 연결되어 있어 어느 단계에서도 단절이 발생하지 않으며,
+    이는 기존 전통 증권사조차 해결하지 못한 구조적 문제를 해결하는 핵심 기술적 진전이다.
+  </p>
+  <p>
+    결국 MKX는
+    <strong>중소형 증권사의 진입 장벽을 실질적으로 해소하는 인프라</strong>이자,
+    <strong>기업·증권사·투자자를 하나의 생태계로 연결하는 차세대 디지털 시장 플랫폼</strong>이다.
+    단순한 거래 시스템을 넘어서,
+    누구나 시장에 진입하고, 빠르게 운영하며, 안정적으로 성장할 수 있는
+    <strong>증권업의 새로운 표준(AWS-like Infrastructure for Securities)</strong>을 제안한다.
+  </p>
+  <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/3ea1ab6c-9c7e-44d2-bce7-1a3b44987287" />
+
+</details>
+
+<h3>2) 범위(Out of Scope 포함)</h3>
+  <div id="scope">
+  <div class="grid">
+    <div class="col6">
+      <h3>In Scope</h3>
+      <ul>
+        <li>법인 회원가입·로그인(KYB, MFA, CI 중복 방지)</li>
+        <li>상장 요청·심사(재무제표 PDF·필수값 입력/검증)</li>
+        <li>발행/유상증자(신주인수권, 공모/3자배정)</li>
+        <li>비상장/기관간 블록딜, 다크풀 매칭</li>
+        <li>주주총회(전자위임/의결/정족수·가중치 판정·의사록)</li>
+        <li>상장폐지/관리종목·거래정지 로직</li>
+        <li>감사 로그, 관리자 RBAC, 공지/알림</li>
+      </ul>
+    </div>
+    <div class="col6">
+      <h3>Out of Scope</h3>
+      <ul>
+        <li>개인(B2C) 위주의 리테일 브로커 기능 전반</li>
+        <li>개인 대상 투자교육/커뮤니티 추천 알고리즘</li>
+        <li>암호자산 거래 기능</li>
+      </ul>
+    </div>
+  </div>
+  </div>
+
+<h3>3) 핵심 기능 요약</h3>
+  <div id="features">
+  <table>
+    <thead><tr><th>영역</th><th>주요 기능</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>관리자</strong></td>
+        <td>RBAC(SUPER_ADMIN/ADMIN), MFA 상시, 계정 생성/비활성/권한변경, 전행위 감사로그</td>
+      </tr>
+      <tr>
+        <td><strong>상장/발행</strong></td>
+        <td>상장요청(필수값/재무제표 검증), 발행량/락업/거래규칙 관리, 상폐 심사/고지</td>
+      </tr>
+      <tr>
+        <td><strong>거래</strong></td>
+        <td>B2B 지정가/시장가/조건주문, 대기/부분체결, 기관간 블록딜/다크풀, 결제상태 반영</td>
+      </tr>
+      <tr>
+        <td><strong>거버넌스</strong></td>
+        <td>온라인 주주총회(전자위임·가중치·정족수·의사록), 기업 공지/실시간 알림</td>
+      </tr>
+      <tr>
+        <td><strong>데이터</strong></td>
+        <td>차트/보조지표, 기업 개요·재무, MCP 기반 기술적 분석</td>
+      </tr>
+      <tr>
+        <td><strong>시뮬레이션</strong></td>
+        <td>가상거래 봇(횡보/상승/하락/급등락), 시나리오 스케줄·파라미터 제어</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="callout"><strong>전체 요구사항 목록</strong>은 아래 "요구사항 명세" 섹션의 문서/이미지로 연결합니다.</div>
+  </div>
+
+<h3>4) 공급망형 주문관리(SSOM) 흐름</h3>
+  <div id="order-supply">
+  <ol>
+    <li><strong>공급 등록:</strong> 상장요청 → 심사(재무제표/지표/규정) → 상장 승인 → 종목 생성</li>
+    <li><strong>공급 확장:</strong> 유상증자/발행량 변경 → 공시/신주인수권 → 주문규칙(시초가/단위/밴드)</li>
+    <li><strong>수요 매칭:</strong> 기관 매수/매도, 블록딜/다크풀 라우팅, 조건주문</li>
+    <li><strong>정산/잔고:</strong> 체결·수수료·가용현금/재고 반영, 결제상태 추적</li>
+    <li><strong>거버넌스:</strong> 공지/주총/의사록/감사로그 및 상장폐지 프로세스</li>
+  </ol>
+  </div>
+
+<h3>5) 거버넌스(주총/공지)</h3>
+  <div id="governance">
+  <ul>
+    <li>사전승인(안건/일시/스냅샷/마감), 참석 자격 매핑, 본인확인 및 1회용 초대토큰</li>
+    <li>안건별 찬반/기권, 보유주식 가중치 집계, 정족수/가결 요건 자동판정</li>
+    <li>의사록 전자서명, 결과 공시, 감사로그/CSV·PDF 내보내기</li>
+    <li>기업 공지 등록 시 보유자 대상 실시간 알림</li>
+  </ul>
+  </div>
+
+  <h3>6) 보안·컴플라이언스</h3>
+  <div id="security">
+  <ul>
+    <li><strong>MFA 상시</strong>(패스키 우선, 미지원 시 OTP), 민감행위 전 추가 재인증</li>
+    <li>세션 정책(비활성 타임아웃/절대만료/동시세션 제한/RT 로테이션)</li>
+    <li><strong>감사 로그</strong>(행위자/대상/전후값/사유/시각), 관리자 고권한 작업 이중확인</li>
+    <li>계좌 실명·중복가입 방지(CI/DI), 주민등록번호 원문 미저장</li>
+  </ul>
+  </div>
+
+  <h3>7) 발표 시나리오(데모 동선)</h3>
+  <div id="demo">
+  <ol>
+    <li><strong>기업 A 상장요청</strong> (필수값·재무제표 업로드) → <em>관리자 심사 승인</em></li>
+    <li><strong>기관 블록딜</strong> (비상장→상장 직전 프리IPO 시나리오 or 상장 후 다크풀 라우팅)</li>
+    <li><strong>유상증자 실행</strong> (조건 공시→신주인수권 처리→공급량 반영→거래 규칙 업데이트)</li>
+    <li><strong>온라인 주총</strong> (전자위임/가중치·정족수 충족→의사록/공시 출력)</li>
+    <li><strong>관리종목/상폐</strong> (조건 충족→거래정지→상폐 고지 7일→상폐 확정)</li>
+  </ol>
+  </div>
+
+</section>
+
+<section id="analysis-design">
+  <h2>3. 분석 및 설계</h2>
+  
+  ### 요구사항 명세서 [상세보기](https://docs.google.com/spreadsheets/d/1KsOnMh4J6d19r1ddL_Do8jKxRJrOoILHzYmdGbvL0C0/edit?gid=0#gid=0)
+  <details>
+    <summary><b>요구사항 명세서</b></summary>
+    <img width="1159" height="621" alt="스크린샷 2025-12-01 오전 11 36 56" src="https://github.com/user-attachments/assets/ed16805b-5659-49ed-8bbf-a930cbf46b16" />
+    <img width="1162" height="641" alt="스크린샷 2025-12-01 오전 11 37 14" src="https://github.com/user-attachments/assets/6cff86f9-7c15-4046-a217-023ef63766d9" />
+  </details>
+
+  ### 화면 설계서 [상세보기](https://www.figma.com/design/e0qAws8lXICFIVqCcyxCy6/MKX-%ED%99%94%EB%A9%B4%EC%84%A4%EA%B3%84%EC%84%9C?node-id=0-1&t=qDSgAPhAlWUHEttd-1)
+  <details>
+    <summary><b>화면 설계서</b></summary>
+    <img width="569" height="548" alt="스크린샷 2025-12-01 오후 12 18 22" src="https://github.com/user-attachments/assets/332505f1-dfe1-4b38-a395-c26ba3885f1e" />
+  </details>
+  
+  ### ERD [상세보기](https://www.erdcloud.com/d/5TY5j6PZFDwyjp5Kc)
+  <details>
+    <summary><b>ERD</b></summary>
+    <img width="14150" height="7982" alt="ERD" src="https://github.com/user-attachments/assets/1b34329d-2f3a-49e2-9416-97c5c0a11953" />
+  </details>
+
+  ### WBS [상세보기](https://docs.google.com/spreadsheets/d/1KsOnMh4J6d19r1ddL_Do8jKxRJrOoILHzYmdGbvL0C0/edit?gid=930058085#gid=930058085)
+  <details>
+    <summary><b>WBS</b></summary>
+    <img width="1387" height="564" alt="스크린샷 2025-12-01 오후 12 20 42" src="https://github.com/user-attachments/assets/297bae3d-432f-4b73-9bc2-03cf970a1fa7" />
+    <img width="1395" height="465" alt="스크린샷 2025-12-01 오후 12 20 54" src="https://github.com/user-attachments/assets/630537d2-923c-4477-b7b1-5249a25df0e3" />
+  </details>
+
+  ### API 명세서 [상세보기](https://documenter.getpostman.com/view/43742779/2sB3QRnmew#0aa990c3-53e4-4095-91a9-20326732aa29)
+  <details>
+    <summary><b>API 명세서</b></summary>
+    <img width="1437" height="775" alt="스크린샷 2025-12-01 오후 12 23 44" src="https://github.com/user-attachments/assets/3de326a5-cac2-41ac-b771-31f600f0a7cc" />
+  </details>
+</section>
+
+
+<section id="techstack">
+    <h2>4. 기술 스택</h2>
+</section>
+
+<section id="architecture">
+  <h2>5. 시스템 아키텍처</h2>
+    <img width="1920" height="1080" alt="MKX_architecture" src="https://github.com/user-attachments/assets/fd1394a3-d4ee-4571-9d0b-3b2dc09901d5" />
+</section>
+
+<section id="tech-summary">
+  <h2>6. 기술 요약</h2>
+</section>
+
+<section id="features">
+  <h2>7. 주요 기능</h2>
+</section>
+
+<section id="ui-ux-test">
+  <h2>8. UI/UX 단위 테스트 결과서</h2>
+</section>
+
+  <hr/>
+
+  <h2 id="toc-legacy">전 버전</h2>
+  <div class="toc">  
   <a href="#value">1. 문제정의 & 가치제안</a><br />
   <a href="#scope">2. 범위(Out of Scope 포함)</a><br />
   <a href="#features">3. 핵심 기능 요약</a><br />
@@ -171,130 +442,6 @@ API 명세서 링크를 여기에 넣어주세요.
   </div>
 
   <hr/>
-
-
-
-  <section id="value">
-        <h2>1) 문제정의 & 가치제안</h2>
-  <p>
-    기존 시장에서는 발행, 유상증자, 주주총회, 상장폐지와 같은 기업 중심의 프로세스가 실제 거래 시스템과 단절되어 단편적으로 운영됩니다. 이러한 구조는 정보의 비대칭성과 절차적 비효율을 초래하며, 투자자와 기업 모두에게 불투명한 경험을 제공합니다.
-  </p>
-
-  <p>
-    MKX는 이와 달리, <strong>발행·공급에서 거래·정산, 나아가 거버넌스</strong>에 이르기까지 전 과정을 단일한 <strong>주문·공급망 데이터 모델</strong> 위에서 통합합니다. 이를 통해 각각 분리되어 있던 프로세스를 하나의 흐름으로 연결하고, 기업과 투자자 간의 정보 단절을 해소합니다.
-  </p>
-
-  <p>
-    이러한 통합 모델은 거래 속도를 향상시키고, 절차 전반의 투명성을 강화하며, 데이터 기반의 감사 가능성을 본질적으로 내재화합니다. 기업은 복잡한 절차를 간소화할 수 있으며, 투자자는 명확한 기준과 기록을 기반으로 신뢰할 수 있는 참여가 가능합니다.
-  </p>
-
-  <p>
-    결과적으로 MKX는 단순한 거래 플랫폼을 넘어, 기업의 자본 활동과 투자자의 의사결정이 실시간으로 유기적으로 맞물리는 새로운 생태계를 제공합니다. 이는 단순한 기술적 개선을 넘어, <strong>시장 운영 방식 자체를 혁신적으로 재편하는 핵심 동력</strong>입니다.
-  </p>
-</section>
-
-  <section id="scope">
-    <h2>2) 범위(Out of Scope 포함)</h2>
-    <div class="grid">
-      <div class="col6">
-        <h3>In Scope</h3>
-        <ul>
-          <li>법인 회원가입·로그인(KYB, MFA, CI 중복 방지)</li>
-          <li>상장 요청·심사(재무제표 PDF·필수값 입력/검증)</li>
-          <li>발행/유상증자(신주인수권, 공모/3자배정)</li>
-          <li>비상장/기관간 블록딜, 다크풀 매칭</li>
-          <li>주주총회(전자위임/의결/정족수·가중치 판정·의사록)</li>
-          <li>상장폐지/관리종목·거래정지 로직</li>
-          <li>감사 로그, 관리자 RBAC, 공지/알림</li>
-        </ul>
-      </div>
-      <div class="col6">
-        <h3>Out of Scope</h3>
-        <ul>
-          <li>개인(B2C) 위주의 리테일 브로커 기능 전반</li>
-          <li>개인 대상 투자교육/커뮤니티 추천 알고리즘</li>
-          <li>암호자산 거래 기능</li>
-        </ul>
-      </div>
-    </div>
-  </section>
-
-  <section id="features">
-    <h2>3) 핵심 기능 요약</h2>
-    <table>
-      <thead><tr><th>영역</th><th>주요 기능</th></tr></thead>
-      <tbody>
-        <tr>
-          <td><strong>관리자</strong></td>
-          <td>RBAC(SUPER_ADMIN/ADMIN), MFA 상시, 계정 생성/비활성/권한변경, 전행위 감사로그</td>
-        </tr>
-        <tr>
-          <td><strong>상장/발행</strong></td>
-          <td>상장요청(필수값/재무제표 검증), 발행량/락업/거래규칙 관리, 상폐 심사/고지</td>
-        </tr>
-        <tr>
-          <td><strong>거래</strong></td>
-          <td>B2B 지정가/시장가/조건주문, 대기/부분체결, 기관간 블록딜/다크풀, 결제상태 반영</td>
-        </tr>
-        <tr>
-          <td><strong>거버넌스</strong></td>
-          <td>온라인 주주총회(전자위임·가중치·정족수·의사록), 기업 공지/실시간 알림</td>
-        </tr>
-        <tr>
-          <td><strong>데이터</strong></td>
-          <td>차트/보조지표, 기업 개요·재무, MCP 기반 기술적 분석</td>
-        </tr>
-        <tr>
-          <td><strong>시뮬레이션</strong></td>
-          <td>가상거래 봇(횡보/상승/하락/급등락), 시나리오 스케줄·파라미터 제어</td>
-        </tr>
-      </tbody>
-    </table>
-    <div class="callout"><strong>전체 요구사항 목록</strong>은 아래 “요구사항 명세” 섹션의 문서/이미지로 연결합니다.</div>
-  </section>
-
-  <section id="order-supply">
-    <h2>4) 공급망형 주문관리(SSOM) 흐름</h2>
-    <ol>
-      <li><strong>공급 등록:</strong> 상장요청 → 심사(재무제표/지표/규정) → 상장 승인 → 종목 생성</li>
-      <li><strong>공급 확장:</strong> 유상증자/발행량 변경 → 공시/신주인수권 → 주문규칙(시초가/단위/밴드)</li>
-      <li><strong>수요 매칭:</strong> 기관 매수/매도, 블록딜/다크풀 라우팅, 조건주문</li>
-      <li><strong>정산/잔고:</strong> 체결·수수료·가용현금/재고 반영, 결제상태 추적</li>
-      <li><strong>거버넌스:</strong> 공지/주총/의사록/감사로그 및 상장폐지 프로세스</li>
-    </ol>
-  </section>
-
-  <section id="governance">
-    <h2>5) 거버넌스(주총/공지)</h2>
-    <ul>
-      <li>사전승인(안건/일시/스냅샷/마감), 참석 자격 매핑, 본인확인 및 1회용 초대토큰</li>
-      <li>안건별 찬반/기권, 보유주식 가중치 집계, 정족수/가결 요건 자동판정</li>
-      <li>의사록 전자서명, 결과 공시, 감사로그/CSV·PDF 내보내기</li>
-      <li>기업 공지 등록 시 보유자 대상 실시간 알림</li>
-    </ul>
-  </section>
-
-  <section id="security">
-    <h2>6) 보안·컴플라이언스</h2>
-    <ul>
-      <li><strong>MFA 상시</strong>(패스키 우선, 미지원 시 OTP), 민감행위 전 추가 재인증</li>
-      <li>세션 정책(비활성 타임아웃/절대만료/동시세션 제한/RT 로테이션)</li>
-      <li><strong>감사 로그</strong>(행위자/대상/전후값/사유/시각), 관리자 고권한 작업 이중확인</li>
-      <li>계좌 실명·중복가입 방지(CI/DI), 주민등록번호 원문 미저장</li>
-    </ul>
-  </section>
-
-  <section id="demo">
-    <h2>7) 발표 시나리오(데모 동선)</h2>
-    <ol>
-      <li><strong>기업 A 상장요청</strong> (필수값·재무제표 업로드) → <em>관리자 심사 승인</em></li>
-      <li><strong>기관 블록딜</strong> (비상장→상장 직전 프리IPO 시나리오 or 상장 후 다크풀 라우팅)</li>
-      <li><strong>유상증자 실행</strong> (조건 공시→신주인수권 처리→공급량 반영→거래 규칙 업데이트)</li>
-      <li><strong>온라인 주총</strong> (전자위임/가중치·정족수 충족→의사록/공시 출력)</li>
-      <li><strong>관리종목/상폐</strong> (조건 충족→거래정지→상폐 고지 7일→상폐 확정)</li>
-    </ol>
-  </section>
-
 
 <section id="demo-video">
   <h2>8) 기능 시연 영상</h2>
@@ -674,7 +821,6 @@ API 명세서 링크를 여기에 넣어주세요.
 <p align="center"><img src="https://github.com/user-attachments/assets/eb805ef9-cff5-43b0-ad97-eca9a5430861" alt="사용자 관리 페이지" width="#"></p>
 </details>
 
-
 <details>
 <summary><b>사용자 상세 조회 모달</b></summary>
 <p align="center"><img src="#" alt="사용자 상세 조회 모달" width="#"></p>
@@ -703,7 +849,6 @@ API 명세서 링크를 여기에 넣어주세요.
 <summary><b>증권사 계좌 관리 페이지</b></summary>
 <p align="center"><img src="https://github.com/user-attachments/assets/494b208f-6895-4a66-ac59-0473a1b189df" alt="계좌 관리 페이지" width="#"></p>
 </details>
-
 
 <details>
 <summary><b>계좌 등록 승인</b></summary>
@@ -795,7 +940,6 @@ API 명세서 링크를 여기에 넣어주세요.
 <summary><b>공시 승인 페이지</b></summary>
 <p align="center"><img src="https://github.com/user-attachments/assets/818a7b5b-ad5e-4d0e-9d91-e9faee838e1a" alt="공시 승인 페이지" width="#"></p>
 </details>
-
 
 <details>
 <summary><b>공시 거절</b></summary>
@@ -1112,7 +1256,6 @@ API 명세서 링크를 여기에 넣어주세요.
 <p align="center"><img src="https://github.com/user-attachments/assets/72dec4f5-e74a-4b26-91f1-f62818773ad4" alt="출금" width="#"></p>
 </details>
 
-
 <details>
 <summary><b>계좌이체</b></summary>
 <p align="center"><img src="https://github.com/user-attachments/assets/43a33e62-7c25-4b71-8558-0e25463c3988" alt="계좌이체" width="#"></p>
@@ -1242,7 +1385,7 @@ API 명세서 링크를 여기에 넣어주세요.
     <h2>13) ERD</h2>
     <div class="card">
       <p><a href="https://www.erdcloud.com/d/T6DQu8zAzzw2Pj6FS" target="_blank" rel="noopener">ERD URL</a></p>
-      <img width="5660" height="4002" alt="주식 (2)" src="https://github.com/user-attachments/assets/08ddddc7-1481-423e-a55c-795ea492f676" />
+      <img width="14150" height="7982" alt="ERD" src="https://github.com/user-attachments/assets/1b34329d-2f3a-49e2-9416-97c5c0a11953" />
     </div>
   </section>
 
@@ -1274,9 +1417,7 @@ API 명세서 링크를 여기에 넣어주세요.
 
   <section id="architecture">
     <h2>17) 시스템 아키텍처</h2>
-    <div class="card">
-      <p align="center"><img src="https://github.com/user-attachments/assets/b303dbc7-93a0-43cf-8143-24cf18d62ae9" alt="시스템 아키텍처 다이어그램" width="800"></p>
-    </div>
+<img width="1920" height="1080" alt="MKX_architecture" src="https://github.com/user-attachments/assets/fd1394a3-d4ee-4571-9d0b-3b2dc09901d5" />
   </section>
 
   <hr/>

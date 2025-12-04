@@ -4,7 +4,7 @@ metadata:
   name: matching-engine-depl
   namespace: mkx
 spec:
-  replicas: 2  # 고정 (순서 보장 및 고가용성)
+  replicas: 1  # 고정 (순서 보장 및 고가용성)
   selector:
     matchLabels:
       app: matching-engine

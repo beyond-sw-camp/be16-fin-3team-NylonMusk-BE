@@ -4,7 +4,7 @@ metadata:
   name: api-gateway-depl
   namespace: mkx
 spec:
-  replicas: 2  # HPA 초기값
+  replicas: 1  # HPA 초기값
   selector:
     matchLabels:
       app: api-gateway

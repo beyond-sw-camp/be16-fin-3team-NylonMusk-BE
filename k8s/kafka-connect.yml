@@ -65,14 +65,14 @@ spec:
             - name: REST_PORT
               value: "8083"
 
-          # 리소스 설정 (5개 노드 최적화)
+          # 리소스 설정 (배포 연습용 - t3.medium 2대 환경)
           resources:
             requests:
-              cpu: "200m"
-              memory: "384Mi"
+              cpu: "150m"
+              memory: "256Mi"
             limits:
-              cpu: "800m"
-              memory: "1536Mi"
+              cpu: "500m"
+              memory: "768Mi"
 
           readinessProbe:
             httpGet:

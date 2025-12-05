@@ -77,14 +77,14 @@ spec:
           volumeMounts:
             - name: kafka-data
               mountPath: /tmp/kraft-combined-logs  # KRaft 로그/데이터 경로
-          # 리소스 설정 (중요 인프라, 실 사용 대비 메모리 여유 확보)
+          # 리소스 설정 (배포 연습용 - t3.medium 2대 환경)
           resources:
             requests:
-              cpu: "500m"
-              memory: "1536Mi"
+              cpu: "200m"
+              memory: "512Mi"
             limits:
-              cpu: "2000m"
-              memory: "4Gi"
+              cpu: "1000m"
+              memory: "1Gi"
       volumes:
         - name: kafka-data
           emptyDir: {}  # 빠른 성능, 7일 retention으로 충분

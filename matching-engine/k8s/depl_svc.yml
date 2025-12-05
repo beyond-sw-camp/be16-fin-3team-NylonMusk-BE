@@ -18,14 +18,14 @@ spec:
         image: 148761635844.dkr.ecr.ap-northeast-2.amazonaws.com/mkx/matching-engine:latest
         ports:
         - containerPort: 8080
-        # 리소스 설정 (중요 서비스, 고정 레플리카, 5개 노드 최적화)
+        # 리소스 설정 (배포 연습용 - t3.medium 2대 환경, 매칭 엔진 중요)
         resources:
           requests:
-            cpu: "800m"
-            memory: "1200Mi"
+            cpu: "400m"
+            memory: "768Mi"
           limits:
-            cpu: "1800m"
-            memory: "2560Mi"
+            cpu: "1000m"
+            memory: "1536Mi"
         env:
         - name: SPRING_PROFILES_ACTIVE
           value: "prod"

@@ -34,12 +34,14 @@ spring:
 
   data:
     redis:
-      cluster:
-        nodes:
-          - ${REDIS_CLUSTER_ENDPOINT}:6379
-        max-redirects: 5
-      password: ${REDIS_PASSWORD}
       timeout: 3000
+      host: order-book-redis-service
+      port: 6379
+#      cluster:
+#        nodes:
+#          - ${REDIS_CLUSTER_ENDPOINT}:6379
+#        max-redirects: 5
+#      password: ${REDIS_PASSWORD}
 
 logging:
   level:

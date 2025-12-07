@@ -42,10 +42,12 @@ spring:
       host: mkx-redis-service
       port: 6379
     order-book:
-      cluster:
-        nodes:
-          - ${REDIS_CLUSTER_ENDPOINT}:6379
-        max-redirects: 5
+      host: order-book-redis-service
+      port: 6379
+#      cluster:
+#        nodes:
+#          - ${REDIS_CLUSTER_ENDPOINT}:6379
+#        max-redirects: 5
       timeout: 3000
 
 

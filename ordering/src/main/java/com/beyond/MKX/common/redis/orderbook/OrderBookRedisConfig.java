@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisClusterConfiguration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -24,14 +25,24 @@ public class OrderBookRedisConfig {
 
     @Bean("orderBookConnectionFactory")
     public LettuceConnectionFactory orderBookConnectionFactory() {
-        var clusterCfg = new RedisClusterConfiguration(props.getCluster().getNodes());
-        if (props.getCluster().getMaxRedirects() != null) {
-            clusterCfg.setMaxRedirects(props.getCluster().getMaxRedirects());
-        }
+
+        // 공통 클라이언트 설정
         var clientCfg = LettuceClientConfiguration.builder()
                 .commandTimeout(props.getTimeout())
                 .build();
-        return new LettuceConnectionFactory(clusterCfg, clientCfg);
+
+        // - 클러스터 모드일 경우
+        if (props.isClusterEnabled()) {
+            RedisClusterConfiguration clusterCfg = new RedisClusterConfiguration(props.getCluster().getNodes());
+            if (props.getCluster().getMaxRedirects() != null) {
+                clusterCfg.setMaxRedirects(props.getCluster().getMaxRedirects());
+            }
+            return new LettuceConnectionFactory(clusterCfg, clientCfg);
+        }
+
+        // - 단일 Redis 모드일 경우
+        RedisStandaloneConfiguration standaloneCfg = new RedisStandaloneConfiguration(props.getHost(), props.getPort());
+        return new LettuceConnectionFactory(standaloneCfg, clientCfg);
     }
 
     @Bean("orderBookRedisTemplate")

@@ -46,3 +46,7 @@ replay_pid*
 # IntelliJ IDEA project files
 .idea/
 *.iml
+
+# 모든 모듈의 Gradle 캐시 및 빌드 디렉토리 무시
+**/.gradle/
+**/build/

@@ -31,7 +31,7 @@
   <a href="#architecture">5. 시스템 아키텍처</a><br />
   <a href="#tech-summary">6. 기술 요약</a><br />
   <a href="#features">7. 주요 기능</a><br />
-  <a href="#ui-ux-test">8. UI/UX 단위 테스트 결과서</a><br />
+  <a href="#ui-ux-test">8. 기능 시연 영상</a><br />
   </div>
 
 <h2>1. 팀원 소개</h2>
@@ -199,7 +199,7 @@
   <div id="order-supply">
   <ol>
     <li><strong>공급 등록:</strong> 상장요청 → 심사(재무제표/지표/규정) → 상장 승인 → 종목 생성</li>
-    <li><strong>공급 확장:</strong> 유상증자/발행량 변경 → 공시/신주인수권 → 주문규칙(시초가/단위/밴드)</li>
+    <li><strong>공급 확장:</strong> 공모&유상증자 → 공시 → 주문규칙(시초가/단위/밴드)</li>
     <li><strong>수요 매칭:</strong> 기관 매수/매도, 블록딜/다크풀 라우팅, 조건주문</li>
     <li><strong>정산/잔고:</strong> 체결·수수료·가용현금/재고 반영, 결제상태 추적</li>
     <li><strong>거버넌스:</strong> 공지/주총/의사록/감사로그 및 상장폐지 프로세스</li>
@@ -226,13 +226,14 @@
   </ul>
   </div>
 
-  <h3>7) 발표 시나리오(데모 동선)</h3>
+  <h3>7) 발표 시나리오</h3>
   <div id="demo">
   <ol>
-    <li><strong>기업 A 상장요청</strong> (필수값·재무제표 업로드) → <em>관리자 심사 승인</em></li>
-    <li><strong>기관 블록딜</strong> (비상장→상장 직전 프리IPO 시나리오 or 상장 후 다크풀 라우팅)</li>
-    <li><strong>유상증자 실행</strong> (조건 공시→신주인수권 처리→공급량 반영→거래 규칙 업데이트)</li>
-    <li><strong>온라인 주총</strong> (전자위임/가중치·정족수 충족→의사록/공시 출력)</li>
+    <li><strong>기업 A 상장요청</strong> (필숫값·재무제표 업로드) → <em>관리자 심사 승인</em></li>
+    <li><strong>거래소 관리자 기업 A 상장 심사</strong> (비상장 → 필숫값·재무제표 기반 상장 심사 및 공모 승인 심사)</li>
+    <li><strong>공모 실행</strong> (조건 공시→기관 수요예측 처리→경쟁률 기반 확정가 반영→공모 진행)</li>
+    <li><strong>공모 청약</strong> (기업 A 공모 시작→기관 투자자&개인 투자자 공모 청약→투자자들 공모 배정)</li>
+    <li><strong>기업 A 상장 완료 및 종목 등록</strong> (공모가=시초가→거래소 종목 등록→시장 거래 시작)</li>
     <li><strong>관리종목/상폐</strong> (조건 충족→거래정지→상폐 고지 7일→상폐 확정)</li>
   </ol>
   </div>
@@ -268,10 +269,11 @@
     <img width="1395" height="465" alt="스크린샷 2025-12-01 오후 12 20 54" src="https://github.com/user-attachments/assets/630537d2-923c-4477-b7b1-5249a25df0e3" />
   </details>
 
-  ### API 명세서 [상세보기](https://documenter.getpostman.com/view/43742779/2sB3QRnmew#0aa990c3-53e4-4095-91a9-20326732aa29)
+  ### API 명세서 [상세보기](https://documenter.getpostman.com/view/46241392/2sB3dQtodh)
   <details>
     <summary><b>API 명세서</b></summary>
-    <img width="1437" height="775" alt="스크린샷 2025-12-01 오후 12 23 44" src="https://github.com/user-attachments/assets/3de326a5-cac2-41ac-b771-31f600f0a7cc" />
+    <!-- <img width="1437" height="775" alt="스크린샷 2025-12-01 오후 12 23 44" src="https://github.com/user-attachments/assets/3de326a5-cac2-41ac-b771-31f600f0a7cc" /> -->
+    <img width="2552" height="1394" alt="image" src="https://github.com/user-attachments/assets/2b63dc55-f198-4145-8705-b03862ef27bc" />
   </details>
 </section>
 
@@ -383,32 +385,11 @@
   <h2>7. 주요 기능</h2>
 </section>
 
-<section id="ui-ux-test">
+<!-- <section id="ui-ux-test">
   <h2>8. UI/UX 단위 테스트 결과서</h2>
-</section>
+</section> -->
 
   <hr/>
-
-  <h2 id="toc-legacy">전 버전</h2>
-  <div class="toc">  
-  <a href="#value">1. 문제정의 & 가치제안</a><br />
-  <a href="#scope">2. 범위(Out of Scope 포함)</a><br />
-  <a href="#features">3. 핵심 기능 요약</a><br />
-  <a href="#order-supply">4. 공급망형 주문관리(SSOM) 흐름</a><br />
-  <a href="#governance">5. 거버넌스(주총/공지)</a><br />
-  <a href="#security">6. 보안·컴플라이언스</a><br />
-  <a href="#demo">7. 발표 시나리오(데모 동선)</a><br />
-  <a href="#demo-video">8. 기능 시연 영상</a><br />
-  <a href="#evidence">9. 단위 테스트 결과서</a><br />
-  <a href="#reqspec">10. 요구사항 명세(이미지·URL)</a><br />
-  <a href="#wbs">11. WBS(이미지·URL)</a><br />
-  <a href="#figma">12. 화면설계도(이미지·URL)</a><br />
-  <a href="#erd">13. ERD(이미지·URL)</a><br />
-  <a href="#team">14. 팀 소개</a><br />
-  <a href="#timeline">15. 일정</a><br />
-  <a href="#techstack">16. 기술 스택</a><br />
-  <a href="#architecture">17. 시스템 아키텍처</a><br />
-  <a href="#api">18. API 명세서</a><br />
   </div>
 
   <hr/>
@@ -424,22 +405,17 @@
 <details>
 <summary><b>관리자 회원가입 / 로그인</b></summary>
 
-<details>
-<summary><b>기업 관리자 회원가입</b></summary>
+<p><b>기업 관리자 회원가입</b></p>
 <p align="center">
 <img src="https://github.com/user-attachments/assets/5f42ae7b-a82f-4bb2-a1a4-49e77f9342dc" alt="기업 관리자 회원가입" width="#">
 </p>
-</details>
 
-<details>
-<summary><b>증권사 관리자 회원가입</b></summary>
+<p><b>증권사 관리자 회원가입</b></p>
 <p align="center">
 <img src="https://github.com/user-attachments/assets/1c8097b4-10d8-4c36-8252-fb579fdf5648" alt="증권사 관리자 회원가입" width="#">
 </p>
-</details>
 
-<details>
-<summary><b>관리자 로그인</b></summary>
+<p><b>거래소 관리자 로그인</b></p>
 <p align="center">
 <img src="https://github.com/user-attachments/assets/1d6f40c3-0f40-4597-8d53-32a4600bd456" alt="관리자 로그인" width="#">
 </p>
@@ -448,27 +424,22 @@
 
 <details>
 <summary><b>일반 유저 회원가입 / 로그인</b></summary>
-
-<details>
-<summary><b>일반 유저 회원가입</b></summary>
+  
+<p><b>일반 유저 회원가입</b></p>
 <p align="center">
 <img src="https://github.com/user-attachments/assets/3464dc80-c240-4479-b6a6-92f895ff0044" alt="일반 유저 회원가입" width="#">
 </p>
-</details>
 
-<details>
-<summary><b>일반 유저 로그인</b></summary>
+<p><b>일반 유저 로그인</b></p>
 <p align="center">
 <img src="https://github.com/user-attachments/assets/c429e45d-fd2b-4e82-8eef-b2e301ab8e49" alt="일반 유저 로그인" width="#">
 </p>
-</details>
 
-<details>
-<summary><b>일반 유저 캡챠 시연</b></summary>
+<p><b>일반 유저 캡챠 시연</b></p>
 <p align="center">
 <img src="https://github.com/user-attachments/assets/e0a279f7-0ba8-4437-b4c8-69b0d3082114" alt="일반 유저 캡챠 시연" width="#">
 </p>
-</details>
+
 </details>
 </details>
 
@@ -479,103 +450,71 @@
 <details>
 <summary><b>공시 관리</b></summary>
 
-<details>
-<summary><b>공시 목록 페이지 및 필터</b></summary>
+<p><b>공시 목록 페이지 및 필터</b></p>
 <p align="center"><img src="https://github.com/user-attachments/assets/e1b66a3f-e77e-49f7-8f5c-8caa12746c7e" alt="공시 목록 페이지 및 필터" width="#"></p>
-</details>
 
-<details>
-<summary><b>공시 등록 페이지</b></summary>
-
-<details>
-<summary><b>본공시</b></summary>
+<p><b>본공시</b></p>
 <p align="center"><img src="https://github.com/user-attachments/assets/ddf11478-db2a-41e1-8d94-23ccd5f9f0a2" alt="본공시" width="#"></p>
-</details>
 
-<details>
-<summary><b>정정공시</b></summary>
+<p><b>정정공시</b></p>
 <p align="center"><img src="https://github.com/user-attachments/assets/16859a87-65f2-45fc-af1e-a235bd658f52" alt="정정공시" width="#"></p>
-</details>
 
-<details>
-<summary><b>추가등록</b></summary>
+<p><b>추가등록</b></p>
 <p align="center"><img src="https://github.com/user-attachments/assets/b26f95e7-226f-444a-98f7-9b1d216f4f14" alt="추가공시" width="#"></p>
-</details>
 </details>
 </details>
 
 <details>
 <summary><b>상장 관리</b></summary>
 
-<details>
-<summary><b>상장 신청</b></summary>
+<p><b>상장 신청</b></p>
 
-<details>
-<summary><b>공모</b></summary>
+<p><b>공모</b></p>
 <p align="center"><img src="#" alt="공모 상장 신청" width="#"></p>
-</details>
 
-<details>
-<summary><b>직상장</b></summary>
+<p><b>직상장</b></p>
 <p align="center"><img src="https://github.com/user-attachments/assets/c5ce43b2-2577-4878-85fd-3b2a6bb34c3a" alt="직상장 신청" width="#"></p>
 </details>
-</details>
 
 <details>
-<summary><b>공모 등록</b></summary>
+<summary><b>공모 관리</b></summary>
+
+<p><b>공모 등록</b></p>
 <p align="center"><img src="#" alt="공모 등록" width="#"></p>
-</details>
 
-<details>
-<summary><b>공모 목록</b></summary>
+<p><b>공모 목록</b><p>
 
-<details>
-<summary><b>공모 목록 필터</b></summary>
+<p><b>공모 목록 필터</b><p>
 <p align="center"><img src="#" alt="공모 목록 필터" width="#"></p>
-</details>
 
-<details>
-<summary><b>공모 목록 검색</b></summary>
+<p><b>공모 목록 검색</b></p>
 <p align="center"><img src="#" alt="공모 목록 검색" width="#"></p>
-</details>
 
-<details>
-<summary><b>공모 참여</b></summary>
+<p><b>공모 참여</b></p>
 <p align="center"><img src="#" alt="공모 참여" width="#"></p>
-</details>
 </details>
 
 <details>
 <summary><b>수요예측 참여하기</b></summary>
 
-<details>
-<summary><b>수요예측 목록</b></summary>
+<p><b>수요예측 목록</b></p>
 <p align="center"><img src="#" alt="수요예측 목록" width="#"></p>
-</details>
 
-<details>
-<summary><b>수요예측 참여</b></summary>
+<p><b>수요예측 참여</b></p>
 <p align="center"><img src="#" alt="수요예측 참여" width="#"></p>
-</details>
 </details>
 
 <details>
 <summary><b>내 청약 내역</b></summary>
 
-<details>
-<summary><b>청약 내역 조회</b></summary>
+<p><b>청약 내역 조회</b></p>
 <p align="center"><img src="#" alt="청약 내역 조회" width="#"></p>
-</details>
 
-<details>
-<summary><b>추가 납입</b></summary>
+<p><b>추가 납입</b></p>
 <p align="center"><img src="#" alt="추가 납입" width="#"></p>
-</details>
 
-<details>
-<summary><b>정산</b></summary>
+<p><b>정산</b></p>
 <p align="center"><img src="#" alt="정산" width="#"></p>
-</details>
 </details>
 
 <details>
@@ -586,40 +525,29 @@
 <details>
 <summary><b>주식 관리</b></summary>
 
-<details>
-<summary><b>주식 관리 페이지</b></summary>
+<p><b>주식 관리 페이지</b></p>
 <p align="center"><img src="#" alt="주식 관리 페이지" width="#"></p>
-</details>
 
-<details>
-<summary><b>공시 문제 발생 시 재제출</b></summary>
+<p><b>공시 문제 발생 시 재제출</b></p>
 <p align="center"><img src="#" alt="공시 재제출" width="#"></p>
-</details>
 </details>
 </details>
 
 <details>
 <summary><b>자산</b></summary>
 
-<details>
-<summary><b>계좌 등록 신청</b></summary>
+<p><b>계좌 등록 신청</b></p>
 <p align="center"><img src="https://github.com/user-attachments/assets/f4985708-472e-4d42-94ce-2c6067077c5a" alt="계좌 등록 신청" width="#"></p>
-</details>
 
-<details>
-<summary><b>입금</b></summary>
+<p><b>입금</b></p>
 <p align="center"><img src="https://github.com/user-attachments/assets/c7d60ce3-7e84-4d36-9937-f2b70967d023" alt="입금" width="#"></p>
-</details>
 
-<details>
-<summary><b>출금</b></summary>
+<p><b>출금</b></p>
 <p align="center"><img src="https://github.com/user-attachments/assets/c8d7debc-fb07-4134-a8b2-43291c5e316e" alt="출금" width="#"></p>
-</details>
 
-<details>
-<summary><b>거래내역 조회</b></summary>
+<p><b>거래내역 조회</b></p>
   <p align="center"><img src="https://github.com/user-attachments/assets/a264bd19-e4a0-4ec6-a6d7-e988ee8cdba2" alt="거래내역 조회" width="#"></p>
-</details>
+
 </details>
 </details>
 
@@ -1398,6 +1326,27 @@
       <p><a href="https://documenter.getpostman.com/view/46241392/2sB3dQtodh" target="_blank" rel="noopener">API 명세서</a></p>
     </div>
   </section>
+
+  <h2 id="toc-legacy">전 버전</h2>
+  <div class="toc">  
+  <a href="#value">1. 문제정의 & 가치제안</a><br />
+  <a href="#scope">2. 범위(Out of Scope 포함)</a><br />
+  <a href="#features">3. 핵심 기능 요약</a><br />
+  <a href="#order-supply">4. 공급망형 주문관리(SSOM) 흐름</a><br />
+  <a href="#governance">5. 거버넌스(주총/공지)</a><br />
+  <a href="#security">6. 보안·컴플라이언스</a><br />
+  <a href="#demo">7. 발표 시나리오(데모 동선)</a><br />
+  <a href="#demo-video">8. 기능 시연 영상</a><br />
+  <a href="#evidence">9. 단위 테스트 결과서</a><br />
+  <a href="#reqspec">10. 요구사항 명세(이미지·URL)</a><br />
+  <a href="#wbs">11. WBS(이미지·URL)</a><br />
+  <a href="#figma">12. 화면설계도(이미지·URL)</a><br />
+  <a href="#erd">13. ERD(이미지·URL)</a><br />
+  <a href="#team">14. 팀 소개</a><br />
+  <a href="#timeline">15. 일정</a><br />
+  <a href="#techstack">16. 기술 스택</a><br />
+  <a href="#architecture">17. 시스템 아키텍처</a><br />
+  <a href="#api">18. API 명세서</a><br />
 
   <hr/>
 

@@ -110,8 +110,8 @@ spec:
                     {
                       "connector.class": "io.debezium.connector.mariadb.MariaDbConnector",
                       "topic.prefix": "ordering-srv",
-                      "database.server.id": "1808880095",
-                      "database.hostname": "db-mkx-2.c34muymogw5c.ap-northeast-2.rds.amazonaws.com",
+                      "database.server.id": "317406420",
+                      "database.hostname": "database-1.c16qce88glh9.ap-northeast-2.rds.amazonaws.com",
                       "database.port": "3306",
                       "database.user": "debezium",
                       "database.password": "debezium",

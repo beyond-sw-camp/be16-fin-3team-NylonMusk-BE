@@ -20,11 +20,11 @@ spec:
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: server-mk-exchange-shop-tls
+  name: server-charliekim20022-shop-tls
   namespace: mkx
 spec:
 # cert-manager가 아래 secretName에서 지정한 이름으로 Secret을 생성
-  secretName: server-mk-exchange-shop-tls
+  secretName: server-charliekim20022-shop-tls
   duration: 2160h #90day
   renewBefore: 360h #before 15day
   issuerRef:
@@ -32,11 +32,11 @@ spec:
     name: mkx-issuer
     kind: ClusterIssuer
   dnsNames:
-    - server.mk-exchange.shop
+    - server.charliekim20022.shop
   privateKey:
     algorithm: ECDSA
     size: 256
   # commonName과 dnsNames 중에 dnsNames가 중요하다.
   # 추가적인 서브도메인을 추가하고 싶은경우에 여기에 나열
-  # - server.mk-exchange.shop
+  # - server.charliekim20022.shop
   # - monitor.mk-exchange.shop

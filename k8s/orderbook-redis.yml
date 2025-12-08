@@ -17,12 +17,12 @@ spec:
     spec:
       # orderbook-redis 전용 노드 배치 (Orderbook)    
       nodeSelector:
-        workload: orderbook
+        workload: messaging
       
       tolerations:
       - key: workload
         operator: Equal
-        value: orderbook
+        value: messaging
         effect: NoSchedule
       
       containers:

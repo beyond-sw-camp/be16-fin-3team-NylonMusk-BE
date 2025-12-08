@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: ordering-container
-        image: 148761635844.dkr.ecr.ap-northeast-2.amazonaws.com/mkx/ordering:latest
+        image: 242201277669.dkr.ecr.ap-northeast-2.amazonaws.com/mkx/ordering:latest
         ports:
         - containerPort: 8080
         # 리소스 설정 (배포 연습용 - t3.medium 2대 환경)
@@ -30,26 +30,21 @@ spec:
         env:
         - name: SPRING_PROFILES_ACTIVE
           value: "prod"
-        - name: DB_PASSWORD_2
+        - name: DB_PASSWORD
           valueFrom:
             secretKeyRef:
               name: mkx-secrets
-              key: DB_PASSWORD_2
-        - name: DB_HOST_2
+              key: DB_PASSWORD
+        - name: DB_HOST
           valueFrom:
             secretKeyRef:
               name: mkx-secrets
-              key: DB_HOST_2
-        - name: DB_PORT_2
+              key: DB_HOST
+        - name: DB_PORT
           valueFrom:
             secretKeyRef:
               name: mkx-secrets
-              key: DB_PORT_2
-        - name: REDIS_CLUSTER_ENDPOINT
-          valueFrom:
-            secretKeyRef:
-              name: mkx-secrets
-              key: REDIS_CLUSTER_ENDPOINT
+              key: DB_PORT
         # 컨테이너 상태 확인을 통해 롤링업데이트 최적화 
         readinessProbe:
           httpGet:

@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: api-gateway-container
-        image: 148761635844.dkr.ecr.ap-northeast-2.amazonaws.com/mkx/api-gateway:latest
+        image: 242201277669.dkr.ecr.ap-northeast-2.amazonaws.com/mkx/api-gateway:latest
         ports:
         - containerPort: 8080
         # 리소스 설정 (HPA 필수)

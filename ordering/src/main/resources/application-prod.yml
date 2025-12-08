@@ -42,7 +42,7 @@ spring:
       host: mkx-redis-service
       port: 6379
     order-book:
-      host: order-book-redis-service
+      host: orderbook-redis-service
       port: 6379
 #      cluster:
 #        nodes:

@@ -16,11 +16,11 @@ spec:
 # https 프로토콜의 2가지 인증서: ssl < tls(좀 더 보안강화가 됨.)
   tls:
   - hosts:
-    - "server.mk-exchange.shop"
+    - "server.charliekim20022.shop"
     # https.yml의 Certificate_spec_secretName이다.
-    secretName: server-mk-exchange-shop-tls    
+    secretName: server-charliekim20022-shop-tls    
   rules:
-  - host: server.mk-exchange.shop # 설정하려는 도메인 이름.
+  - host: server.charliekim20022.shop # 설정하려는 도메인 이름.
     http:
       paths:
       # server.charliekim20022.shop/charlie1

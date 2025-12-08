@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: matching-engine-container
-        image: 148761635844.dkr.ecr.ap-northeast-2.amazonaws.com/mkx/matching-engine:latest
+        image: 242201277669.dkr.ecr.ap-northeast-2.amazonaws.com/mkx/matching-engine:latest
         ports:
         - containerPort: 8080
         # 리소스 설정 (배포 연습용 - t3.medium 2대 환경, 매칭 엔진 중요)
@@ -29,11 +29,6 @@ spec:
         env:
         - name: SPRING_PROFILES_ACTIVE
           value: "prod"
-        - name: REDIS_CLUSTER_ENDPOINT
-          valueFrom:
-            secretKeyRef:
-              name: mkx-secrets
-              key: REDIS_CLUSTER_ENDPOINT
         readinessProbe:
           httpGet:
             # healthcheck 경로

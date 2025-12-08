@@ -1395,7 +1395,7 @@
   <section id="api">
     <h2>18) API 명세서</h2>
     <div class="card">
-      <p><a href="https://documenter.getpostman.com/view/43742779/2sB3QRnmew" target="_blank" rel="noopener">API 명세서</a></p>
+      <p><a href="https://documenter.getpostman.com/view/46241392/2sB3dQtodh" target="_blank" rel="noopener">API 명세서</a></p>
     </div>
   </section>
 

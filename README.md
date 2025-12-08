@@ -1,9 +1,9 @@
 <body>
 <main class="container">
   <h1>MKX — 증권사, 기업, 투자자를 하나로 잇는 통합 증권 거래 플랫폼</h1>
-  <h3>🏆 한화시스템 BEYOND SW CAMP 16기 최종프로젝트 1위 수상 작품 🏆</h3>
+  <h2 align="center"> 🏆 한화시스템 BEYOND SW CAMP 16기 최종프로젝트 1위 수상 작품 🏆</h2>
   <img width="1920" height="1080" alt="MKX 리드미 배너" src="https://github.com/user-attachments/assets/ef7b248f-7934-47f8-b402-eef19aaab2a8" />
-
+ 
   <hr/>
 
   <div class="card">
@@ -359,13 +359,55 @@
 </table>
 </section>
 
+<section id="core-feature-structure">
+  <h2>7. 핵심 기능별 설계·구현 요약</h2>
+  <details>
+    <summary>7.1 오더북</summary>
+  <ul>
+    <li>gif 추가 예정</li>
+    <li>한 줄 설명 (기능 설명): 매수·매도 주문을 가격-시간 우선순위(Price-Time Priority)로 정렬해, 실시간으로 들어오는 주문과 즉시 매칭할 수 있도록 관리한다.</li>
+    <li>한 줄 설명 (기술 설명): Redis ZSET + LuaScript를 사용해 정렬·매칭·잔량 처리까지 모두 원자적(Atomic)으로 수행하는 초고속 실시간 오더북 엔진이다.</li>
+    <details>
+      <summary>기능 구현</summary>
+      <ul>
+        <li>사용된 기술</li>
+        <ul>
+          <li>Redis Cluster (ZSET 기반 오더북 분리 관리)</li>
+          <li>LuaScript Atomic Execution</li>
+          <li>Price-Time Priority Score 생성</li>
+          <li>Kafka (주문/체결 이벤트 스트림)</li>
+        </ul>
+      </ul>
+      <div style="background-color: yellow;">
+      <p>오더북은 매칭엔진의 중심 구성요소로, 매수·매도 주문을 각각 별도의 Redis ZSET으로 유지하여 가격·시간 우선순위에 따라 즉시 정렬된다. Redis ZSET은 SkipList 기반의 O(logN) 삽입/삭제/탐색 성능을 제공하며, 초당 수천 건 이상의 주문이 유입되는 환경에서도 일관된 정렬 상태를 유지할 수 있다. 추가적인 정렬 비용 없이 항상 “최우선 가격·최우선 시간”을 즉시 조회할 수 있다는 점에서 오더북에 가장 적합한 자료구조이다.</p>
+  <p>각 주문은 `price × 1e9 + sequence` 방식의 단일 score를 부여받는다. 동일한 가격대에서도 순서가 명확하게 보장되도록 하기 위한 설계이며, 가격·시간 우선순위(Price-Time Priority)를 하나의 정규화된 score로 통합해 표현함으로써 정렬 기준이 단순하고 안정적으로 유지된다. 별도 comparator 로직 없이 score 기반 정렬만으로 의도한 우선순위가 구현된다는 점에서 성능적·구조적 효율성이 높다.</p>
+  <p>
+    주문 접수 시 LuaScript가 실행되어,<br/>
+    ① 상대 호가 존재 여부 확인 →  <br/>
+    ② 가격 교차 여부 판단 → <br/>
+    ③ 체결 처리(부분체결 포함) → <br/>
+    ④ 잔량 재적재 → <br/>
+    ⑤ Kafka 체결 이벤트 발행
+  </p>
+  <p>까지의 흐름을 하나의 원자적 블록으로 처리한다. Redis는 단일 스레드 기반이기 때문에 LuaScript 내부 로직 전체가 트랜잭션처럼 Atomic하게 수행된다. 반면 애플리케이션 레벨에서 여러 Redis 명령을 순차 호출하면 경쟁 조건, 중복체결, 잔량 누락 등 심각한 동시성 문제가 발생할 수 있다. LuaScript는 이러한 위험을 구조적으로 제거해 매칭의 신뢰성과 일관성을 보장한다.</p>
+  <p>체결 결과는 Kafka로 스트리밍된다. 매칭엔진은 체결 판단에 집중하고, 잔고·캔들·체결 기록 등 후처리는 개별 서비스가 병렬적으로 수행한다. Kafka는 높은 Throughput, 파티션 기반 확장성, 소비자 그룹 기반 독립 확장, 디스크 기반 내구성을 갖추고 있어 여러 서비스가 동일 체결 스트림을 동시에 소비해도 병목이 발생하지 않는다. 특히 초저지연 반영을 위해 `linger-ms`를 0으로 설정해 즉시 전송하도록 하고, `acks=all`로 내구성까지 확보함으로써 “빠르고 유실 없는 체결 스트림”이라는 요구사항을 충족시켰다.</p>
+  <p>또한 Redis Cluster 기반 샤딩을 적용해 종목(symbol) 단위로 오더북이 자동 분산되도록 설계했다. 종목 단위로 독립적인 주문이 쏟아지는 증권 시스템 특성상, 샤딩 효과가 극대화되며 특정 종목의 폭증 트래픽이 전체 시스템 성능에 영향을 미치지 않는다. Redis Cluster는 Master–Replica 구조를 갖추고 있어 장애 발생 시 Replica가 자동 승격되며, 노드 간 통신을 통해 슬롯 재배치와 장애 감지를 수행한다. 이는 단일 장애점(SPOF)을 제거하고, 24시간 거래 환경에서 필수적인 고가용성(HA)과 무중단 운영을 가능하게 한다.</p>
+  <p>JMeter 기반의 고부하 테스트(2,500 스레드 × 100 iterations, 총 25만 건)에서도 평균 응답속도 40~70ms, Throughput 18,000~23,000 TPM, 에러율 0%, 체결 누락 0건을 확인했다. Redis Cluster와 LuaScript 기반 단일 원자적 매칭 구조는 대량 주문 환경에서도 Price-Time Priority 유지, 레이스 컨디션 차단, 초저지연 체결 반영이 안정적으로 이뤄짐을 검증하였다. Kafka 후단 역시 병목 없이 이벤트를 소비하며 실시간 데이터 정합성이 안정적으로 유지되었다.</p>
+  <p>결과적으로 본 오더북 구조는 초저지연·고신뢰·고가용성을 동시에 달성하기 위한 목적 중심 설계이다. ZSET은 정렬·탐색 효율을, LuaScript는 원자성·동시성 안정성을, Kafka는 확장성과 후처리 분리를, 샤딩은 부하 분산을, 클러스터링은 무중단 운영을 보장한다. 각 요소는 독립적으로도 유효하지만, 전체적으로 결합될 때 매칭엔진의 성능과 안정성을 극대화하는 구조적 완성도를 갖추게 된다.</p>
+      </div>
+</details>
+  </ul>
+    
+  </details>
+</section>
+
 <section id="features">
-  <h2>7. 주요 기능</h2>
+  <h2>8. 주요 기능 설명</h2>
 
 <details>
-  <summary><b>7.1 관리자</b></summary>
+  <summary><b>8.1 관리자</b></summary>
   
-  <h4>7.1.1 거래소 관리자 (EXCHANGE)</h4>
+  <h4>8.1.1 거래소 관리자 (EXCHANGE)</h4>
   <ul>
     <li><strong>가입 승인:</strong> 기업/증권사 가입 신청 심사 및 승인/거절, 가입 신청 상세 조회</li>
     <li><strong>상장 심사:</strong> 상장 요청 심사(승인/반려), 상장 확정</li>
@@ -377,7 +419,7 @@
     <li><strong>기업/증권사 조회:</strong> 기업 목록 조회, 증권사 목록 조회</li>
   </ul>
 
-  <h4>7.1.2 기업 관리자 (CORPORATION)</h4>
+  <h4>8.1.2 기업 관리자 (CORPORATION)</h4>
   <ul>
     <li><strong>상장 요청:</strong> 상장 요청서 작성 및 제출(재무제표/주주명부 파일 업로드), 내 기업 IPO 조회</li>
     <li><strong>공모 관리:</strong> 공모 요청, 수요예측(북빌딩) 참여, 수요예측 결과 조회</li>
@@ -386,7 +428,7 @@
     <li><strong>보유종목 조회:</strong> 기업 보유종목 조회</li>
   </ul>
 
-  <h4>7.1.3 증권사 관리자 (BROKERAGE)</h4>
+  <h4>8.1.3 증권사 관리자 (BROKERAGE)</h4>
   <ul>
     <li><strong>증권사 대시보드:</strong> 일일 거래량, 월간 수익, 최근 활동, 인기 종목, 주문 내역, 수수료 통계(일일/기간별/시간대별 추이)</li>
     <li><strong>회원 계좌 관리:</strong> 소속 증권사 회원 계좌 목록 조회, 회원 계좌 승인/반려/정지/활성화/삭제</li>
@@ -394,7 +436,7 @@
     <li><strong>회원 관리:</strong> 소속 증권사 회원 조회</li>
   </ul>
 
-  <h4>7.1.4 공통 관리자 기능</h4>
+  <h4>8.1.4 공통 관리자 기능</h4>
   <ul>
     <li><strong>권한 관리:</strong> RBAC 기반 권한 체계, 계정 생성·비활성·권한변경</li>
     <li><strong>감사 로그:</strong> 전행위 추적 및 감사 가능성 확보</li>
@@ -403,9 +445,9 @@
 </details>
 
 <details>
-  <summary><b>7.2 상장</b></summary>
+  <summary><b>8.2 상장</b></summary>
   
-  <h4>7.2.1 상장 요청</h4>
+  <h4>8.2.1 상장 요청</h4>
   <ul>
     <li><strong>상장 요청서 작성:</strong> 재무제표/주주명부 파일 업로드(S3), 필수값 입력 및 검증</li>
     <li><strong>재무제표 자동 파싱:</strong>
@@ -413,7 +455,7 @@
         <li>Apache POI 기반 Excel 파싱</li>
         <li>다중 템플릿 지원: 2시트 템플릿(CompanyFinancials + CashFlowStatement), Earnings_Validation 시트</li>
         <li>DART 한글 헤더 폴백 파싱: 원본 한글 헤더 파일 자동 인식 및 파싱</li>
-        <li>구조 검증: 필수 컬럼 존재 여부 확인, 템플릿 불일치 시 오류 처리</li>
+        <li>구조 검증: 필수 컬럼 존재 여부 확인, 데이터 템플릿 불일치 시 오류 처리</li>
         <li>IPO 상장 시: 연간 5개년 + 최신 분기 1개 자동 추출 및 저장</li>
       </ul>
     </li>
@@ -421,13 +463,13 @@
     <li><strong>상태 관리:</strong> PENDING → APPROVED/REJECTED 상태 전환</li>
   </ul>
 
-  <h4>7.2.2 상장 심사</h4>
+  <h4>8.2.2 상장 심사</h4>
   <ul>
     <li><strong>거래소 관리자 심사:</strong> 재무제표/지표/규정 검증, 승인/반려 결정</li>
     <li><strong>심사 기준:</strong> 재무제표 검증, 필수값 검증, 규정 준수 여부 확인</li>
   </ul>
 
-  <h4>7.2.3 상장 확정 및 종목 생성</h4>
+  <h4>8.2.3 상장 확정 및 종목 생성</h4>
   <ul>
     <li><strong>상장 확정:</strong> 심사 승인 후 상장 확정 처리</li>
     <li><strong>티커 자동 생성:</strong> 티커 자동 생성 및 충돌 방지</li>
@@ -439,9 +481,9 @@
 </details>
 
 <details>
-  <summary><b>7.3 공모</b></summary>
+  <summary><b>8.3 공모</b></summary>
   
-  <h4>7.3.1 공모 생성</h4>
+  <h4>8.3.1 공모 생성</h4>
   <ul>
     <li><strong>공모 타입:</strong>
       <ul>
@@ -454,7 +496,7 @@
     <li><strong>공모 정보 설정:</strong> 공모 수량, 공모가 범위(최소/최대), Lot Size, 공모 일정 설정</li>
   </ul>
 
-  <h4>7.3.2 수요예측</h4>
+  <h4>8.3.2 수요예측</h4>
   <ul>
     <li><strong>수요예측 오픈:</strong> 기관투자자 대상 수요예측 시작</li>
     <li><strong>수요 수집:</strong> 기관투자자 수요 예측 데이터 수집</li>
@@ -462,14 +504,14 @@
     <li><strong>수요예측 결과 조회:</strong> 수요예측 결과 및 통계 조회</li>
   </ul>
 
-  <h4>7.3.3 확정공모가 산정</h4>
+  <h4>8.3.3 확정공모가 산정</h4>
   <ul>
     <li><strong>공모가 확정:</strong> 수요예측 결과 기반 확정공모가 산정</li>
     <li><strong>액면가 검증:</strong> 확정공모가가 액면가 이상인지 검증</li>
     <li><strong>공모 상태 전환:</strong> PRICE_FIXED 상태로 전환</li>
   </ul>
 
-  <h4>7.3.4 청약 관리</h4>
+  <h4>8.3.4 청약 관리</h4>
   <ul>
     <li><strong>청약 오픈:</strong> 청약 시작일 설정 및 오픈</li>
     <li><strong>청약 마감:</strong> 청약 종료일 설정 및 자동 마감</li>
@@ -479,21 +521,21 @@
 </details>
 
 <details>
-  <summary><b>7.4 유상증자</b></summary>
+  <summary><b>8.4 유상증자</b></summary>
   
-  <h4>7.4.1 유상증자 특징</h4>
+  <h4>8.4.1 유상증자 특징</h4>
   <ul>
     <li><strong>공모 로직 통합:</strong> 공모 시스템 코드 재활용, 별도 시스템 불필요</li>
   </ul>
 
-  <h4>7.4.2 recordDate 기반 거래 정지/재개</h4>
+  <h4>8.4.2 recordDate 기반 거래 정지/재개</h4>
   <ul>
     <li><strong>거래 정지:</strong> recordDate + 5분 후 자동 거래 정지, 스케줄러 기반 자동 처리</li>
     <li><strong>거래 재개:</strong> 배정 완료 후 자동 거래 재개</li>
     <li><strong>상태 관리:</strong> 거래 정지 상태 자동 전환 및 복구</li>
   </ul>
 
-  <h4>7.4.3 유상증자 프로세스</h4>
+  <h4>8.4.3 유상증자 프로세스</h4>
   <ul>
     <li><strong>유상증자 신청:</strong> 기업이 신규 자본 조달을 위해 유상증자를 거래소에 신청</li>
     <li><strong>거래소 관리자 승인:</strong> 유상증자는 신규 주식 발행으로 기존 주주 지분 희석·시가총액 변동이 발생하므로 
@@ -505,9 +547,9 @@
 </details>
 
 <details>
-  <summary><b>7.5 청약 및 배정</b></summary>
+  <summary><b>8.5 청약 및 배정</b></summary>
   
-  <h4>7.5.1 청약</h4>
+  <h4>8.5.1 청약</h4>
   <ul>
     <li><strong>청약 신청:</strong> 개인/기업 투자자 청약 신청, 청약 수량 입력</li>
     <li><strong>증거금 납입:</strong> 청약 시 증거금 자동 계산 및 납입 요구</li>
@@ -516,14 +558,14 @@
     <li><strong>청약 내역 조회:</strong> 개인/기업별 청약 내역 조회</li>
   </ul>
 
-  <h4>7.5.2 비례배정 알고리즘</h4>
+  <h4>8.5.2 비례배정 알고리즘</h4>
   <ul>
     <li><strong>비례 계산:</strong> <code>(청약 수량 × 공모 수량) / 총 청약 수량</code> 공식으로 각 청약자별 배정량 계산</li>
     <li><strong>Lot Size 고려:</strong> 배정량을 Lot Size 배수로 조정 (<code>raw = (raw / lotSize) * lotSize</code>)</li>
     <li><strong>최대 청약량 제한:</strong> 청약 수량을 초과하지 않도록 제한 (<code>Math.min(raw, applied)</code>)</li>
   </ul>
 
-  <h4>7.5.3 라운드로빈 잔여량 분배</h4>
+  <h4>8.5.3 라운드로빈 잔여량 분배</h4>
   <ul>
     <li><strong>잔여량 계산:</strong> 비례배정 후 남은 수량 계산 (<code>remain = offerQuantity - assigned</code>)</li>
     <li><strong>순차 분배:</strong> 잔여량을 Lot Size 단위로 청약자에게 순차 분배</li>
@@ -531,7 +573,7 @@
     <li><strong>루프 종료 조건:</strong> 잔여량이 부족하거나 더 이상 분배할 수 없을 때 종료</li>
   </ul>
 
-  <h4>7.5.4 배정 실행</h4>
+  <h4>8.5.4 배정 실행</h4>
   <ul>
     <li><strong>동시 배정 방지:</strong> 비관적 락 사용 (<code>IpoOffering.findByIdForUpdate()</code>)로 동시 배정 방지</li>
     <li><strong>트랜잭션 일관성:</strong> <code>@Transactional</code>로 배정 생성, 상태 전환, Outbox 기록을 원자적으로 처리</li>
@@ -540,7 +582,7 @@
     <li><strong>청약 상태 업데이트:</strong> 배정 완료 시 청약 상태를 PAID → ALLOCATED로 전환</li>
   </ul>
 
-  <h4>7.5.5 Outbox 패턴</h4>
+  <h4>8.5.5 Outbox 패턴</h4>
   <ul>
     <li><strong>이벤트 기록:</strong> 배정 완료 시 <code>IpoAllocationOutbox</code>에 이벤트 기록</li>
     <li><strong>비동기 이벤트 발행:</strong> 트랜잭션 커밋 후 비동기로 이벤트 발행</li>
@@ -548,14 +590,14 @@
     <li><strong>이벤트 상태 관리:</strong> PENDING → PROCESSED 상태 전환</li>
   </ul>
 
-  <h4>7.5.6 배정 승인 및 확정</h4>
+  <h4>8.5.6 배정 승인 및 확정</h4>
   <ul>
     <li><strong>거래소 승인:</strong> N차 공모/유상증자 배정 시 거래소 관리자 승인 필요 (ALLOCATION_PENDING → VERIFIED)</li>
     <li><strong>발행사 확정:</strong> 발행사가 배정 확정 (VERIFIED → ALLOCATED)</li>
     <li><strong>배정 결과 조회:</strong> 배정 목록 및 통계 조회</li>
   </ul>
 
-  <h4>7.5.7 정산</h4>
+  <h4>8.5.7 정산</h4>
   <ul>
     <li><strong>추가납입/환불 계산:</strong> 배정량에 따른 추가납입 또는 환불 금액 계산</li>
     <li><strong>정산 실행:</strong> 추가납입 요구 또는 환불 처리</li>
@@ -565,9 +607,9 @@
 </details>
 
 <details>
-  <summary><b>7.6 상장폐지</b></summary>
+  <summary><b>8.6 상장폐지</b></summary>
   
-  <h4>7.6.1 기준 위반 감지</h4>
+  <h4>8.6.1 기준 위반 감지</h4>
   <ul>
     <li><strong>재무 기준:</strong> 매출액, 자본금, 순이익 등 재무 지표 기준 위반 감지</li>
     <li><strong>거래 기준:</strong> 거래량, 거래대금, 거래일수 등 거래 지표 기준 위반 감지</li>
@@ -575,7 +617,7 @@
     <li><strong>자동 감지 스케줄러:</strong> 매일 오전 9시 기준 위반 자동 체크</li>
   </ul>
 
-  <h4>7.6.2 GPT 기반 위험도 분석</h4>
+  <h4>8.6.2 GPT 기반 위험도 분석</h4>
   <ul>
     <li><strong>재무제표 분석:</strong> 재무제표 데이터를 OpenAI API로 전송</li>
     <li><strong>위험도 점수 산출:</strong> GPT가 위험도 점수(0-100) 및 분석 결과 반환</li>
@@ -583,7 +625,7 @@
     <li><strong>재시도 로직:</strong> API 실패 시 재시도 처리</li>
   </ul>
 
-  <h4>7.6.3 상장폐지 진행 단계</h4>
+  <h4>8.6.3 상장폐지 진행 단계</h4>
   <ul>
     <li><strong>DELISTING_RISK:</strong> 위반 감지 시 위험 단계로 전환</li>
     <li><strong>DELISTING_NOTICE:</strong> 10분 후 자동으로 예고 단계로 전환 (스케줄러 기반)</li>
@@ -591,7 +633,7 @@
     <li><strong>상장폐지 확정:</strong> 관리자가 상장폐지 확정 처리</li>
   </ul>
 
-  <h4>7.6.4 보상금 처리</h4>
+  <h4>8.6.4 보상금 처리</h4>
   <ul>
     <li><strong>보상금 계산:</strong> 보유 주식 수 기반 보상금 계산</li>
     <li><strong>보상금 지급:</strong> 보유자 계좌로 보상금 자동 지급</li>
@@ -599,7 +641,7 @@
     <li><strong>낙관적 락:</strong> <code>@Version</code> 필드로 동시성 제어 (DelistingCompensation, ExchangeSupportFund)</li>
   </ul>
 
-  <h4>7.6.5 위반 해결 처리</h4>
+  <h4>8.6.5 위반 해결 처리</h4>
   <ul>
     <li><strong>위반 해결 확인:</strong> 위반 사항 해결 여부 확인</li>
     <li><strong>상태 복구:</strong> 위반 해결 시 상장폐지 진행 중단 및 상태 복구</li>
@@ -608,15 +650,15 @@
 </details>
 
 <details>
-  <summary><b>7.7 종목 정보 및 관리</b></summary>
+  <summary><b>8.7 종목 정보 및 관리</b></summary>
   
-  <h4>7.7.1 종목 목록</h4>
+  <h4>8.7.1 종목 목록</h4>
   <ul>
     <li><strong>종목 목록 조회:</strong> 검색/상태 필터 지원, 페이징 처리</li>
     <li><strong>종목 상태:</strong> PENDING, APPROVED, LISTED, DELISTED 등 상태 관리</li>
   </ul>
 
-  <h4>7.7.2 종목 상세 정보</h4>
+  <h4>8.7.2 종목 상세 정보</h4>
   <ul>
     <li><strong>종목 기본 정보:</strong> 티커, 종목명, 업종, 상장일 등</li>
     <li><strong>재무제표:</strong> 분기별/연간 재무제표 조회 (손익계산서, 재무상태표, 현금흐름표)</li>
@@ -624,7 +666,7 @@
     <li><strong>재무비율 자동 계산:</strong> 주기적 스케줄러로 재무비율 자동 업데이트</li>
   </ul>
 
-  <h4>7.7.3 종목 관리</h4>
+  <h4>8.7.3 종목 관리</h4>
   <ul>
     <li><strong>발행량 관리:</strong> 공모/유상증자 시 총 발행 주식 수 자동 업데이트</li>
     <li><strong>거래 규칙 관리:</strong> 시초가, 거래 단위, 가격 변동폭 제한 등 거래 규칙 설정</li>
@@ -632,9 +674,9 @@
 </details>
 
 <details>
-  <summary><b>7.8 거래</b></summary>
+  <summary><b>8.8 거래</b></summary>
   
-  <h4>7.8.1 주문 접수</h4>
+  <h4>8.8.1 주문 접수</h4>
   <ul>
     <li><strong>주문 유형:</strong> 지정가(LIMIT)/시장가(MARKET) 주문</li>
     <li><strong>자산 동결:</strong> 매수 시 현금+수수료 동결, 매도 시 보유주식 동결</li>
@@ -644,7 +686,7 @@
     <li><strong>Outbox 패턴:</strong> 주문 생성 시 <code>OrderOutbox</code>에 기록, Kafka 발행 후 상태 업데이트</li>
   </ul>
 
-  <h4>7.8.2 주문 매칭 엔진</h4>
+  <h4>8.8.2 주문 매칭 엔진</h4>
   <ul>
     <li><strong>Redis ZSET 기반 호가 관리:</strong> 가격 우선 정렬, Redis 해시태그(<code>{ticker}</code>) 사용으로 클러스터 슬롯 일관성 보장</li>
     <li><strong>가격 우선/시간 우선 정렬:</strong>
@@ -660,21 +702,21 @@
     <li><strong>Kafka 기반 비동기 처리:</strong> 체결 이벤트를 Kafka로 발행, 비동기 처리로 지연 최소화</li>
   </ul>
 
-  <h4>7.8.3 주문 취소 및 조회</h4>
+  <h4>8.8.3 주문 취소 및 조회</h4>
   <ul>
     <li><strong>주문 취소:</strong> 대기 주문 취소 및 자산 해제, 주문 상태 추적</li>
     <li><strong>대기 주문 조회:</strong> 사용자별 대기 주문 목록 조회(페이징)</li>
     <li><strong>주문 내역 조회:</strong> 종목별 주문 내역 조회(페이징)</li>
   </ul>
 
-  <h4>7.8.4 계좌 및 자산 관리</h4>
+  <h4>8.8.4 계좌 및 자산 관리</h4>
   <ul>
     <li><strong>계좌 생성:</strong> SHA-256 해시 기반 고유 계좌번호 생성, 멱등성 보장 (Redis 기반 중복 방지)</li>
     <li><strong>입출금:</strong> 입금, 출금, 이체</li>
     <li><strong>자산 조회:</strong> 보유종목 조회, 거래내역(Ledger) 조회(거래 유형 필터), 가용현금/재고 조회</li>
   </ul>
 
-  <h4>7.8.5 정산</h4>
+  <h4>8.8.5 정산</h4>
   <ul>
     <li><strong>수수료/거래세 계산:</strong> 체결 완료 후 자동 계산, 증권사별/거래 유형별 차등 적용</li>
     <li><strong>자산 반영:</strong> 가용현금/보유주식 반영, 거래내역 기록</li>
@@ -683,7 +725,7 @@
 </details>
 
 <details>
-  <summary><b>7.9 공시 관리</b></summary>
+  <summary><b>8.9 공시 관리</b></summary>
   
   <ul>
     <li><strong>공시 관리:</strong> 기업 공시 등록/수정/정정/추가(Multipart 파일), 공시 템플릿, 거래소 승인/반려, 공시 목록 조회</li>
@@ -694,9 +736,9 @@
 </details>
 
 <details>
-  <summary><b>7.10 데이터</b></summary>
+  <summary><b>8.10 데이터</b></summary>
   
-  <h4>7.10.1 차트</h4>
+  <h4>8.10.1 차트</h4>
   <ul>
     <li><strong>캔들 데이터 조회:</strong> 1m/5m/15m/30m/1h/4h/1d, 시작/종료 시간 지정</li>
     <li><strong>캔들 확정 스케줄러:</strong>
@@ -711,7 +753,7 @@
     <li><strong>최신 캔들 조회:</strong> 최신 캔들 조회, 미니차트(24시간 종가), 기업용 차트</li>
   </ul>
 
-  <h4>7.10.2 보조지표</h4>
+  <h4>8.10.2 보조지표</h4>
   <ul>
     <li><strong>지표 종류:</strong> MA/EMA/RSI/MACD/볼린저밴드/거래량 등 30+ 지표</li>
     <li><strong>사전 계산:</strong> 비동기 스케줄러 기반 배치 계산, 성능 최적화</li>
@@ -719,7 +761,7 @@
     <li><strong>ShedLock 분산 락:</strong> 다중 인스턴스 환경에서 중복 계산 방지</li>
   </ul>
 
-  <h4>7.10.3 실시간 데이터</h4>
+  <h4>8.10.3 실시간 데이터</h4>
   <ul>
     <li><strong>호가/현재가/체결:</strong> 실시간 조회, 통합 마켓 데이터(호가창 최적화)</li>
     <li><strong>WebSocket 기반 실시간 업데이트:</strong> STOMP 프로토콜, Redis Pub/Sub 활용하여 다중 인스턴스 환경에서 일관된 브로드캐스트</li>
@@ -734,13 +776,13 @@
     <li><strong>전일 종가 설정:</strong> 장 시작 시 초기화</li>
   </ul>
 
-  <h4>7.10.4 기업 정보</h4>
+  <h4>8.10.4 기업 정보</h4>
   <ul>
     <li><strong>종목 정보:</strong> 종목 상세 정보, 재무제표(분기별/연간), 재무비율(PER/PBR/PSR/시가총액/Enterprise Value)</li>
     <li><strong>52주 최고/최저가 계산:</strong> InfluxDB 기반 365일 체결 데이터 조회, 주기적 갱신(스케줄러), 성능 최적화를 위해 주기적으로만 실행</li>
   </ul>
 
-  <h4>7.10.5 랭킹 및 체결 데이터</h4>
+  <h4>8.10.5 랭킹 및 체결 데이터</h4>
   <ul>
     <li><strong>랭킹:</strong> 상승률/하락률/거래량/거래대금 TOP 30, 카드섹션 데이터, 관심종목 마켓 데이터</li>
     <li><strong>체결 데이터:</strong> 페이징된 체결 데이터 조회, 최근 체결 데이터, OHLCV 데이터, 체결 데이터 개수 조회</li>
@@ -748,7 +790,7 @@
 </details>
 
 <details>
-  <summary><b>7.11 시뮬레이션</b></summary>
+  <summary><b>8.11 시뮬레이션</b></summary>
   
   <ul>
     <li><strong>트레이딩 봇:</strong> 가상거래 봇 생성/상태변경/비활성화, 다이나믹 봇 자동 생성, 간단한 봇 생성, 거래량 데이터 생성용 봇</li>
@@ -757,9 +799,9 @@
 </details>
 
 <details>
-  <summary><b>7.12 커뮤니티</b></summary>
+  <summary><b>8.12 커뮤니티</b></summary>
   
-  <h4>7.12.1 포럼</h4>
+  <h4>8.12.1 포럼</h4>
   <ul>
     <li><strong>카테고리:</strong> 카테고리 생성/수정/조회</li>
     <li><strong>게시글:</strong> 게시글 작성/수정/삭제/조회(상태/카테고리 필터), 댓글 작성/수정/삭제/조회</li>
@@ -767,14 +809,14 @@
     <li><strong>낙관적 락:</strong> <code>@Version</code> 필드로 동시성 제어 (ForumPost, ForumCategory)</li>
   </ul>
 
-  <h4>7.12.2 포럼 투표</h4>
+  <h4>8.12.2 포럼 투표</h4>
   <ul>
     <li><strong>투표 생성:</strong> 투표 생성, 선택지 순서 변경</li>
     <li><strong>투표 제출:</strong> 투표 제출/변경/철회, 비관적 락 사용 (<code>ForumVote.findByIdForUpdate()</code>)로 중복 투표 방지</li>
     <li><strong>투표 조회:</strong> 투표 조회</li>
   </ul>
 
-  <h4>7.12.3 종목별 뉴스</h4>
+  <h4>8.12.3 종목별 뉴스</h4>
   <ul>
     <li><strong>실시간 수집:</strong> RSS 피드 크롤링(매일경제/한국경제/조선일보), 스케줄러 기반 주기적 수집, 중복 방지(URL 기반)</li>
     <li><strong>종목 자동 매칭:</strong> 제목/본문에서 종목명 추출 및 자동 매핑, 다중 종목 매핑 지원</li>
@@ -784,14 +826,14 @@
     <li><strong>뉴스 재매핑:</strong> 상장 종목 뉴스 재매핑(내부 API)</li>
   </ul>
 
-  <h4>7.12.4 즐겨찾기</h4>
+  <h4>8.12.4 즐겨찾기</h4>
   <ul>
     <li><strong>종목 즐겨찾기:</strong> 종목 즐겨찾기 추가/삭제/조회</li>
   </ul>
 </details>
 
 <details>
-  <summary><b>7.13 인증/회원</b></summary>
+  <summary><b>8.13 인증/회원</b></summary>
   
   <ul>
     <li><strong>회원가입:</strong> 기업/증권사/개인 회원가입, 이메일 중복 확인, OCR 기반 신분증 인식</li>
@@ -802,15 +844,15 @@
     <li><strong>회원 정보:</strong> 회원 본인 정보 조회</li>
   </ul>
 </details>
-
 </section>
+
 <!-- <section id="ui-ux-test">
   <h2>8. UI/UX 단위 테스트 결과서</h2>
 </section> -->
 
 <section id="ui-ux-test">
-<h2>8) 기능 시연 영상</h2>
-  <p>MKX 프로젝트의 주요 기능 시연 영상을 정리합니다.</p>
+<h2>8) UI/UX 단위 테스트 결과서</h2>
+  <p>MKX 프로젝트의 기능 시연 영상을 정리합니다.</p>
 
   <!-- 인증/회원가입 -->
 <details>
@@ -1997,7 +2039,7 @@
   <hr/>
 
   <footer class="muted" style="margin-top:28px">
-    © MKX. All rights reserved.
+    <p align="right"> © MKX. All rights reserved. </p>
   </footer>
 
 </main>

@@ -28,6 +28,8 @@ spec:
             memory: "1536Mi"
         # 아래의 name과 application.yml의 ${}의 변수명과 일치해야함
         env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "prod"
         - name: INFLUX_TOKEN
           valueFrom:
             secretKeyRef:
@@ -52,12 +54,24 @@ spec:
         readinessProbe:
           httpGet:
             # healthcheck 경로
-            path: /health
+            path: /actuator/health
             port: 8080
           # 컨테이너 시작 후 지연
-          initialDelaySeconds: 10
+          initialDelaySeconds: 30
           # 확인 반복 주기
           periodSeconds: 10
+          # 타임아웃 설정 (CPU 부하 시 여유 있게)
+          timeoutSeconds: 10
+          failureThreshold: 3
+        # Liveness Probe 추가 (CPU 부하로 인한 타임아웃 고려)
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
 
 ---
 apiVersion: v1

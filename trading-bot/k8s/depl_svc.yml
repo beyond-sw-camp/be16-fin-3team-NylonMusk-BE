@@ -28,6 +28,8 @@ spec:
             cpu: "500m"
             memory: "512Mi"
         env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "prod"
         - name: DB_HOST_1
           valueFrom:
             secretKeyRef:

@@ -28,6 +28,8 @@ spec:
             memory: "1536Mi"
         # 아래의 name과 application.yml의 ${}의 변수명과 일치해야함
         env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "prod"
         - name: DB_PASSWORD_2
           valueFrom:
             secretKeyRef:

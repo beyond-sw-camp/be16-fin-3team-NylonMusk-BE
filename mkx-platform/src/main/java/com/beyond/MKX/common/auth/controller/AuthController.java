@@ -101,7 +101,7 @@ public class  AuthController {
 
         ResponseCookie csrfCookie = buildCookie(
                 "CSRF-TOKEN", csrfToken,
-                Duration.ofMinutes(15),
+                Duration.ofMinutes(10080),
                 cookieProps.getCsrf());
 
         resp.addHeader(HttpHeaders.SET_COOKIE, atCookie.toString());
@@ -180,7 +180,7 @@ public class  AuthController {
 
         ResponseCookie csrfCookie = buildCookie(
                 "CSRF-TOKEN", newCSRF,
-                Duration.ofMinutes(15),
+                Duration.ofMinutes(10080),
                 cookieProps.getCsrf());
 
         resp.addHeader(HttpHeaders.SET_COOKIE, atCookie.toString());
@@ -240,7 +240,8 @@ public class  AuthController {
                 .httpOnly(option.isHttpOnly())
                 .secure(option.isSecure())
                 .sameSite(option.getSameSite())
-                .path(option.getPath());
+                .path(option.getPath())
+                .domain(option.getDomain());
 
         if (Duration.ZERO.equals(maxAge)) {
             builder.maxAge(0);
@@ -315,7 +316,7 @@ public class  AuthController {
                     cookieProps.getRefresh()).toString());
             resp.addHeader(HttpHeaders.SET_COOKIE, buildCookie(
                     "CSRF-TOKEN", csrfToken,
-                    Duration.ofMinutes(15),
+                    Duration.ofMinutes(10080),
                     cookieProps.getCsrf()).toString());
 
             LoginResponseDto response = LoginResponseDto.builder()
@@ -406,7 +407,7 @@ public class  AuthController {
                 cookieProps.getRefresh()).toString());
         resp.addHeader(HttpHeaders.SET_COOKIE, buildCookie(
                 "CSRF-TOKEN", csrfToken,
-                Duration.ofMinutes(15),
+                Duration.ofMinutes(10080),
                 cookieProps.getCsrf()).toString());
 
         LoginResponseDto response = LoginResponseDto.builder()

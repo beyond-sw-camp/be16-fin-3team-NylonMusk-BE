@@ -974,9 +974,12 @@
 <p><b>대시보드</b></p>
 <p>대시보드: 추가 예정</p>
     
-<p><b>상장 관리</b></p>
+<p><b>직상장 신청</b></p>
 <p align="center"><img src="https://github.com/user-attachments/assets/c5ce43b2-2577-4878-85fd-3b2a6bb34c3a" alt="직상장 신청" width="#"></p>
-<p>공모 상장 신청: 추가 예정</p>
+
+<p><b>공모 상장 신청</b></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/ed7752b0-2189-426f-8df3-900fba929154" alt="공모 상장 신청" width="#"></p>
+
 <p>상장 현황: 추가 예정</p>
     
 <p><b>공모 관리</b></p>

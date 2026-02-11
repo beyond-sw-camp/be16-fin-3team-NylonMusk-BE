@@ -840,7 +840,7 @@
   <summary><b>② 거래소 홈 및 거래소 시장 </b></summary>
     
 <p><b>홈 화면</b></p>
-<p>실시간 랭킹/히트맵: 추가 예정</p>
+<p align="center"><img src="https://github.com/user-attachments/assets/87c49906-9754-4246-98e9-4ddf5fc05fd6" alt="홈 화면" width="#"></p>
     
 <p><b>주식 목록 및 랭킹</b></p>
 <p align="center"><img src="https://github.com/user-attachments/assets/0de1fbab-c2fa-4df9-a6dd-fa0667dc6823" alt="조건별 순위" width="#"></p>
@@ -858,8 +858,17 @@
 <summary><b>③ 거래</b></summary>
     
 <p><b>거래 화면</b></p>
-<p>주문/호가/차트/체결: 추가 예정</p>
-    
+
+<p><b>주문/호가/차트/체결</b></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/0a7b6e07-1a91-4116-a8b8-2f467ea2c4ac" alt="주문하기" width="#"></p>
+
+<p><b>보조지표</b></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/145a1ebb-4aac-4f35-8d59-3e5b6d6e7027" alt="거래량" width="#"></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/554a23eb-92cc-49a9-a81f-13333566bb83" alt="이동평균선" width="#"></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/c7c6cf84-bcb9-430a-ab33-15fca00ef88b" alt="지수이동평균선" width="#"></p>
+
+
+
 <p><b>주식 상세</b></p>
 <p>종목 상세/재무제표/재무비율: 추가 예정</p>
     

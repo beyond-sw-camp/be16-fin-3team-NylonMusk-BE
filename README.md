@@ -808,7 +808,7 @@
   <h2>8. UI/UX 단위 테스트 결과서</h2>
 </section> -->
 
-<!-- <section id="ui-ux-test">
+ <section id="ui-ux-test">
 <h2>8) 기능 시연 영상</h2>
   <p>MKX 프로젝트의 주요 기능 시연 영상을 정리합니다.</p>
 
@@ -1037,11 +1037,11 @@
 </section>
 
 
-<section id="ui-ux-test">
+<!-- <section id="ui-ux-test"> 
   <h2>8) 기능 시연 영상</h2>
   <p>MKX 프로젝트의 주요 기능 시연 영상을 정리합니다.</p>
 
-  <!-- 회원가입 / 로그인 -->
+  <!-- 회원가입 / 로그인 
 <details>
 <summary><b>① 회원가입 / 로그인</b></summary>
 
@@ -1086,7 +1086,7 @@
 </details>
 </details>
 
-<!-- 기업 관리자 페이지 -->
+<!-- 기업 관리자 페이지 --
 <details>
 <summary><b>② 기업 관리자 페이지</b></summary>
 
@@ -1194,7 +1194,7 @@
 </details>
 </details>
 
-<!-- 증권사 관리자 페이지 -->
+<!-- 증권사 관리자 페이지 --
 <details>
 <summary><b>③ 증권사 관리자 페이지</b></summary>
 
@@ -1268,7 +1268,7 @@
 </details>
 </details>
 
-<!-- 거래소 관리자 페이지 -->
+<!-- 거래소 관리자 페이지 --
 <details>
 <summary><b>④ 거래소 관리자 페이지</b></summary>
 
@@ -1641,7 +1641,7 @@
 </details>
 </details>
 
-<!-- 일반 유저 페이지 -->
+<!-- 일반 유저 페이지 --
 <details>
 <summary><b>⑤ 일반 유저 페이지</b></summary>
 

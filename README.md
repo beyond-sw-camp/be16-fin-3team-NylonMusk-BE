@@ -808,12 +808,12 @@
   <h2>8. UI/UX 단위 테스트 결과서</h2>
 </section> -->
 
-<section id="ui-ux-test">
+<!-- <section id="ui-ux-test">
 <h2>8) 기능 시연 영상</h2>
   <p>MKX 프로젝트의 주요 기능 시연 영상을 정리합니다.</p>
 
-  <!-- 인증/회원가입 -->
-<details>
+
+  <details>
     <summary><b>① 인증 및 회원가입</b></summary>
     
 <p><b>관리자 회원가입</b></p>
@@ -1889,7 +1889,8 @@
 </details>
 </details>
 </details>
-</section>
+</section> 
+-->
 
 
 

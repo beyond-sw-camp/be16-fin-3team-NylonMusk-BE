@@ -318,7 +318,13 @@
 
 <section id="architecture">
   <h2>5. 시스템 아키텍처</h2>
+  <h3> 시스템 배포 아키텍처 </h3>
     <img width="1920" height="1080" alt="MKX_architecture" src="https://github.com/user-attachments/assets/fd1394a3-d4ee-4571-9d0b-3b2dc09901d5" />
+  
+  <h3> 주식거래 아키텍처 </h3>
+  <img width="1920" height="1080" alt="MKX 주식거래 아키텍처x2" src="https://github.com/user-attachments/assets/2560e83f-ab40-4048-8f0c-40b015103463" />
+
+  
 </section>
 
 <section id="tech-summary">

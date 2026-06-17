@@ -1,17 +1,8 @@
 package com.beyond.MKX.domain.execution.service;
 
-import com.beyond.MKX.common.kafka.event.ExecutionEvent;
 import com.beyond.MKX.common.kafka.event.OrderStatusEvent;
-import com.beyond.MKX.domain.order.entity.OrderKind;
-import com.beyond.MKX.domain.order.entity.OrderLog;
-import com.beyond.MKX.domain.order.entity.OrderStatus;
-import com.beyond.MKX.domain.order.entity.Side;
-import com.beyond.MKX.domain.order.repository.OrderLogRepository;
-import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.kafka.support.KafkaHeaders;

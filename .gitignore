@@ -2,6 +2,12 @@
 .DS_Store
 **/.DS_Store
 
+# Gradle local state
+.gradle/
+**/.gradle/
+build/
+**/build/
+
 # Compiled class file
 *.class
 

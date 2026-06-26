@@ -318,7 +318,13 @@
 
 <section id="architecture">
   <h2>5. 시스템 아키텍처</h2>
+  <h3> 시스템 배포 아키텍처 </h3>
     <img width="1920" height="1080" alt="MKX_architecture" src="https://github.com/user-attachments/assets/fd1394a3-d4ee-4571-9d0b-3b2dc09901d5" />
+  
+  <h3> 주식거래 아키텍처 </h3>
+  <img width="1920" height="1080" alt="MKX 주식거래 아키텍처x2" src="https://github.com/user-attachments/assets/2560e83f-ab40-4048-8f0c-40b015103463" />
+
+  
 </section>
 
 <section id="tech-summary">
@@ -808,12 +814,12 @@
   <h2>8. UI/UX 단위 테스트 결과서</h2>
 </section> -->
 
-<section id="ui-ux-test">
+ <section id="ui-ux-test">
 <h2>8) 기능 시연 영상</h2>
   <p>MKX 프로젝트의 주요 기능 시연 영상을 정리합니다.</p>
 
-  <!-- 인증/회원가입 -->
-<details>
+
+  <details>
     <summary><b>① 인증 및 회원가입</b></summary>
     
 <p><b>관리자 회원가입</b></p>
@@ -840,7 +846,7 @@
   <summary><b>② 거래소 홈 및 거래소 시장 </b></summary>
     
 <p><b>홈 화면</b></p>
-<p>실시간 랭킹/히트맵: 추가 예정</p>
+<p align="center"><img src="https://github.com/user-attachments/assets/87c49906-9754-4246-98e9-4ddf5fc05fd6" alt="홈 화면" width="#"></p>
     
 <p><b>주식 목록 및 랭킹</b></p>
 <p align="center"><img src="https://github.com/user-attachments/assets/0de1fbab-c2fa-4df9-a6dd-fa0667dc6823" alt="조건별 순위" width="#"></p>
@@ -858,8 +864,17 @@
 <summary><b>③ 거래</b></summary>
     
 <p><b>거래 화면</b></p>
-<p>주문/호가/차트/체결: 추가 예정</p>
-    
+
+<p><b>주문/호가/차트/체결</b></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/0a7b6e07-1a91-4116-a8b8-2f467ea2c4ac" alt="주문하기" width="#"></p>
+
+<p><b>보조지표</b></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/145a1ebb-4aac-4f35-8d59-3e5b6d6e7027" alt="거래량" width="#"></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/554a23eb-92cc-49a9-a81f-13333566bb83" alt="이동평균선" width="#"></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/c7c6cf84-bcb9-430a-ab33-15fca00ef88b" alt="지수이동평균선" width="#"></p>
+
+
+
 <p><b>주식 상세</b></p>
 <p>종목 상세/재무제표/재무비율: 추가 예정</p>
     
@@ -1037,11 +1052,11 @@
 </section>
 
 
-<section id="ui-ux-test">
+<!-- <section id="ui-ux-test"> 
   <h2>8) 기능 시연 영상</h2>
   <p>MKX 프로젝트의 주요 기능 시연 영상을 정리합니다.</p>
 
-  <!-- 회원가입 / 로그인 -->
+  <!-- 회원가입 / 로그인 
 <details>
 <summary><b>① 회원가입 / 로그인</b></summary>
 
@@ -1086,7 +1101,7 @@
 </details>
 </details>
 
-<!-- 기업 관리자 페이지 -->
+<!-- 기업 관리자 페이지 --
 <details>
 <summary><b>② 기업 관리자 페이지</b></summary>
 
@@ -1194,7 +1209,7 @@
 </details>
 </details>
 
-<!-- 증권사 관리자 페이지 -->
+<!-- 증권사 관리자 페이지 --
 <details>
 <summary><b>③ 증권사 관리자 페이지</b></summary>
 
@@ -1268,7 +1283,7 @@
 </details>
 </details>
 
-<!-- 거래소 관리자 페이지 -->
+<!-- 거래소 관리자 페이지 --
 <details>
 <summary><b>④ 거래소 관리자 페이지</b></summary>
 
@@ -1641,7 +1656,7 @@
 </details>
 </details>
 
-<!-- 일반 유저 페이지 -->
+<!-- 일반 유저 페이지 --
 <details>
 <summary><b>⑤ 일반 유저 페이지</b></summary>
 
@@ -1889,7 +1904,8 @@
 </details>
 </details>
 </details>
-</section>
+</section> 
+-->
 
 
 

@@ -43,8 +43,8 @@ public class TradingBotService {
     private final Map<UUID, LocalDateTime> lastOrderTimeMap = new ConcurrentHashMap<>();
     
     // 최소 주문 간격 (밀리초) - 랜덤하게 500ms~2000ms 사이 (더 빠르게)
-    private static final long MIN_ORDER_INTERVAL_MS = 500;
-    private static final long MAX_ORDER_INTERVAL_MS = 2000;
+    private static final long MIN_ORDER_INTERVAL_MS = 200;
+    private static final long MAX_ORDER_INTERVAL_MS = 500;
     
     // 거래량 데이터 쌓기용 봇 간격 (25초)
     private static final long VOLUME_BUILDING_INTERVAL_MS = 25000;

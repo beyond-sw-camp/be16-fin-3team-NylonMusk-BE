@@ -4,21 +4,32 @@ import com.beyond.MKX.common.kafka.event.ExecutionEvent;
 import com.beyond.MKX.common.kafka.event.OrderStatusEvent;
 import com.beyond.MKX.common.kafka.event.TransactionEvent;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.dao.CannotAcquireLockException;
+import org.springframework.dao.QueryTimeoutException;
+import org.springframework.dao.TransientDataAccessResourceException;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.ContainerProperties;
+import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.support.ExponentialBackOffWithMaxRetries;
 import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
+import org.springframework.kafka.support.serializer.DeserializationException;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
+import org.springframework.messaging.converter.MessageConversionException;
 import org.springframework.util.backoff.FixedBackOff;
 
+import jakarta.persistence.EntityNotFoundException;
+import java.net.SocketTimeoutException;
+import java.sql.SQLTimeoutException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -97,12 +108,13 @@ public class KafkaConsumeConfig {
 
     @Bean("kafkaExecutionListenerFactory")
     public ConcurrentKafkaListenerContainerFactory<String, ExecutionEvent> kafkaExecutionListenerFactory(
-            ConsumerFactory<String, ExecutionEvent> executionConsumerFactory
+            ConsumerFactory<String, ExecutionEvent> executionConsumerFactory,
+            KafkaTemplate<Object, Object> dlqKafkaTemplate
     ) {
         ConcurrentKafkaListenerContainerFactory<String, ExecutionEvent> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(executionConsumerFactory);
-        factory.setCommonErrorHandler(noBackOffErrorHandler());
+        factory.setCommonErrorHandler(kafkaDlqErrorHandler(dlqKafkaTemplate));
         // yml의 enable-auto-commit: false 설정에 따른 수동 커밋 설정
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
         return factory;
@@ -110,13 +122,38 @@ public class KafkaConsumeConfig {
 
     @Bean("kafkaOrderStatusListenerFactory")
     public ConcurrentKafkaListenerContainerFactory<String, OrderStatusEvent> kafkaOrderStatusListenerFactory(
+            ConsumerFactory<String, OrderStatusEvent> orderStatusConsumerFactory,
+            KafkaTemplate<Object, Object> dlqKafkaTemplate
+    ) {
+        ConcurrentKafkaListenerContainerFactory<String, OrderStatusEvent> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(orderStatusConsumerFactory);
+        factory.setCommonErrorHandler(kafkaDlqErrorHandler(dlqKafkaTemplate));
+        // yml의 enable-auto-commit: false 설정에 따른 수동 커밋 설정
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+        return factory;
+    }
+
+    @Bean("kafkaExecutionDlqListenerFactory")
+    public ConcurrentKafkaListenerContainerFactory<String, ExecutionEvent> kafkaExecutionDlqListenerFactory(
+            ConsumerFactory<String, ExecutionEvent> executionConsumerFactory
+    ) {
+        ConcurrentKafkaListenerContainerFactory<String, ExecutionEvent> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(executionConsumerFactory);
+        factory.setCommonErrorHandler(noBackOffErrorHandler());
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+        return factory;
+    }
+
+    @Bean("kafkaOrderStatusDlqListenerFactory")
+    public ConcurrentKafkaListenerContainerFactory<String, OrderStatusEvent> kafkaOrderStatusDlqListenerFactory(
             ConsumerFactory<String, OrderStatusEvent> orderStatusConsumerFactory
     ) {
         ConcurrentKafkaListenerContainerFactory<String, OrderStatusEvent> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(orderStatusConsumerFactory);
         factory.setCommonErrorHandler(noBackOffErrorHandler());
-        // yml의 enable-auto-commit: false 설정에 따른 수동 커밋 설정
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
         return factory;
     }
@@ -136,20 +173,39 @@ public class KafkaConsumeConfig {
 
     /// **-------------- 에러 핸들러 설정 --------------**
 
-    private DefaultErrorHandler commonErrorHandler() {
-        // 초기 100ms, 배수 2.0, 최대 5회 재시도 후 레코드 스킵
-        ExponentialBackOffWithMaxRetries backoff = new ExponentialBackOffWithMaxRetries(5);
-        backoff.setInitialInterval(100);
+    private DefaultErrorHandler kafkaDlqErrorHandler(KafkaTemplate<Object, Object> dlqKafkaTemplate) {
+        // 초기 200ms, 배수 2.0, 최대 3회 재시도 후 DLQ 발행
+        ExponentialBackOffWithMaxRetries backoff = new ExponentialBackOffWithMaxRetries(3);
+        backoff.setInitialInterval(200);
         backoff.setMultiplier(2.0);
         backoff.setMaxInterval(2_000);
-        return new DefaultErrorHandler(backoff);
+
+        DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(
+                dlqKafkaTemplate,
+                (record, exception) -> new TopicPartition(record.topic() + ".DLQ", record.partition())
+        );
+
+        DefaultErrorHandler errorHandler = new DefaultErrorHandler(recoverer, backoff);
+        errorHandler.setCommitRecovered(true);
+        errorHandler.addRetryableExceptions(
+                SQLTimeoutException.class,
+                QueryTimeoutException.class,
+                CannotAcquireLockException.class,
+                TransientDataAccessResourceException.class,
+                SocketTimeoutException.class
+        );
+        errorHandler.addNotRetryableExceptions(
+                DeserializationException.class,
+                MessageConversionException.class,
+                IllegalArgumentException.class,
+                EntityNotFoundException.class
+        );
+        return errorHandler;
     }
 
-    // 에러발생 시 해당 토픽 스킵
+    // transaction-events는 담당자 협의 전까지 기존 no-backoff 정책 유지
     private DefaultErrorHandler noBackOffErrorHandler() {
-        // interval=0ms, maxAttempts=0 → 재시도 없음
         return new DefaultErrorHandler(new FixedBackOff(0L, 0L));
     }
-
 
 }

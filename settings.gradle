@@ -1,0 +1,10 @@
+rootProject.name = 'mkx-backend'
+
+includeBuild 'apigateway'
+includeBuild 'community'
+includeBuild 'eureka'
+includeBuild 'marketdata'
+includeBuild 'matching-engine'
+includeBuild 'mkx-platform'
+includeBuild 'ordering'
+includeBuild 'trading-bot'

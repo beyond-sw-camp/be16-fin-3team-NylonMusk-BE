@@ -65,7 +65,7 @@ public class KafkaExecutionConsumer {
             ack.acknowledge(); // 수동 커밋
             System.out.println("=========== 체결 후처리 컨슘 종료 및 커밋 ===========");
         } catch (Exception e) {
-            log.error("Exception: {}", e.getMessage());
+            log.error("executionEvent 컨슘 예외 발생: Exception={}, Message={}",e.getMessage(), e.toString());
             throw e;
         }
 

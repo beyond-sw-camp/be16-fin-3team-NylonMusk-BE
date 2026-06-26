@@ -134,6 +134,30 @@ public class KafkaConsumeConfig {
         return factory;
     }
 
+    @Bean("kafkaExecutionDlqListenerFactory")
+    public ConcurrentKafkaListenerContainerFactory<String, ExecutionEvent> kafkaExecutionDlqListenerFactory(
+            ConsumerFactory<String, ExecutionEvent> executionConsumerFactory
+    ) {
+        ConcurrentKafkaListenerContainerFactory<String, ExecutionEvent> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(executionConsumerFactory);
+        factory.setCommonErrorHandler(noBackOffErrorHandler());
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+        return factory;
+    }
+
+    @Bean("kafkaOrderStatusDlqListenerFactory")
+    public ConcurrentKafkaListenerContainerFactory<String, OrderStatusEvent> kafkaOrderStatusDlqListenerFactory(
+            ConsumerFactory<String, OrderStatusEvent> orderStatusConsumerFactory
+    ) {
+        ConcurrentKafkaListenerContainerFactory<String, OrderStatusEvent> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(orderStatusConsumerFactory);
+        factory.setCommonErrorHandler(noBackOffErrorHandler());
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+        return factory;
+    }
+
     @Bean("kafkaTransactionListenerFactory")
     public ConcurrentKafkaListenerContainerFactory<String, TransactionEvent> kafkaTransactionListenerFactory(
             ConsumerFactory<String, TransactionEvent> transactionConsumerFactory
@@ -150,9 +174,9 @@ public class KafkaConsumeConfig {
     /// **-------------- 에러 핸들러 설정 --------------**
 
     private DefaultErrorHandler kafkaDlqErrorHandler(KafkaTemplate<Object, Object> dlqKafkaTemplate) {
-        // 초기 100ms, 배수 2.0, 최대 3회 재시도 후 DLQ 발행
+        // 초기 200ms, 배수 2.0, 최대 3회 재시도 후 DLQ 발행
         ExponentialBackOffWithMaxRetries backoff = new ExponentialBackOffWithMaxRetries(3);
-        backoff.setInitialInterval(2000);
+        backoff.setInitialInterval(200);
         backoff.setMultiplier(2.0);
         backoff.setMaxInterval(2_000);
 
